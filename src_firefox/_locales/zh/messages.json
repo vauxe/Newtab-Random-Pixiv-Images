@@ -1,0 +1,122 @@
+{
+  "keywordsLabel": {
+    "message": "完整关键词"
+  },
+  "andKeywordsLabel": {
+    "message": "含有全部关键词(AND搜索)"
+  },
+  "orKeywordsLabel": {
+    "message": "含有某个关键词(OR搜索)"
+  },
+  "minusKeywordsLabel": {
+    "message": "不含有关键词(排除搜索)"
+  },
+  "keywordsTip": {
+    "message": "多个关键词用空格隔开"
+  },
+  "orderLabel": {
+    "message": "排序方式"
+  },
+  "date_dOrder": {
+    "message": "按最新排序"
+  },
+  "dateOrder": {
+    "message": "按旧排序"
+  },
+  "popular_dOrder": {
+    "message": "按热门度排序(是pixiv高级会员才有效)"
+  },
+  "popular_male_dOrder": {
+    "message": "受男性欢迎(是pixiv高级会员才有效)"
+  },
+  "popular_female_dOrder": {
+    "message": "受女性欢迎(是pixiv高级会员才有效)"
+  },
+  "modeLabel": {
+    "message": "搜索模式"
+  },
+  "allMode": {
+    "message": "全部"
+  },
+  "r18Mode": {
+    "message": "R18"
+  },
+  "safeMode": {
+    "message": "全年龄"
+  },
+  "timeOptionLabel": {
+    "message": "时间"
+  },
+  "unlimitedTimeOption": {
+    "message": "不限时间"
+  },
+  "specificTimeOption": {
+    "message": "指定时间"
+  },
+  "scdLabel": {
+    "message": "开始时间"
+  },
+  "ecdLabel": {
+    "message": "结束时间"
+  },
+  "bookmarksLabel": {
+    "message": "收藏数(是pixiv高级会员才有效)"
+  },
+  "bltLabel": {
+    "message": "最低收藏数(是pixiv高级会员才有效)"
+  },
+  "bgtLabel": {
+    "message": "最高收藏数(是pixiv高级会员才有效)"
+  },
+  "s_modeLabel": {
+    "message": "标签搜索模式"
+  },
+  "s_tagOption": {
+    "message": "标签(部分一致)"
+  },
+  "s_tag_fullOption": {
+    "message": "标签(完全一致)"
+  },
+  "s_tcOption": {
+    "message": "标题、说明文字"
+  },
+  "typeLabel": {
+    "message": "图片类型搜索模式"
+  },
+  "allTypeLabel": {
+    "message": "插画、漫画、动图"
+  },
+  "illust_and_ugoiraTypeLabel": {
+    "message": "插画、动图"
+  },
+  "illustTypeLabel": {
+    "message": "插画"
+  },
+  "mangaTypeLabel": {
+    "message": "漫画"
+  },
+  "ugoiraTypeLabel": {
+    "message": "动图"
+  },
+  "leave_blank_for_unlimited": {
+    "message": "留空表示不限"
+  },
+  "slLabel": {
+    "message": "sl filter(perhaps pixiv safe level, 2 is safe, 6 is not safe)"
+  },
+  "min_sl": {
+    "message": "min sl"
+  },
+  "max_sl": {
+    "message": "max sl"
+  },
+  "aiTypeLabel": {
+    "message": "aiType (pixiv ai type, 1 not ai, 2 is ai, empty is unset)"
+  },
+  "save": {
+    "message": "Save"
+  },
+  "reset": {
+    "message": "Reset"
+  }
+}

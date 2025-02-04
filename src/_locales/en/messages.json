@@ -1,0 +1,122 @@
+{
+  "keywordsLabel": {
+    "message": "Full Keywords"
+  },
+  "andKeywordsLabel": {
+    "message": "Contains All Keywords (AND Search)"
+  },
+  "orKeywordsLabel": {
+    "message": "Contains Any Keyword (OR Search)"
+  },
+  "minusKeywordsLabel": {
+    "message": "Does Not Contain Keywords (Exclude Search)"
+  },
+  "keywordsTip": {
+    "message": "You can specify multiple keywords by separating them with a space"
+  },
+  "orderLabel": {
+    "message": "Sort Order"
+  },
+  "date_dOrder": {
+    "message": "Sort by Newest"
+  },
+  "dateOrder": {
+    "message": "Sort by Oldest"
+  },
+  "popular_dOrder": {
+    "message": "Sort by Popularity (Only for Pixiv Premium Members)"
+  },
+  "popular_male_dOrder": {
+    "message": "Popular Among Males (Only for Pixiv Premium Members)"
+  },
+  "popular_female_dOrder": {
+    "message": "Popular Among Females (Only for Pixiv Premium Members)"
+  },
+  "modeLabel": {
+    "message": "Search Mode"
+  },
+  "allMode": {
+    "message": "All"
+  },
+  "r18Mode": {
+    "message": "R18"
+  },
+  "safeMode": {
+    "message": "All ages"
+  },
+  "timeOptionLabel": {
+    "message": "Time"
+  },
+  "unlimitedTimeOption": {
+    "message": "All Time"
+  },
+  "specificTimeOption": {
+    "message": "Specific Time"
+  },
+  "scdLabel": {
+    "message": "Start Date"
+  },
+  "ecdLabel": {
+    "message": "End Date"
+  },
+  "bookmarksLabel": {
+    "message": "Bookmarks Count (Only for Pixiv Premium Members)"
+  },
+  "bltLabel": {
+    "message": "Minimum Bookmarks Count (Only for Pixiv Premium Members)"
+  },
+  "bgtLabel": {
+    "message": "Maximum Bookmarks Count (Only for Pixiv Premium Members)"
+  },
+  "s_modeLabel": {
+    "message": "Tag Search Mode"
+  },
+  "s_tagOption": {
+    "message": "Tag (Partial Match)"
+  },
+  "s_tag_fullOption": {
+    "message": "Tag (Exact Match)"
+  },
+  "s_tcOption": {
+    "message": "Title, Caption"
+  },
+  "typeLabel": {
+    "message": "Image Type Search Mode"
+  },
+  "allTypeLabel": {
+    "message": "Illustrations, Manga, Ugoira"
+  },
+  "illust_and_ugoiraTypeLabel": {
+    "message": "Illustrations, Ugoira"
+  },
+  "illustTypeLabel": {
+    "message": "Illustrations"
+  },
+  "mangaTypeLabel": {
+    "message": "Manga"
+  },
+  "ugoiraTypeLabel": {
+    "message": "Ugoira"
+  },
+  "leave_blank_for_unlimited": {
+    "message": "Leave blank for unlimited"
+  },
+  "slLabel": {
+    "message": "sl filter(perhaps pixiv safe level, 2 is safe, 6 is not safe)"
+  },
+  "min_sl": {
+    "message": "min sl"
+  },
+  "max_sl": {
+    "message": "max sl"
+  },
+  "aiTypeLabel": {
+    "message": "aiType (pixiv ai type, 1 not ai, 2 is ai, empty is unset)"
+  },
+  "save": {
+    "message": "Save"
+  },
+  "reset": {
+    "message": "Reset"
+  }
+}

@@ -1,0 +1,122 @@
+{
+  "keywordsLabel": {
+    "message": "キーワード"
+  },
+  "andKeywordsLabel": {
+    "message": "キーワードをすべて含む"
+  },
+  "orKeywordsLabel": {
+    "message": "キーワードのいずれかを含む"
+  },
+  "minusKeywordsLabel": {
+    "message": "キーワードを含まない"
+  },
+  "keywordsTip": {
+    "message": "スペース区切りで複数のキーワードを指定できます"
+  },
+  "orderLabel": {
+    "message": "並べ替え"
+  },
+  "date_dOrder": {
+    "message": "新しい順"
+  },
+  "dateOrder": {
+    "message": "古い順"
+  },
+  "popular_dOrder": {
+    "message": "全体の人気順 (Pixivプレミアム会員限定)"
+  },
+  "popular_male_dOrder": {
+    "message": "男性の人気順 (Pixivプレミアム会員限定)"
+  },
+  "popular_female_dOrder": {
+    "message": "女性の人気順 (Pixivプレミアム会員限定)"
+  },
+  "modeLabel": {
+    "message": "検索モード"
+  },
+  "allMode": {
+    "message": "すべて"
+  },
+  "r18Mode": {
+    "message": "R-18"
+  },
+  "safeMode": {
+    "message": "全年齢"
+  },
+  "timeOptionLabel": {
+    "message": "期間"
+  },
+  "unlimitedTimeOption": {
+    "message": "すべての期間"
+  },
+  "specificTimeOption": {
+    "message": "日付を指定"
+  },
+  "scdLabel": {
+    "message": "開始日"
+  },
+  "ecdLabel": {
+    "message": "終了日"
+  },
+  "bookmarksLabel": {
+    "message": "ブックマーク数 (Pixivプレミアム会員限定)"
+  },
+  "bltLabel": {
+    "message": "最小ブックマーク数 (Pixivプレミアム会員限定)"
+  },
+  "bgtLabel": {
+    "message": "最大ブックマーク数 (Pixivプレミアム会員限定)"
+  },
+  "s_modeLabel": {
+    "message": "タグ検索モード"
+  },
+  "s_tagOption": {
+    "message": "タグ（部分一致）"
+  },
+  "s_tag_fullOption": {
+    "message": "タグ（完全一致）"
+  },
+  "s_tcOption": {
+    "message": "タイトル・キャプション"
+  },
+  "typeLabel": {
+    "message": "画像タイプ検索モード"
+  },
+  "allTypeLabel": {
+    "message": "イラスト・マンガ・うごくイラスト"
+  },
+  "illust_and_ugoiraTypeLabel": {
+    "message": "イラスト・うごくイラスト"
+  },
+  "illustTypeLabel": {
+    "message": "イラスト"
+  },
+  "mangaTypeLabel": {
+    "message": "マンガ"
+  },
+  "ugoiraTypeLabel": {
+    "message": "うごくイラスト"
+  },
+  "leave_blank_for_unlimited": {
+    "message": "Leave blank for unlimited"
+  },
+  "slLabel": {
+    "message": "sl filter(perhaps pixiv safe level, 2 is safe, 6 is not safe)"
+  },
+  "min_sl": {
+    "message": "min sl"
+  },
+  "max_sl": {
+    "message": "max sl"
+  },
+  "aiTypeLabel": {
+    "message": "aiType (pixiv ai type, 1 not ai, 2 is ai, empty is unset)"
+  },
+  "save": {
+    "message": "Save"
+  },
+  "reset": {
+    "message": "Reset"
+  }
+}

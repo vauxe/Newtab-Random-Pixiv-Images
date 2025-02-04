@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+  <meta charset="utf-8">
+  <title>Newtab Random Pixiv Images Options</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #f2f2f2;
+      color: #333;
+      padding: 20px;
+    }
+
+    .container {
+      max-width: 800px;
+      margin: 0 auto;
+      background-color: #fff;
+      border-radius: 8px;
+      padding: 30px;
+      box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+    }
+
+    h1 {
+      margin-bottom: 20px;
+      font-size: 24px;
+      text-align: center;
+      color: #444;
+    }
+
+    .group {
+      margin-bottom: 20px;
+    }
+
+    label {
+      display: block;
+      margin-bottom: 8px;
+      font-size: 14px;
+      font-weight: bold;
+      color: #555;
+    }
+
+    input[type="text"],
+    input[type="number"],
+    input[type="date"],
+    select {
+      width: 100%;
+      padding: 10px;
+      border: 1px solid #ccc;
+      border-radius: 4px;
+      font-size: 14px;
+      outline: none;
+      transition: border-color 0.2s;
+      background-color: #fafafa;
+    }
+
+    input[type="text"]:focus,
+    input[type="number"]:focus,
+    input[type="date"]:focus,
+    select:focus {
+      border-color: #007acc;
+      background-color: #fff;
+    }
+
+    input[readonly] {
+      background-color: #e9e9e9;
+    }
+
+    .tip {
+      font-size: 12px;
+      color: #888;
+      margin-top: 5px;
+    }
+
+    #status {
+      margin-top: 15px;
+      font-size: 14px;
+      color: green;
+    }
+
+    button {
+      display: block;
+      width: 100%;
+      padding: 12px;
+      font-size: 16px;
+      background-color: #007acc;
+      color: #fff;
+      border: none;
+      border-radius: 4px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+      margin-top: 20px;
+    }
+
+    button:hover {
+      background-color: #005fa3;
+    }
+
+    #dateInputs {
+      padding-left: 10px;
+      border-left: 3px solid #007acc;
+      margin-top: 10px;
+    }
+
+    .sub_group {
+      padding-left: 10px;
+      margin-top: 10px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="container">
+    <div style="position: absolute; top: 20px; right: 20px; display: flex; align-items: center; gap: 5px;">
+      <span>🌐</span>
+      <select id="languageSelect">
+        <option value="en">English</option>
+        <option value="zh">中文</option>
+        <option value="ja">日本語</option>
+      </select>
+    </div>
+
+
+
+    <div class="group">
+      <label id="keywordsLabel" for="keywords"></label>
+      <input type="text" id="keywords" name="keywords" readonly />
+
+      <div class="sub_group">
+        <label id="andKeywordsLabel" for="andKeywords"></label>
+        <input type="text" id="andKeywords" name="andKeywords" />
+        <div>
+          <div class="group">
+            <label id="orKeywordsLabel" for="orKeywords"></label>
+            <input type="text" id="orKeywords" name="orKeywords" />
+          </div>
+          <div class="group">
+            <label id="minusKeywordsLabel" for="minusKeywords"></label>
+            <input type="text" id="minusKeywords" name="minusKeywords" />
+          </div>
+          <div id="keywordsTip" class="tip"></div>
+        </div>
+      </div>
+
+    </div>
+
+    <div class="group">
+      <label id="orderLabel" for="order"></label>
+      <select id="order" name="order">
+        <option id="date_dOrder" value="date_d"></option>
+        <option id="dateOrder" value="date"></option>
+        <option id="popular_dOrder" value="popular_d"></option>
+        <option id="popular_male_dOrder" value="popular_male_d"></option>
+        <option id="popular_female_dOrder" value="popular_female_d"></option>
+      </select>
+    </div>
+
+    <div class="group">
+      <label id="modeLabel" for="mode"></label>
+      <select id="mode" name="mode">
+        <option id="allMode" value="all"></option>
+        <option id="r18Mode" value="r18"></option>
+        <option id="safeMode" value="safe"></option>
+      </select>
+    </div>
+
+    <div class="group">
+      <label id="timeOptionLabel" for="timeOption"></label>
+      <select id="timeOption" name="timeOption">
+        <option id="unlimitedTimeOption" value="unlimited"></option>
+        <option id="specificTimeOption" value="specific"></option>
+      </select>
+    </div>
+
+    <div id="dateInputs" style="display: none;">
+      <div class="group">
+        <label id="scdLabel" for="scd"></label>
+        <input type="date" id="scd" name="scd" />
+      </div>
+      <div class="group">
+        <label id="ecdLabel" for="ecd"></label>
+        <input type="date" id="ecd" name="ecd" />
+      </div>
+    </div>
+
+    <div class="group">
+      <label id="bookmarksLabel"></label>
+      <div class="sub_group">
+        <label id="bltLabel" for="blt"></label>
+        <input type="number" id="blt" name="blt" data-i18n-placeholder="leave_blank_for_unlimited" />
+        <label id="bgtLabel" for="bgt"></label>
+        <input type="number" id="bgt" name="bgt" data-i18n-placeholder="leave_blank_for_unlimited" />
+      </div>
+    </div>
+
+    <div class="group">
+      <label id="s_modeLabel" for="s_mode"></label>
+      <select id="s_mode" name="s_mode">
+        <option id="s_tagOption" value="s_tag"></option>
+        <option id="s_tag_fullOption" value="s_tag_full"></option>
+        <option id="s_tcOption" value="s_tc"></option>
+      </select>
+    </div>
+
+    <div class="group">
+      <label id="typeLabel" for="type"></label>
+      <select id="type" name="type">
+        <option id="allTypeLabel" value="all"></option>
+        <option id="illust_and_ugoiraTypeLabel" value="illust_and_ugoira"></option>
+        <option id="illustTypeLabel" value="illust"></option>
+        <option id="mangaTypeLabel" value="manga"></option>
+        <option id="ugoiraTypeLabel" value="ugoira"></option>
+      </select>
+    </div>
+
+    <div class="group">
+      <label id="slLabel"></label>
+      <div class="sub_group">
+        <label for="min_sl">min sl</label>
+        <input type="number" id="min_sl" name="min_sl" min="2" max="6"
+          data-i18n-placeholder="leave_blank_for_unlimited" />
+        <label for="max_sl">max sl</label>
+        <input type="number" id="max_sl" name="max_sl" min="2" max="6"
+          data-i18n-placeholder="leave_blank_for_unlimited" />
+      </div>
+    </div>
+
+    <div class="group">
+      <label id="aiTypeLabel" for="aiType"></label>
+      <select id="aiType" name="aiType">
+        <option value='1'>1</option>
+        <option value='2'>2</option>
+        <option value=''></option>
+      </select>
+    </div>
+
+
+    <div id="status"></div>
+    <button id="save">Save</button>
+    <button id="reset">Reset</button>
+  </div>
+  <script type="module" src="options.js"></script>
+</body>
+
+</html>

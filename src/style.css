@@ -1,0 +1,165 @@
+#illustInfo a:active,
+#illustInfo a:hover,
+#illustInfo a:link,
+#illustInfo a:visited {
+  text-decoration: none;
+  color: #fff;
+}
+
+body {
+  margin: 0;
+  padding: 0;
+  border: 0;
+}
+
+.notReady {
+  visibility: hidden;
+}
+
+.maskLayer {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+}
+
+#container {
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+}
+
+#wallpaper {
+  left: 0;
+  right: 0;
+  top: 0;
+  bottom: 0;
+  z-index: -1;
+}
+
+#backgroundImage {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  background-size: cover;
+  background-repeat: no-repeat;
+  background-position: center center;
+  z-index: inherit;
+  transition: background 0.3s;
+}
+
+#foregroundImage {
+  position: fixed;
+  width: 100%;
+  height: 100%;
+  background-size: contain;
+  background-repeat: no-repeat;
+  background-position: center center;
+  backdrop-filter: blur(5px);
+  z-index: inherit;
+  transition: background 0.3s;
+}
+
+#refreshButton {
+  display: inline-block;
+  border-radius: 100%;
+  width: 18px;
+  height: 18px;
+  margin-top: 16px;
+  margin-left: 5px;
+  vertical-align: top;
+  cursor: pointer;
+  transition: background-color 0.5s;
+}
+
+#refreshButton:hover {
+  background-color: rgba(23, 24, 25, 1);
+}
+
+#refreshButton.pressed {
+  animation-name: beginRotation;
+  animation-fill-mode: forwards;
+  animation-duration: 0.2s;
+}
+
+#refreshButton.unpressed {
+  animation-name: endRotation;
+  animation-fill-mode: forwards;
+  animation-duration: 0.3s;
+}
+
+@keyframes beginRotation {
+  from {
+    transform: rotate(0deg);
+  }
+
+  to {
+    transform: rotate(45deg);
+  }
+}
+
+@keyframes endRotation {
+  from {
+    transform: rotate(45deg);
+  }
+
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+#illustInfo {
+  display: block;
+  position: fixed;
+  width: 220px;
+  height: 50px;
+  bottom: 38px;
+  right: 8px;
+  font-family: HiraginoSans-W3, Hiragino Kaku Gothic Pro, Meiryo, Verdana,
+    sans-serif;
+  border-radius: 4px;
+  background-color: rgba(23, 24, 25, 0.3);
+  color: #fff;
+  transition: opacity 1s;
+}
+
+#illustInfo.unfocused {
+  opacity: 0;
+}
+
+#inllustInfo.focused {
+  opacity: 1;
+}
+
+#avatarImage {
+  display: inline-block;
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  margin-top: 5px;
+  margin-left: 5px;
+}
+
+#description {
+  display: inline-block;
+  margin-top: 5px;
+  margin-left: 5px;
+  vertical-align: top;
+  width: 135px;
+}
+
+#illustTitle {
+  display: block;
+  font-size: 14px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+#illustName {
+  display: block;
+  font-size: 12px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
