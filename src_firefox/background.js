@@ -84,7 +84,7 @@ class SearchSource {
   constructor(config) {
     this.searchParam = config;
     this.params = ["order", "mode", "p", "s_mode", "type", "scd", "ecd", "blt", "bgt"];
-    this.totalPage = 1;
+    this.totalPage = 0;
     this.itemsPerPage = 60;
     this.illustInfoPages = {};
   }
@@ -130,7 +130,12 @@ class SearchSource {
   }
 
   async getRandomIllust() {
-    let randomPage = getRandomInt(0, Math.min(this.totalPage, 1000)) + 1;
+    if (this.totalPage === 0) {
+      let firstPage = await this.searchIllustPage(1);
+      let total = firstPage.body.illust.total;
+      this.totalPage = Math.ceil(total / this.itemsPerPage);
+    }
+    let randomPage = getRandomInt(0, this.totalPage) + 1;
     if (!this.illustInfoPages[randomPage]) {
       let pageObj = await this.searchIllustPage(randomPage);
       if (!pageObj) {
