@@ -1,4 +1,9 @@
 (function () {
+  // ── State ──
+  let currentTags = [];
+  let currentIllustId = null;
+  let currentIllustUrl = null;
+
   class Binding {
     constructor() {
       const bgElement = document.body.querySelector("#backgroundImage");
@@ -8,6 +13,9 @@
       const illustTitleElement = document.body.querySelector("#illustTitle");
       const illustNameElement = document.body.querySelector("#illustName");
       const refreshElement = document.body.querySelector("#refreshButton");
+      const settingsElement = document.body.querySelector("#settingsButton");
+      const likeElement = document.body.querySelector("#likeButton");
+      const dislikeElement = document.body.querySelector("#dislikeButton");
       const containerElement = document.body.querySelector("#container");
       const wallpaperElement = document.body.querySelector("#wallpaper");
       const illustInfoElement = document.body.querySelector("#illustInfo");
@@ -68,6 +76,20 @@
         refreshElement.className = "unpressed";
       });
       refreshElement.addEventListener("click", sendRefreshMessage);
+      settingsElement.addEventListener("click", () => {
+        if (chrome && chrome.tabs && chrome.tabs.create) {
+          chrome.tabs.create({ url: chrome.runtime.getURL("tags.html") });
+        } else {
+          window.open(chrome.runtime.getURL("tags.html"), "_blank");
+        }
+      });
+
+      // Like button
+      likeElement.addEventListener("click", handleLike);
+
+      // Dislike button
+      dislikeElement.addEventListener("click", handleDislike);
+
       this.illustInfoFadeOutTimeoutId = null;
       illustInfoElement.addEventListener("mouseleave", () => {
         this.illustInfoFadeOutTimeoutId = setTimeout(() => {
@@ -87,10 +109,40 @@
   var binding = null;
   function initApplication() {
     binding = new Binding();
+    // Tag popup close
+    document.getElementById("tagPopupClose").addEventListener("click", closeTagPopup);
+    // Close popup on clicking outside
+    document.addEventListener("click", (e) => {
+      const popup = document.getElementById("tagPopup");
+      const dislikeBtn = document.getElementById("dislikeButton");
+      if (!popup.classList.contains("hidden") &&
+        !popup.contains(e.target) &&
+        !dislikeBtn.contains(e.target)) {
+        closeTagPopup();
+      }
+    });
   }
 
   async function changeElement(illustObject) {
     if (!illustObject) { return; }
+    if (illustObject.error) {
+      showToast(illustObject.message || "Failed to load image", "error");
+      return;
+    }
+
+    // Store tags and illustId for like/dislike
+    currentTags = illustObject.tags || [];
+    currentIllustId = illustObject.illustId || null;
+    currentIllustUrl = illustObject.illustIdUrl || null;
+    console.log("Illust tags:", currentTags.map(t => t.tag));
+
+    // Reset like state
+    const likeBtn = document.getElementById("likeButton");
+    likeBtn.classList.remove("liked");
+
+    // Close tag popup if open
+    closeTagPopup();
+
     for (let k in binding.ref) {
       if (illustObject.hasOwnProperty(k)) {
         let value = illustObject[k];
@@ -109,6 +161,84 @@
     }, 10000);
   }
 
+  // ── Like (bookmark) ──
+  function handleLike() {
+    if (!currentIllustUrl) return;
+    window.open(currentIllustUrl, "_blank");
+  }
+
+  // ── Dislike (show tag popup) ──
+  function handleDislike() {
+    if (!currentTags || currentTags.length === 0) {
+      showToast("No tags available", "error");
+      return;
+    }
+    openTagPopup(currentTags);
+  }
+
+  function openTagPopup(tags) {
+    const popup = document.getElementById("tagPopup");
+    const tagList = document.getElementById("tagList");
+    tagList.innerHTML = "";
+
+    tags.forEach((t) => {
+      const chip = document.createElement("div");
+      chip.className = "tag-chip";
+      let html = `<span class="tag-name">${escapeHtml(t.tag)}</span>`;
+      if (t.translation) {
+        html += ` <span class="tag-translation">(${escapeHtml(t.translation)})</span>`;
+      }
+      chip.innerHTML = html;
+      chip.addEventListener("click", () => {
+        excludeTag(t.tag);
+      });
+      tagList.appendChild(chip);
+    });
+
+    popup.classList.remove("hidden");
+  }
+
+  function closeTagPopup() {
+    document.getElementById("tagPopup").classList.add("hidden");
+  }
+
+  function excludeTag(tag) {
+    closeTagPopup();
+    chrome.runtime.sendMessage(
+      { action: "excludeTag", tag: tag, scope: "global" },
+      (res) => {
+        if (chrome.runtime.lastError) {
+          showToast("Failed to exclude tag", "error");
+          return;
+        }
+        if (res && res.success) {
+          showToast(`Excluded: −${tag}`, "success");
+          // Auto refresh to next image
+          sendRefreshMessage();
+        } else {
+          showToast(res?.error || "Failed to exclude tag", "error");
+        }
+      }
+    );
+  }
+
+  // ── Toast ──
+  let toastTimer = null;
+  function showToast(message, type = "success") {
+    const toast = document.getElementById("toast");
+    toast.textContent = message;
+    toast.className = `toast toast-${type} show`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toast.className = "toast"; }, 2500);
+  }
+
+  // ── Util ──
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
   const sendRefreshMessage = (() => {
     let isRequestInProgress = false;
     return () => {
@@ -116,15 +246,21 @@
         return;
       }
       isRequestInProgress = true;
+      console.log("Refresh: sending fetchImage");
       chrome.runtime.sendMessage({ action: "fetchImage" }, (res) => {
         if (chrome.runtime.lastError) {
           console.warn("Context invalidated, message could not be processed:", chrome.runtime.lastError.message);
           isRequestInProgress = false;
           return;
         }
-        changeElement(res).finally(() => {
+        try {
+          changeElement(res).finally(() => {
+            isRequestInProgress = false;
+          });
+        } catch (e) {
+          console.error("changeElement error:", e);
           isRequestInProgress = false;
-        });
+        }
       });
     };
   })();

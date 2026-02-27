@@ -102,21 +102,141 @@
     "message": "留空表示不限"
   },
   "slLabel": {
-    "message": "sl filter(perhaps pixiv safe level, 2 is safe, 6 is not safe)"
+    "message": "sl 过滤(pixiv 安全等级, 2 为安全, 6 为不安全)"
   },
   "min_sl": {
-    "message": "min sl"
+    "message": "最小 sl"
   },
   "max_sl": {
-    "message": "max sl"
+    "message": "最大 sl"
   },
   "aiTypeLabel": {
-    "message": "aiType (pixiv ai type, 1 not ai, 2 is ai, empty is unset)"
+    "message": "AI 类型 (1 非AI, 2 AI生成, 留空不限)"
   },
   "save": {
-    "message": "Save"
+    "message": "保存"
   },
   "reset": {
-    "message": "Reset"
+    "message": "重置"
+  },
+  "tagManagerLink": {
+    "message": "🏷️ 标签管理"
+  },
+  "pageTitle": {
+    "message": "标签管理"
+  },
+  "pageSubtitle": {
+    "message": "可视化管理 Pixiv 搜索关键词"
+  },
+  "backToOptions": {
+    "message": "返回设置"
+  },
+  "andSectionTitle": {
+    "message": "AND 关键词"
+  },
+  "orSectionTitle": {
+    "message": "OR 分组"
+  },
+  "minusSectionTitle": {
+    "message": "排除关键词"
+  },
+  "addTagPlaceholder": {
+    "message": "输入标签..."
+  },
+  "toolbarTitle": {
+    "message": "📦 导入 / 导出"
+  },
+  "importTextLabel": {
+    "message": "从文本导入"
+  },
+  "importFileLabel": {
+    "message": "导入 JSON"
+  },
+  "exportLabel": {
+    "message": "导出 JSON"
+  },
+  "saveBtn": {
+    "message": "保存"
+  },
+  "modalTitle": {
+    "message": "从文本导入标签"
+  },
+  "modalDesc": {
+    "message": "粘贴关键词（以空格、逗号或换行分隔）"
+  },
+  "importCategoryAnd": {
+    "message": "AND 关键词"
+  },
+  "importCategoryOr": {
+    "message": "OR 关键词"
+  },
+  "importCategoryMinus": {
+    "message": "排除关键词"
+  },
+  "importPlaceholder": {
+    "message": "标签1, 标签2, 标签3..."
+  },
+  "modalCancelBtn": {
+    "message": "取消"
+  },
+  "modalConfirmBtn": {
+    "message": "导入"
+  },
+  "emptyTags": {
+    "message": "暂无标签"
+  },
+  "tagsSaved": {
+    "message": "标签已保存！"
+  },
+  "importedCount": {
+    "message": "已导入 {count} 个标签"
+  },
+  "exportSuccess": {
+    "message": "导出成功！"
+  },
+  "importError": {
+    "message": "JSON 文件格式错误"
+  },
+  "addOrGroupLabel": {
+    "message": "添加 OR 分组"
+  },
+  "emptyOrGroups": {
+    "message": "暂无 OR 分组，点击 \"+ 添加 OR 分组\" 创建"
+  },
+  "importCategoryOrNew": {
+    "message": "+ 新建 OR 分组"
+  },
+  "previewTitle": {
+    "message": "🔍 查询预览"
+  },
+  "orKeywordsManageHint": {
+    "message": "OR 关键词在标签管理中设置（支持多组 OR）"
+  },
+  "importedGroup": {
+    "message": "导入"
+  },
+  "addKeywordLabel": {
+    "message": "关键词"
+  },
+  "addGroupLabel": {
+    "message": "组合"
+  },
+  "groupLabel": {
+    "message": "分组 (括号)"
+  },
+  "emptyFlowState": {
+    "message": "点击下方按钮添加关键词或分组"
+  },
+  "presetLabel": {
+    "message": "📋 方案:"
+  },
+  "presetNewPrompt": {
+    "message": "输入方案名称:"
+  },
+  "presetRenamePrompt": {
+    "message": "输入新的方案名称:"
+  },
+  "presetDeleteLast": {
+    "message": "无法删除最后一个方案"
   }
 }

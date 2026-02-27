@@ -1,0 +1,902 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <meta charset="utf-8">
+    <title>Tag Manager</title>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        html,
+        body {
+            height: 100%;
+            overflow: hidden;
+        }
+
+        body {
+            font-family: 'Segoe UI', Arial, sans-serif;
+            background-color: #0f0f1a;
+            color: #e0e0e0;
+            padding: 10px 12px;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .container {
+            width: 100%;
+            margin: 0 auto;
+            background: linear-gradient(135deg, #1a1a2e 0%, #16213e 100%);
+            border-radius: 12px;
+            padding: 20px 24px;
+            box-shadow: 0 8px 32px rgba(0, 0, 0, 0.4), inset 0 1px 0 rgba(255, 255, 255, 0.05);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            height: 100%;
+        }
+
+        .scroll-area {
+            flex: 1;
+            overflow-y: auto;
+            overflow-x: hidden;
+            padding-right: 4px;
+            min-height: 0;
+        }
+
+        .scroll-area::-webkit-scrollbar {
+            width: 6px;
+        }
+
+        .scroll-area::-webkit-scrollbar-track {
+            background: transparent;
+        }
+
+        .scroll-area::-webkit-scrollbar-thumb {
+            background: rgba(255, 255, 255, 0.1);
+            border-radius: 3px;
+        }
+
+        .scroll-area::-webkit-scrollbar-thumb:hover {
+            background: rgba(255, 255, 255, 0.2);
+        }
+
+        h1 {
+            text-align: center;
+            font-size: 22px;
+            margin-bottom: 4px;
+            background: linear-gradient(90deg, #6c63ff, #e040fb);
+            -webkit-background-clip: text;
+            background-clip: text;
+            -webkit-text-fill-color: transparent;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+        }
+
+        .subtitle {
+            text-align: center;
+            color: #888;
+            font-size: 12px;
+            margin-bottom: 14px;
+        }
+
+        /* ── Preset Selector ── */
+        .preset-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin-bottom: 14px;
+            padding: 8px 12px;
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 10px;
+        }
+
+        .preset-bar label {
+            font-size: 12px;
+            color: #888;
+            white-space: nowrap;
+            font-weight: 600;
+        }
+
+        .preset-bar select {
+            flex: 1;
+            background: #252540;
+            color: #e0e0e0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 5px 10px;
+            font-size: 13px;
+            outline: none;
+            cursor: pointer;
+            min-width: 0;
+        }
+
+        .preset-rename-input {
+            flex: 1;
+            background: #252540;
+            color: #e0e0e0;
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 6px;
+            padding: 5px 10px;
+            font-size: 13px;
+            outline: none;
+            display: none;
+        }
+
+        .preset-rename-input.active {
+            display: block;
+        }
+
+        .preset-bar .btn-preset {
+            padding: 5px 10px;
+            border-radius: 6px;
+            font-size: 12px;
+            font-weight: 500;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: #252540;
+            color: #ccc;
+            cursor: pointer;
+            transition: all 0.2s;
+            white-space: nowrap;
+        }
+
+        .preset-bar .btn-preset:hover {
+            background: #2f2f50;
+            border-color: rgba(108, 99, 255, 0.4);
+            color: #fff;
+        }
+
+        .preset-bar .btn-preset-danger {
+            color: #ef5350;
+            border-color: rgba(244, 67, 54, 0.2);
+        }
+
+        .preset-bar .btn-preset-danger:hover {
+            background: rgba(244, 67, 54, 0.15);
+            border-color: rgba(244, 67, 54, 0.4);
+            color: #ff6b6b;
+        }
+
+        .top-bar {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+        }
+
+        .top-bar .back-link {
+            color: #6c63ff;
+            text-decoration: none;
+            font-size: 14px;
+            display: flex;
+            align-items: center;
+            gap: 4px;
+            transition: color 0.2s;
+        }
+
+        .top-bar .back-link:hover {
+            color: #e040fb;
+        }
+
+        .lang-select {
+            display: flex;
+            align-items: center;
+            gap: 5px;
+        }
+
+        .lang-select select {
+            background: #252540;
+            color: #e0e0e0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 4px 8px;
+            font-size: 13px;
+            outline: none;
+            cursor: pointer;
+        }
+
+        .flow-builder {
+            background: rgba(255, 255, 255, 0.02);
+            border: 2px dashed rgba(108, 99, 255, 0.2);
+            border-radius: 12px;
+            padding: 16px;
+            margin-bottom: 12px;
+            min-height: 60px;
+        }
+
+        .blocklist-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-bottom: 12px;
+        }
+
+        .blocklist-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 8px;
+            margin-bottom: 8px;
+        }
+
+        .blocklist-card h3 {
+            font-size: 13px;
+            color: #cfcfe8;
+            margin-bottom: 0;
+        }
+
+        .blocklist-row {
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            margin-bottom: 10px;
+        }
+
+        .blocklist-row label {
+            font-size: 12px;
+            color: #888;
+        }
+
+        .blocklist-row input {
+            background: #252540;
+            color: #e0e0e0;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 6px;
+            padding: 6px 10px;
+            font-size: 13px;
+            outline: none;
+        }
+
+        .blocklist-tip {
+            font-size: 11px;
+            color: #666;
+        }
+
+        .blocklist-toggle {
+            padding: 4px 10px;
+            border-radius: 999px;
+            font-size: 11px;
+            background: rgba(255, 255, 255, 0.06);
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            color: #bbb;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .blocklist-toggle:hover {
+            background: rgba(255, 255, 255, 0.12);
+            color: #fff;
+        }
+
+        .blocklist-card.collapsed .blocklist-body {
+            display: none;
+        }
+
+        .flow-container {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+        }
+
+        /* Tag capsule */
+        .capsule {
+            display: inline-flex;
+            align-items: center;
+            gap: 2px;
+            border-radius: 24px;
+            font-size: 14px;
+            font-weight: 500;
+            animation: capsuleIn 0.2s ease;
+            transition: transform 0.15s, box-shadow 0.15s;
+            user-select: none;
+        }
+
+        .capsule:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
+        }
+
+        .capsule-normal {
+            background: rgba(76, 175, 80, 0.12);
+            border: 1px solid rgba(76, 175, 80, 0.35);
+            color: #a5d6a7;
+        }
+
+        .capsule-negated {
+            background: rgba(244, 67, 54, 0.12);
+            border: 1px solid rgba(244, 67, 54, 0.35);
+            color: #ef9a9a;
+        }
+
+        .capsule .toggle-neg {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 24px;
+            height: 24px;
+            border: none;
+            background: rgba(255, 255, 255, 0.08);
+            border-radius: 50%;
+            font-size: 14px;
+            font-weight: 700;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-left: 4px;
+            color: inherit;
+            line-height: 1;
+        }
+
+        .capsule .toggle-neg:hover {
+            background: rgba(255, 255, 255, 0.18);
+        }
+
+        .capsule .capsule-text {
+            padding: 5px 4px;
+            font-size: 13px;
+        }
+
+        .capsule .remove-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            width: 20px;
+            height: 20px;
+            border: none;
+            background: rgba(255, 255, 255, 0.08);
+            color: inherit;
+            border-radius: 50%;
+            font-size: 11px;
+            cursor: pointer;
+            transition: background 0.2s;
+            margin-right: 4px;
+            line-height: 1;
+        }
+
+        .capsule .remove-btn:hover {
+            background: rgba(255, 70, 70, 0.5);
+            color: #fff;
+        }
+
+        /* Connector badge */
+        .connector {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            padding: 2px 8px;
+            border-radius: 6px;
+            font-size: 11px;
+            font-weight: 700;
+            cursor: pointer;
+            user-select: none;
+            transition: all 0.2s;
+            letter-spacing: 0.5px;
+            text-transform: uppercase;
+        }
+
+        .connector:hover {
+            transform: scale(1.1);
+        }
+
+        .connector-and {
+            background: rgba(76, 175, 80, 0.15);
+            color: #66bb6a;
+            border: 1px solid rgba(76, 175, 80, 0.3);
+        }
+
+        .connector-or {
+            background: rgba(244, 143, 36, 0.15);
+            color: #ffa726;
+            border: 1px solid rgba(244, 143, 36, 0.3);
+        }
+
+        /* Group card */
+        .group-card {
+            display: inline-flex;
+            flex-direction: column;
+            background: rgba(108, 99, 255, 0.05);
+            border: 1px solid rgba(108, 99, 255, 0.2);
+            border-radius: 14px;
+            padding: 12px 14px;
+            min-width: 100px;
+            transition: border-color 0.3s;
+            position: relative;
+        }
+
+        .group-card:hover {
+            border-color: rgba(108, 99, 255, 0.4);
+        }
+
+        .group-header {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+            margin-bottom: 8px;
+            font-size: 12px;
+            color: #888;
+        }
+
+        .group-header .group-icon {
+            font-size: 14px;
+        }
+
+        .group-header .group-label {
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+        }
+
+        .group-header .btn-remove-group {
+            margin-left: auto;
+            background: rgba(244, 67, 54, 0.1);
+            border: 1px solid rgba(244, 67, 54, 0.2);
+            color: #ef5350;
+            border-radius: 5px;
+            width: 22px;
+            height: 22px;
+            font-size: 11px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: all 0.2s;
+        }
+
+        .group-header .btn-remove-group:hover {
+            background: rgba(244, 67, 54, 0.25);
+            border-color: rgba(244, 67, 54, 0.5);
+        }
+
+        .group-flow {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .group-card .group-add-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 4px 10px;
+            background: transparent;
+            border: 1px dashed rgba(108, 99, 255, 0.3);
+            border-radius: 16px;
+            color: #7c6fff;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .group-card .group-add-btn:hover {
+            background: rgba(108, 99, 255, 0.1);
+            border-color: rgba(108, 99, 255, 0.5);
+        }
+
+        .actions-bar {
+            display: flex;
+            gap: 8px;
+            margin-bottom: 12px;
+        }
+
+        .btn-action {
+            display: inline-flex;
+            align-items: center;
+            gap: 5px;
+            padding: 7px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.2s;
+            border: none;
+        }
+
+        .btn-add-keyword {
+            background: linear-gradient(135deg, #6c63ff, #7c4dff);
+            color: #fff;
+        }
+
+        .btn-add-keyword:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 14px rgba(108, 99, 255, 0.4);
+        }
+
+        .btn-add-group {
+            background: rgba(108, 99, 255, 0.08);
+            border: 1px solid rgba(108, 99, 255, 0.25);
+            color: #a599ff;
+        }
+
+        .btn-add-group:hover {
+            background: rgba(108, 99, 255, 0.15);
+            border-color: rgba(108, 99, 255, 0.5);
+            color: #c4baff;
+        }
+
+        /* Inline input for adding tags */
+        .inline-input {
+            display: inline-flex;
+            align-items: center;
+            animation: capsuleIn 0.2s ease;
+        }
+
+        .inline-input input {
+            width: 140px;
+            padding: 5px 12px;
+            background: #1e1e35;
+            border: 1px solid rgba(108, 99, 255, 0.4);
+            border-radius: 20px;
+            color: #e0e0e0;
+            font-size: 13px;
+            outline: none;
+            transition: border-color 0.2s, box-shadow 0.2s;
+        }
+
+        .inline-input input:focus {
+            border-color: #6c63ff;
+            box-shadow: 0 0 0 3px rgba(108, 99, 255, 0.15);
+        }
+
+        .inline-input input::placeholder {
+            color: #555;
+        }
+
+
+        .toolbar {
+            display: flex;
+            gap: 8px;
+            flex-wrap: wrap;
+            margin-bottom: 12px;
+            padding: 12px;
+            background: rgba(255, 255, 255, 0.02);
+            border-radius: 10px;
+            border: 1px dashed rgba(255, 255, 255, 0.08);
+        }
+
+        .toolbar h3 {
+            width: 100%;
+            font-size: 14px;
+            font-weight: 600;
+            color: #aaa;
+            margin-bottom: 4px;
+        }
+
+        .btn-tool {
+            padding: 8px 16px;
+            border-radius: 8px;
+            font-size: 13px;
+            font-weight: 500;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: #252540;
+            color: #ccc;
+            cursor: pointer;
+            transition: all 0.2s;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .btn-tool:hover {
+            background: #2f2f50;
+            border-color: rgba(108, 99, 255, 0.4);
+            color: #fff;
+        }
+
+        #fileInput {
+            display: none;
+        }
+
+        /* Bottom actions */
+        .bottom-actions {
+            display: flex;
+            gap: 12px;
+        }
+
+        .btn-save {
+            flex: 1;
+            padding: 13px;
+            font-size: 15px;
+            font-weight: 600;
+            background: linear-gradient(135deg, #6c63ff, #7c4dff);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+
+        .btn-save:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 6px 20px rgba(108, 99, 255, 0.4);
+        }
+
+        .btn-save:active {
+            transform: translateY(0);
+        }
+
+        #status {
+            text-align: center;
+            margin-top: 12px;
+            font-size: 14px;
+            color: #66bb6a;
+            min-height: 20px;
+            transition: opacity 0.3s;
+        }
+
+        /* Import modal */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(0, 0, 0, 0.6);
+            backdrop-filter: blur(4px);
+            z-index: 100;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .modal-overlay.active {
+            display: flex;
+        }
+
+        .modal {
+            background: #1a1a2e;
+            border-radius: 16px;
+            padding: 28px;
+            width: 90%;
+            max-width: 520px;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 16px 48px rgba(0, 0, 0, 0.5);
+            animation: modalIn 0.25s ease;
+        }
+
+        .modal h3 {
+            font-size: 18px;
+            margin-bottom: 6px;
+            color: #e0e0e0;
+        }
+
+        .modal .modal-desc {
+            font-size: 13px;
+            color: #888;
+            margin-bottom: 16px;
+        }
+
+        .modal textarea {
+            width: 100%;
+            height: 140px;
+            padding: 12px;
+            background: #1e1e35;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            border-radius: 8px;
+            color: #e0e0e0;
+            font-size: 13px;
+            font-family: 'Segoe UI', monospace;
+            outline: none;
+            resize: vertical;
+            margin-bottom: 16px;
+            transition: border-color 0.2s;
+        }
+
+        .modal textarea:focus {
+            border-color: #6c63ff;
+        }
+
+        .modal textarea::placeholder {
+            color: #555;
+        }
+
+        .modal-actions {
+            display: flex;
+            justify-content: flex-end;
+            gap: 10px;
+        }
+
+        .btn-cancel {
+            padding: 8px 20px;
+            border-radius: 8px;
+            font-size: 13px;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: transparent;
+            color: #aaa;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-cancel:hover {
+            background: rgba(255, 255, 255, 0.05);
+            color: #fff;
+        }
+
+        .btn-confirm {
+            padding: 8px 20px;
+            border-radius: 8px;
+            font-size: 13px;
+            border: none;
+            background: linear-gradient(135deg, #6c63ff, #7c4dff);
+            color: #fff;
+            font-weight: 500;
+            cursor: pointer;
+            transition: transform 0.15s, box-shadow 0.15s;
+        }
+
+        .btn-confirm:hover {
+            transform: translateY(-1px);
+            box-shadow: 0 4px 12px rgba(108, 99, 255, 0.4);
+        }
+
+        /* Empty state */
+        .empty-state {
+            color: #555;
+            font-size: 13px;
+            font-style: italic;
+            padding: 12px 0;
+            text-align: center;
+        }
+
+        /* Toast */
+        .toast {
+            position: fixed;
+            bottom: 30px;
+            left: 50%;
+            transform: translateX(-50%) translateY(80px);
+            padding: 10px 24px;
+            border-radius: 10px;
+            font-size: 14px;
+            font-weight: 500;
+            z-index: 200;
+            opacity: 0;
+            transition: all 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+            pointer-events: none;
+        }
+
+        .toast.show {
+            opacity: 1;
+            transform: translateX(-50%) translateY(0);
+        }
+
+        .toast-success {
+            background: rgba(76, 175, 80, 0.9);
+            color: #fff;
+            box-shadow: 0 4px 16px rgba(76, 175, 80, 0.3);
+        }
+
+        .toast-error {
+            background: rgba(244, 67, 54, 0.9);
+            color: #fff;
+            box-shadow: 0 4px 16px rgba(244, 67, 54, 0.3);
+        }
+
+        @keyframes capsuleIn {
+            from {
+                opacity: 0;
+                transform: scale(0.85);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1);
+            }
+        }
+
+        @keyframes modalIn {
+            from {
+                opacity: 0;
+                transform: scale(0.95) translateY(10px);
+            }
+
+            to {
+                opacity: 1;
+                transform: scale(1) translateY(0);
+            }
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <div class="top-bar">
+            <a class="back-link" href="index.html">← <span id="backToNewtab">Back to New Tab</span></a>
+            <div class="lang-select">
+                <span>🌐</span>
+                <select id="languageSelect">
+                    <option value="en">English</option>
+                    <option value="zh">中文</option>
+                    <option value="ja">日本語</option>
+                </select>
+            </div>
+        </div>
+
+        <h1 id="pageTitle">Tag Manager</h1>
+        <p class="subtitle" id="pageSubtitle">Build your Pixiv search query visually</p>
+
+        <div class="scroll-area">
+            <!-- Preset Selector -->
+            <div class="preset-bar">
+                <label id="presetLabel">📋 Preset:</label>
+                <select id="presetSelect"></select>
+                <input id="presetRenameInput" class="preset-rename-input" type="text" />
+                <button class="btn-preset" id="presetNewBtn">+ New</button>
+                <button class="btn-preset" id="presetRenameBtn">✏️</button>
+                <button class="btn-preset btn-preset-danger" id="presetDeleteBtn">🗑</button>
+            </div>
+
+            <!-- Blocklist -->
+            <div class="blocklist-card collapsed" id="blocklistCard">
+                <div class="blocklist-header">
+                    <h3>🚫 Blocklist</h3>
+                    <button class="blocklist-toggle" id="blocklistToggle">Show</button>
+                </div>
+                <div class="blocklist-body">
+                    <div class="blocklist-row">
+                        <label for="globalMinusKeywords">Global blocklist (space separated)</label>
+                        <input type="text" id="globalMinusKeywords" placeholder="tag1 tag2 tag3" />
+                    </div>
+                    <div class="blocklist-tip">Blocklist applies to all presets.</div>
+                </div>
+            </div>
+
+            <!-- Capsule Flow Builder -->
+            <div class="flow-builder">
+                <div class="flow-container" id="flowContainer">
+                    <div class="empty-state" id="emptyState">Click buttons below to add keywords or groups</div>
+                </div>
+            </div>
+
+            <!-- Action Bar -->
+            <div class="actions-bar">
+                <button class="btn-action btn-add-keyword" id="addKeywordBtn">
+                    + <span id="addKeywordLabel">Keyword</span>
+                </button>
+                <button class="btn-action btn-add-group" id="addGroupBtn">
+                    🔗 <span id="addGroupLabel">Group</span>
+                </button>
+            </div>
+
+            <!-- Toolbar: Import / Export -->
+            <div class="toolbar">
+                <h3 id="toolbarTitle">📦 Import / Export</h3>
+                <button class="btn-tool" id="importTextBtn">📋 <span id="importTextLabel">Import from
+                        Text</span></button>
+                <button class="btn-tool" id="importFileBtn">📁 <span id="importFileLabel">Import
+                        JSON</span></button>
+                <button class="btn-tool" id="exportBtn">💾 <span id="exportLabel">Export JSON</span></button>
+                <input type="file" id="fileInput" accept=".json" />
+            </div>
+
+            <div class="bottom-actions">
+                <button class="btn-save" id="saveBtn">Save</button>
+            </div>
+            <div id="status"></div>
+        </div>
+    </div>
+
+    <!-- Text Import Modal -->
+    <div class="modal-overlay" id="importModal">
+        <div class="modal">
+            <h3 id="modalTitle">Import Tags from Text</h3>
+            <p class="modal-desc" id="modalDesc">Paste keywords below (separated by spaces, commas, or newlines)</p>
+            <textarea id="importTextarea" data-i18n-placeholder="importPlaceholder"
+                placeholder="tag1, tag2, tag3..."></textarea>
+            <div class="modal-actions">
+                <button class="btn-cancel" id="modalCancelBtn">Cancel</button>
+                <button class="btn-confirm" id="modalConfirmBtn">Import</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Toast -->
+    <div class="toast" id="toast"></div>
+
+    <script type="module" src="tags.js"></script>
+</body>
+
+</html>

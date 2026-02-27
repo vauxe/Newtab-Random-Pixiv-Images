@@ -1,122 +1,80 @@
 {
-  "keywordsLabel": {
-    "message": "完整关键词"
+  "pageTitle": {
+    "message": "标签管理"
   },
-  "andKeywordsLabel": {
-    "message": "含有全部关键词(AND搜索)"
+  "pageSubtitle": {
+    "message": "可视化管理 Pixiv 搜索关键词"
   },
-  "orKeywordsLabel": {
-    "message": "含有某个关键词(OR搜索)"
+  "addTagPlaceholder": {
+    "message": "输入标签..."
   },
-  "minusKeywordsLabel": {
-    "message": "不含有关键词(排除搜索)"
+  "toolbarTitle": {
+    "message": "📦 导入 / 导出"
   },
-  "keywordsTip": {
-    "message": "多个关键词用空格隔开"
+  "importTextLabel": {
+    "message": "从文本导入"
   },
-  "orderLabel": {
-    "message": "排序方式"
+  "importFileLabel": {
+    "message": "导入 JSON"
   },
-  "date_dOrder": {
-    "message": "按最新排序"
+  "exportLabel": {
+    "message": "导出 JSON"
   },
-  "dateOrder": {
-    "message": "按旧排序"
+  "saveBtn": {
+    "message": "保存"
   },
-  "popular_dOrder": {
-    "message": "按热门度排序(是pixiv高级会员才有效)"
+  "modalTitle": {
+    "message": "从文本导入标签"
   },
-  "popular_male_dOrder": {
-    "message": "受男性欢迎(是pixiv高级会员才有效)"
+  "modalDesc": {
+    "message": "粘贴关键词（以空格、逗号或换行分隔）"
   },
-  "popular_female_dOrder": {
-    "message": "受女性欢迎(是pixiv高级会员才有效)"
+  "importPlaceholder": {
+    "message": "标签1, 标签2, 标签3..."
   },
-  "modeLabel": {
-    "message": "搜索模式"
+  "modalCancelBtn": {
+    "message": "取消"
   },
-  "allMode": {
-    "message": "全部"
+  "modalConfirmBtn": {
+    "message": "导入"
   },
-  "r18Mode": {
-    "message": "R18"
+  "tagsSaved": {
+    "message": "标签已保存！"
   },
-  "safeMode": {
-    "message": "全年龄"
+  "importedCount": {
+    "message": "已导入 {count} 个标签"
   },
-  "timeOptionLabel": {
-    "message": "时间"
+  "exportSuccess": {
+    "message": "导出成功！"
   },
-  "unlimitedTimeOption": {
-    "message": "不限时间"
+  "importError": {
+    "message": "JSON 文件格式错误"
   },
-  "specificTimeOption": {
-    "message": "指定时间"
+  "previewTitle": {
+    "message": "🔍 查询预览"
   },
-  "scdLabel": {
-    "message": "开始时间"
+  "addKeywordLabel": {
+    "message": "关键词"
   },
-  "ecdLabel": {
-    "message": "结束时间"
+  "addGroupLabel": {
+    "message": "组合"
   },
-  "bookmarksLabel": {
-    "message": "收藏数(是pixiv高级会员才有效)"
+  "groupLabel": {
+    "message": "分组 (括号)"
   },
-  "bltLabel": {
-    "message": "最低收藏数(是pixiv高级会员才有效)"
+  "presetLabel": {
+    "message": "📋 方案:"
   },
-  "bgtLabel": {
-    "message": "最高收藏数(是pixiv高级会员才有效)"
+  "presetNewPrompt": {
+    "message": "输入方案名称:"
   },
-  "s_modeLabel": {
-    "message": "标签搜索模式"
+  "presetRenamePrompt": {
+    "message": "输入新的方案名称:"
   },
-  "s_tagOption": {
-    "message": "标签(部分一致)"
+  "presetDeleteLast": {
+    "message": "无法删除最后一个方案"
   },
-  "s_tag_fullOption": {
-    "message": "标签(完全一致)"
-  },
-  "s_tcOption": {
-    "message": "标题、说明文字"
-  },
-  "typeLabel": {
-    "message": "图片类型搜索模式"
-  },
-  "allTypeLabel": {
-    "message": "插画、漫画、动图"
-  },
-  "illust_and_ugoiraTypeLabel": {
-    "message": "插画、动图"
-  },
-  "illustTypeLabel": {
-    "message": "插画"
-  },
-  "mangaTypeLabel": {
-    "message": "漫画"
-  },
-  "ugoiraTypeLabel": {
-    "message": "动图"
-  },
-  "leave_blank_for_unlimited": {
-    "message": "留空表示不限"
-  },
-  "slLabel": {
-    "message": "sl filter(perhaps pixiv safe level, 2 is safe, 6 is not safe)"
-  },
-  "min_sl": {
-    "message": "min sl"
-  },
-  "max_sl": {
-    "message": "max sl"
-  },
-  "aiTypeLabel": {
-    "message": "aiType (pixiv ai type, 1 not ai, 2 is ai, empty is unset)"
-  },
-  "save": {
-    "message": "Save"
-  },
-  "reset": {
-    "message": "Reset"
+  "presetCreated": {
+    "message": "已创建预设"
   }
 }

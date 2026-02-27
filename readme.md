@@ -19,6 +19,42 @@ Randomly picks one image from pixiv search results to replace newtab background.
 4. Click "Load Temporary Add-on..." button, then in the open window goto the "src_firefox" directory, select "manifest.json" file.
 5. Open newtab and enjoy a randomly picked pixiv illustration!
 
+## Pixiv Search Boolean Logic
+
+Pixiv search supports a rich set of boolean operators for tag filtering:
+
+### Basic Operators
+
+| Operator | Syntax        | Example                | Description          |
+| -------- | ------------- | ---------------------- | -------------------- |
+| **AND**  | `A B` (space) | `初音ミク VOCALOID`    | Both tags must match |
+| **OR**   | `A OR B`      | `初音ミク OR 鏡音リン` | Either tag matches   |
+| **NOT**  | `-A`          | `-R-18 -漫画`          | Exclude tags         |
+
+### Grouping with Parentheses
+
+| Pattern                | Syntax                | Example                                                              |
+| ---------------------- | --------------------- | -------------------------------------------------------------------- |
+| **OR Group**           | `(A OR B)`            | `(10000users入り OR 30000users入り)`                                 |
+| **AND + OR Groups**    | `A (B OR C)`          | `風景 (夕焼け OR 朝焼け)`                                            |
+| **Multiple OR Groups** | `A (B OR C) (D OR E)` | `VOCALOID (初音ミク OR 鏡音リン) (10000users入り OR 30000users入り)` |
+
+### Advanced Patterns
+
+| Pattern                      | Syntax                    | Example                                                 |
+| ---------------------------- | ------------------------- | ------------------------------------------------------- |
+| **Nested Parentheses**       | `((A OR B) OR (C D))`     | `((初音ミク OR 鏡音リン) OR (VOCALOID 女の子))`         |
+| **OR Connecting AND Groups** | `(A B) OR (C D)`          | `(初音ミク 10000users入り) OR (鏡音リン 5000users入り)` |
+| **Explicit AND in Nesting**  | `((A OR B) AND (C OR D))` | `((水彩 OR 油絵) AND (風景 OR 自然))`                   |
+
+### Complex Example
+
+```
+VOCALOID (初音ミク OR 鏡音リン) (10000users入り OR 30000users入り) -R-18 -漫画
+```
+
+This query means: **VOCALOID** AND (**初音ミク** OR **鏡音リン**) AND (**10000users入り** OR **30000users入り**), excluding **R-18** and **漫画**.
+
 ## License
 
 This extension is distributed under MIT license.
