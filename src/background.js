@@ -565,23 +565,17 @@ class SearchSource {
           };
         });
 
-        let [{ blob: imgBlob, url: resolvedImageUrl }, profileBlob] = await Promise.all([
-          fetchFirstAvailableImage(
-            [
-              illustInfo.body.urls.regular,
-              illustInfo.body.urls.small,
-              picked.url,
-            ],
-            "illust"
-          ),
-          fetchImage(res.profileImageUrl, "profile")
-        ]);
+        const resolvedImageUrl = [
+          illustInfo.body.urls.regular,
+          illustInfo.body.urls.small,
+          picked.url,
+        ]
+          .map((url) => String(url || "").trim())
+          .find(Boolean);
+        const profileBlob = await fetchImage(res.profileImageUrl, "profile");
 
-        if (!imgBlob && !resolvedImageUrl) continue;
-        res.imageObjectUrl = resolvedImageUrl || res.imageObjectUrl;
-        if (imgBlob) {
-          res.imageObjectUrl = await blobToDataUrl(imgBlob);
-        }
+        if (!resolvedImageUrl) continue;
+        res.imageObjectUrl = resolvedImageUrl;
 
         if (profileBlob) {
           try {
