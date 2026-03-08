@@ -230,20 +230,14 @@ export function sampleRandomTagPool(config) {
   if (!config || config.randomTagPoolEnabled !== true) {
     return {
       tags: [],
-      consumedNextPriorityTag: "",
-      consumedPriorityTag: "",
       remainingNextPriorityTag: "",
-      remainingPriorityTags: [],
     };
   }
   const pool = normalizeRandomTagPool(config.randomTagPool);
   if (pool.length === 0) {
     return {
       tags: [],
-      consumedNextPriorityTag: "",
-      consumedPriorityTag: "",
       remainingNextPriorityTag: "",
-      remainingPriorityTags: [],
     };
   }
   const pickCount = 2;
@@ -252,23 +246,13 @@ export function sampleRandomTagPool(config) {
     const j = Math.floor(Math.random() * (i + 1));
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
-  const priorityTags = Array.isArray(config.randomTagPoolPriorityTags)
-    ? config.randomTagPoolPriorityTags.map((tag) => String(tag || "").trim()).filter((tag) => pool.includes(tag))
-    : [];
   const nextPriorityTag = typeof config.randomTagPoolNextPriorityTag === "string" && pool.includes(config.randomTagPoolNextPriorityTag.trim())
     ? config.randomTagPoolNextPriorityTag.trim()
     : "";
-  let consumedNextPriorityTag = "";
-  let consumedPriorityTag = "";
   const pickedTags = [];
 
   if (nextPriorityTag) {
-    consumedNextPriorityTag = nextPriorityTag;
     pickedTags.push(nextPriorityTag);
-  } else if (priorityTags.length > 0) {
-    const priorityIndex = Math.floor(Math.random() * priorityTags.length);
-    consumedPriorityTag = priorityTags[priorityIndex];
-    pickedTags.push(consumedPriorityTag);
   }
 
   const remainingShuffled = shuffled.filter((tag) => !pickedTags.includes(tag));
@@ -278,12 +262,7 @@ export function sampleRandomTagPool(config) {
 
   return {
     tags: pickedTags,
-    consumedNextPriorityTag,
-    consumedPriorityTag,
     remainingNextPriorityTag: "",
-    remainingPriorityTags: consumedPriorityTag
-      ? priorityTags.filter((tag) => tag !== consumedPriorityTag)
-      : priorityTags,
   };
 }
 
@@ -351,16 +330,6 @@ export function migrateConfig(config) {
   }
   if (!Array.isArray(config.randomTagPoolPriorityTags)) {
     config.randomTagPoolPriorityTags = [];
-  } else {
-    const normalizedPriorityTags = [];
-    const knownTags = new Set(config.randomTagPool.map((tag) => String(tag || "").trim()).filter(Boolean));
-    for (const tag of config.randomTagPoolPriorityTags) {
-      const normalizedTag = String(tag || "").trim();
-      if (normalizedTag && knownTags.has(normalizedTag) && !normalizedPriorityTags.includes(normalizedTag)) {
-        normalizedPriorityTags.push(normalizedTag);
-      }
-    }
-    config.randomTagPoolPriorityTags = normalizedPriorityTags;
   }
   config.randomTagPoolPickCount = 2;
   if (!config.randomSeedStrategy) {

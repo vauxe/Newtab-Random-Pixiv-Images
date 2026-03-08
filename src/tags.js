@@ -149,14 +149,6 @@ function createPoolCapsule(tag, index) {
   textSpan.className = "capsule-text";
   textSpan.textContent = tag;
 
-  const count = getRandomTagPoolCount(tag);
-  if (count > 0) {
-    const countSpan = document.createElement("span");
-    countSpan.className = "capsule-count";
-    countSpan.textContent = String(count);
-    el.appendChild(countSpan);
-  }
-
   const dragHandle = document.createElement("span");
   dragHandle.className = "capsule-text";
   dragHandle.textContent = "↕";
@@ -207,12 +199,6 @@ function createReadonlyPoolCapsule(tag) {
 
   el.appendChild(textSpan);
   return el;
-}
-
-function getRandomTagPoolCount(tag) {
-  return Number.isInteger(randomTagPoolCounts[tag]) && randomTagPoolCounts[tag] > 0
-    ? randomTagPoolCounts[tag]
-    : 0;
 }
 
 function normalizeRandomTagPoolCounts(counts, pool = randomTagPool) {

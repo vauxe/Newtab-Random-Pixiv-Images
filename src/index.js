@@ -12,9 +12,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   let activeTagPopupHandler = null;
   let activeTagPopupTrigger = null;
   let activeTagPopupPendingTags = new Set();
-  let activeTagPopupLikeCounts = {};
   let currentLikedTagForImage = "";
-  let currentLikedTagCount = 0;
   let currentQueuedPriorityTagForImage = "";
   let activeTagPopupMode = "exclude";
   let shouldRefreshOnTagPopupClose = false;
@@ -450,7 +448,6 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     currentIllustUrl = illustObject.illustIdUrl || null;
     currentImageVisible = !!illustObject.imageObjectUrl;
     currentLikedTagForImage = "";
-    currentLikedTagCount = 0;
     currentQueuedPriorityTagForImage = "";
     console.log("Illust tags:", currentTags.map(t => t.tag));
 
@@ -521,14 +518,10 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
           document.getElementById("likeButton").classList.add("liked");
           markTagChipState(tag, "selected-like");
           currentLikedTagForImage = tag;
-          currentLikedTagCount = Number.isInteger(res.count) ? res.count : 1;
-          updateTagChipLikeCount(tag, currentLikedTagCount);
           showToast(translate("addedRandomTag", { tag }), "success");
         } else if (res && res.success && res.exists) {
           markTagChipState(tag, "selected-like");
           currentLikedTagForImage = tag;
-          currentLikedTagCount = Number.isInteger(res.count) ? res.count : 1;
-          updateTagChipLikeCount(tag, currentLikedTagCount);
           showToast(translate("randomTagExists", { tag }), "success");
         } else {
           showToast(res?.error || translate("addRandomTagFailed"), "error");
@@ -553,6 +546,12 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
           return;
         }
         if (res && res.success) {
+          if (currentQueuedPriorityTagForImage && currentQueuedPriorityTagForImage !== tag) {
+            markTagChipState(
+              currentQueuedPriorityTagForImage,
+              currentQueuedPriorityTagForImage === currentLikedTagForImage ? "selected-like" : ""
+            );
+          }
           currentQueuedPriorityTagForImage = tag;
           markTagChipState(tag, "queued-next");
           showToast(translate("queuedNextRandomTag", { tag }), "success");
@@ -582,7 +581,6 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     const popupHeader = popup.querySelector(".tag-popup-header");
     const tagList = document.getElementById("tagList");
     activeTagPopupPendingTags = new Set();
-    activeTagPopupLikeCounts = {};
     activeTagPopupMode = options.mode === "random" ? "random" : "exclude";
     shouldRefreshOnTagPopupClose = false;
     popupHeader.textContent = options.title || translate("excludeTagTitle");
@@ -610,7 +608,6 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       tagList.appendChild(chip);
       if (activeTagPopupMode === "random" && currentLikedTagForImage && currentLikedTagForImage === t.tag) {
         markTagChipState(t.tag, "selected-like");
-        updateTagChipLikeCount(t.tag, currentLikedTagCount);
       } else if (activeTagPopupMode === "random" && currentQueuedPriorityTagForImage && currentQueuedPriorityTagForImage === t.tag) {
         markTagChipState(t.tag, "queued-next");
       }
@@ -629,7 +626,6 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     activeTagPopupHandler = null;
     activeTagPopupTrigger = null;
     activeTagPopupPendingTags = new Set();
-    activeTagPopupLikeCounts = {};
     activeTagPopupMode = "exclude";
     shouldRefreshOnTagPopupClose = false;
     if (shouldTriggerRefresh) {
@@ -701,34 +697,6 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       return;
     }
     chip.classList.toggle("pending", !!pending);
-  }
-
-  function getTagChipLikeCount(tag) {
-    return Number.isInteger(activeTagPopupLikeCounts[tag]) && activeTagPopupLikeCounts[tag] > 0
-      ? activeTagPopupLikeCounts[tag]
-      : 0;
-  }
-
-  function updateTagChipLikeCount(tag, count) {
-    const chip = getTagChipByTag(tag);
-    const normalizedCount = Number.isInteger(count) && count > 0 ? count : 0;
-    activeTagPopupLikeCounts[tag] = normalizedCount;
-    if (!chip) {
-      return;
-    }
-    let countElement = chip.querySelector(".tag-chip-count");
-    if (normalizedCount <= 0) {
-      if (countElement) {
-        countElement.remove();
-      }
-      return;
-    }
-    if (!countElement) {
-      countElement = document.createElement("span");
-      countElement.className = "tag-chip-count";
-      chip.appendChild(countElement);
-    }
-    countElement.textContent = String(normalizedCount);
   }
 
   // ── Toast ──

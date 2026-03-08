@@ -375,10 +375,8 @@ class SearchSource {
     const attempts = [];
 
     this.searchParam.randomTagPoolNextPriorityTag = sampling.remainingNextPriorityTag;
-    this.searchParam.randomTagPoolPriorityTags = sampling.remainingPriorityTags;
     chrome.storage.local.set({
       randomTagPoolNextPriorityTag: sampling.remainingNextPriorityTag,
-      randomTagPoolPriorityTags: sampling.remainingPriorityTags,
     });
 
     for (let count = sampledTags.length; count >= 0; count--) {
@@ -866,37 +864,22 @@ chrome.runtime.onMessage.addListener(function (
           const pool = Array.isArray(config.randomTagPool)
             ? config.randomTagPool.map((item) => String(item || "").trim()).filter(Boolean)
             : [];
-          const counts = config.randomTagPoolCounts && typeof config.randomTagPoolCounts === "object" && !Array.isArray(config.randomTagPoolCounts)
-            ? { ...config.randomTagPoolCounts }
-            : {};
-          const priorityTags = Array.isArray(config.randomTagPoolPriorityTags)
-            ? config.randomTagPoolPriorityTags.map((item) => String(item || "").trim()).filter(Boolean)
-            : [];
-          const currentCount = Number.isInteger(counts[tag]) && counts[tag] > 0
-            ? counts[tag]
-            : 0;
           if (!pool.includes(tag)) {
             pool.push(tag);
-          }
-          const nextCount = currentCount + 1;
-          counts[tag] = nextCount;
-          if (nextCount >= 2 && !priorityTags.includes(tag)) {
-            priorityTags.push(tag);
+            await chrome.storage.local.set({
+              randomTagPool: pool,
+              randomTagPoolEnabled: true,
+            });
+          } else {
+            await chrome.storage.local.set({
+              randomTagPoolEnabled: true,
+            });
           }
           config.randomTagPool = pool;
-          config.randomTagPoolCounts = counts;
-          config.randomTagPoolPriorityTags = priorityTags;
           config.randomTagPoolEnabled = true;
 
-          await chrome.storage.local.set({
-            randomTagPool: config.randomTagPool,
-            randomTagPoolCounts: config.randomTagPoolCounts,
-            randomTagPoolPriorityTags: config.randomTagPoolPriorityTags,
-            randomTagPoolEnabled: config.randomTagPoolEnabled,
-          });
-
           searchSource.updateConfig(config);
-          sendResponse({ success: true, added: true, count: counts[tag], prioritized: nextCount >= 2 });
+          sendResponse({ success: true, added: true });
         } catch (e) {
           console.error("Add random tag error:", e);
           sendResponse({ success: false, error: e.message });
