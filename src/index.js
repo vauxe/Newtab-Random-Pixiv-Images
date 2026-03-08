@@ -189,6 +189,10 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     return mapping[message] ? translate(mapping[message]) : message;
   }
 
+  function debugLog(...args) {
+    console.log("[newtab]", ...args);
+  }
+
   function applyUiText() {
     const randomToggleText = document.getElementById("randomToggleText");
     const r18ToggleText = document.getElementById("r18ToggleText");
@@ -622,6 +626,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
 
   async function changeElement(illustObject) {
     if (!illustObject) { return; }
+    debugLog("changeElement:incoming", illustObject);
     if (illustObject.error) {
       showToast(localizeRuntimeMessage(illustObject.message) || translate("failedLoadImage"), "error");
       return;
@@ -640,7 +645,14 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     isBookmarkBusy = false;
     currentLikedTagsForImage = new Set();
     currentQueuedPriorityTagForImage = "";
-    console.log("Illust tags:", currentTags.map(t => t.tag));
+    debugLog("changeElement:state", {
+      illustId: currentIllustId,
+      userId: currentUserId,
+      imageVisible: currentImageVisible,
+      imageObjectUrl: illustObject.imageObjectUrl,
+      mode: illustObject.mode,
+      tags: currentTags.map(t => t.tag),
+    });
 
     // Reset like state
     const likeBtn = document.getElementById("likeButton");
@@ -1047,12 +1059,13 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     return (options = {}) => {
       const force = !!options.force;
       if (runtimeConfig && runtimeConfig.randomImageEnabled === false) {
-        showConfiguredDefaultImage().then((hasDefaultImage) => {
-          if (!hasDefaultImage) {
-            warnNoDefaultImageIfNeeded();
-          }
-        });
-        return;
+      showConfiguredDefaultImage().then((hasDefaultImage) => {
+        debugLog("sendRefreshMessage:random-disabled", { hasDefaultImage });
+        if (!hasDefaultImage) {
+          warnNoDefaultImageIfNeeded();
+        }
+      });
+      return;
       }
       if (isRequestInProgress) {
         pendingRefreshRequested = true;
@@ -1064,7 +1077,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       isRequestInProgress = true;
       pendingRefreshRequested = false;
       const requestId = ++latestRefreshRequestId;
-      console.log("Refresh: sending fetchImage");
+      debugLog("sendRefreshMessage:start", { requestId, force, mode: runtimeConfig?.mode, randomImageEnabled: runtimeConfig?.randomImageEnabled });
       chrome.runtime.sendMessage({ action: "fetchImage" }, (res) => {
         if (chrome.runtime.lastError) {
           console.warn("Context invalidated, message could not be processed:", chrome.runtime.lastError.message);
@@ -1072,7 +1085,9 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
           flushPendingRefresh();
           return;
         }
+        debugLog("sendRefreshMessage:response", { requestId, response: res });
         if (requestId !== latestRefreshRequestId || (runtimeConfig && runtimeConfig.randomImageEnabled === false)) {
+          debugLog("sendRefreshMessage:stale-response", { requestId, latestRefreshRequestId });
           isRequestInProgress = false;
           flushPendingRefresh();
           return;
@@ -1113,10 +1128,12 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       setRandomToggleState(nextEnabled);
 
       if (nextEnabled) {
+        debugLog("handleRandomToggleChange:enabled");
         sendRefreshMessage();
       } else {
         latestRefreshRequestId += 1;
         const hasDefaultImage = await showConfiguredDefaultImage();
+        debugLog("handleRandomToggleChange:disabled", { hasDefaultImage });
         if (!hasDefaultImage) {
           warnNoDefaultImageIfNeeded();
         }
@@ -1151,6 +1168,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       await persistR18Mode(nextEnabled);
       runtimeConfig.mode = nextEnabled ? "r18" : "safe";
       setR18ToggleState(nextEnabled);
+      debugLog("handleR18ToggleChange:applied", { mode: runtimeConfig.mode });
       if (runtimeConfig.randomImageEnabled !== false) {
         sendRefreshMessage({ force: true });
       }

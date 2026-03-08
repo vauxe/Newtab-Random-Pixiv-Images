@@ -70,6 +70,10 @@ chrome.runtime.onStartup.addListener(() => {
 
 ensurePixivHeaderRules();
 
+function debugLog(...args) {
+  console.log("[bg]", ...args);
+}
+
 function getRandomInt(min, max) {
   min = Math.ceil(min);
   max = Math.floor(max);
@@ -116,6 +120,7 @@ class Queue {
 
 async function fetchPixivJson(url) {
   try {
+    debugLog("fetchPixivJson:start", url);
     let res = await fetch(url);
     if (!res.ok) {
       console.error(`Fetch pixiv json failed: ${res.status} ${res.statusText}`);
@@ -126,6 +131,7 @@ async function fetchPixivJson(url) {
       console.error(`Pixiv API error: ${res_json.message}`);
       return { __error: true, message: res_json.message || "Pixiv API error" };
     }
+    debugLog("fetchPixivJson:ok", url);
     return res_json;
   } catch (e) {
     console.error(`Fetch pixiv json error:`, e);
@@ -135,6 +141,7 @@ async function fetchPixivJson(url) {
 
 async function fetchImage(url, label = "image") {
   if (!url) {
+    debugLog("fetchImage:skip-empty", label);
     return null;
   }
   const attempts = [
@@ -158,16 +165,19 @@ async function fetchImage(url, label = "image") {
 
   for (const attempt of attempts) {
     try {
+      debugLog("fetchImage:start", { label, attempt: attempt.name, url });
       const res = await fetch(url, attempt.init);
       if (!res.ok) {
         console.warn(`Fetch ${label} failed with status`, attempt.name, res.status, url);
         continue;
       }
+      debugLog("fetchImage:ok", { label, attempt: attempt.name, url });
       return await res.blob();
     } catch (e) {
       console.error(`Fetch ${label} error [${attempt.name}] ${url}:`, e);
     }
   }
+  debugLog("fetchImage:all-failed", { label, url });
   return null;
 }
 
@@ -223,6 +233,12 @@ class SearchSource {
       randomTagPoolLastResolvedTags: [],
       randomTagPoolLastResolvedAt: 0,
     });
+    debugLog("searchSource:updateConfig", {
+      mode: config.mode,
+      randomImageEnabled: config.randomImageEnabled,
+      query: this.activeQueryWord,
+      dislikedUsers: Array.isArray(config.dislikedUserIds) ? config.dislikedUserIds.length : 0,
+    });
   }
 
   replaceSpecialCharacter = (function () {
@@ -261,6 +277,7 @@ class SearchSource {
 
   async searchIllustPage(p, queryWord = this.activeQueryWord) {
     let paramUrl = this.generateSearchUrl(p, queryWord);
+    debugLog("searchIllustPage", { page: p, queryWord, url: baseUrl + searchUrl + paramUrl });
     let jsonResult = await fetchPixivJson(baseUrl + searchUrl + paramUrl);
     if (jsonResult && jsonResult.__error) {
       this.lastErrorMessage = jsonResult.message;
@@ -468,6 +485,10 @@ class SearchSource {
       });
     }
 
+    debugLog("buildQueryAttempts", attempts.map((attempt) => ({
+      queryWord: attempt.queryWord,
+      randomTags: attempt.randomTags,
+    })));
     return attempts;
   }
 
@@ -481,6 +502,7 @@ class SearchSource {
       randomTagPoolLastResolvedTags: normalizedTags,
       randomTagPoolLastResolvedAt: this.lastResolvedRandomTagsAt,
     });
+    debugLog("publishResolvedRandomTags", normalizedTags);
   }
 
   async fillCandidateQueue() {
@@ -503,12 +525,19 @@ class SearchSource {
 
       const maxPagesToSample = Math.min(4, totalPage);
       const pageNumbers = this.pickSamplePages(maxPagesToSample);
+      debugLog("fillCandidateQueue:sample-pages", { queryWord, totalPage, pageNumbers });
       for (const pageNumber of pageNumbers) {
         const pageObj = await this.getPage(pageNumber, queryWord);
         if (!pageObj || !pageObj.body || !pageObj.body.illust) {
           continue;
         }
         const filtered = this.filterIllustArray(pageObj.body.illust.data);
+        debugLog("fillCandidateQueue:page-result", {
+          queryWord,
+          pageNumber,
+          rawCount: Array.isArray(pageObj.body.illust.data) ? pageObj.body.illust.data.length : 0,
+          filteredCount: filtered.length,
+        });
         this.enqueueCandidates(filtered);
         if (this.candidateQueue.length >= this.candidateQueueTargetSize) {
           break;
@@ -517,9 +546,15 @@ class SearchSource {
 
       if (this.candidateQueue.length > 0) {
         await this.publishResolvedRandomTags(attempt.randomTags);
+        debugLog("fillCandidateQueue:queue-ready", {
+          queryWord,
+          queueSize: this.candidateQueue.length,
+          randomTags: attempt.randomTags,
+        });
         return;
       }
     }
+    debugLog("fillCandidateQueue:empty");
   }
 
   async getRandomIllust() {
@@ -527,11 +562,19 @@ class SearchSource {
     this.lastErrorMessage = null;
     for (let i = 0; i < MAX_RETRIES; i++) {
       try {
+        debugLog("getRandomIllust:attempt", { retry: i + 1, queueSize: this.candidateQueue.length });
         await this.fillCandidateQueue();
         let picked = this.dequeueCandidate();
         if (!picked) {
+          debugLog("getRandomIllust:no-candidate", { retry: i + 1 });
           continue;
         }
+        debugLog("getRandomIllust:picked", {
+          retry: i + 1,
+          illustId: picked.id,
+          userId: picked.userId,
+          pickedUrl: picked.url,
+        });
 
         let res = {};
         res.illustId = picked.id;
@@ -542,6 +585,7 @@ class SearchSource {
           if (illustInfo && illustInfo.__error) {
             this.lastErrorMessage = illustInfo.message;
           }
+          debugLog("getRandomIllust:illustInfo-failed", { illustId: res.illustId, message: this.lastErrorMessage });
           continue;
         }
 
@@ -549,6 +593,7 @@ class SearchSource {
         res.userId = illustInfo.body.userId;
         if (this.isDislikedUser(res.userId)) {
           this.markSeen(picked.id);
+          debugLog("getRandomIllust:skip-disliked-user", { illustId: picked.id, userId: res.userId });
           continue;
         }
         res.illustId = illustInfo.body.illustId;
@@ -572,6 +617,13 @@ class SearchSource {
         ]
           .map((url) => String(url || "").trim())
           .find(Boolean);
+        debugLog("getRandomIllust:image-candidates", {
+          illustId: res.illustId,
+          regular: illustInfo.body.urls.regular,
+          small: illustInfo.body.urls.small,
+          pickedUrl: picked.url,
+          resolvedImageUrl,
+        });
         const profileBlob = await fetchImage(res.profileImageUrl, "profile");
 
         if (!resolvedImageUrl) continue;
@@ -585,12 +637,20 @@ class SearchSource {
           }
         }
         this.markSeen(picked.id);
+        debugLog("getRandomIllust:success", {
+          illustId: res.illustId,
+          userId: res.userId,
+          title: res.title,
+          imageObjectUrl: res.imageObjectUrl,
+          profileLoaded: !!profileBlob,
+        });
         return res;
       } catch (e) {
         console.error("Error in getRandomIllust loop:", e);
         continue;
       }
     }
+    debugLog("getRandomIllust:exhausted", { lastErrorMessage: this.lastErrorMessage });
     return null;
   }
 }
