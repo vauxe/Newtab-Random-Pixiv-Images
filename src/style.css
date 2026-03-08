@@ -81,12 +81,19 @@ body {
   display: inline-flex;
   align-items: center;
   justify-content: center;
+  position: fixed;
+  right: 8px;
+  bottom: 8px;
+  z-index: 20;
   border-radius: 100%;
   width: 18px;
   height: 18px;
   margin-top: 0;
   margin-left: 0;
   cursor: pointer;
+  padding: 6px;
+  background-color: rgba(23, 24, 25, 0.45);
+  backdrop-filter: blur(10px);
   transition: background-color 0.5s;
 }
 

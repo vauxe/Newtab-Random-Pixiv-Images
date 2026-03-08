@@ -270,7 +270,15 @@
         .settings-card h3 {
             font-size: 13px;
             color: #cfcfe8;
-            margin-bottom: 10px;
+            margin-bottom: 0;
+        }
+
+        .settings-card.collapsed .settings-body {
+            display: none;
+        }
+
+        .settings-body {
+            margin-top: 10px;
         }
 
         .toggle-row {
@@ -909,25 +917,30 @@
         <p class="subtitle" id="pageSubtitle">Build your Pixiv search query visually</p>
 
         <div class="scroll-area">
-            <div class="settings-card">
-                <h3 id="displaySettingsTitle">🖼 Display Settings</h3>
-                <label class="toggle-row" for="randomImageEnabled">
-                    <span id="randomImageEnabledLabel">Enable random Pixiv images</span>
-                    <input type="checkbox" id="randomImageEnabled" checked />
-                </label>
-                <div class="blocklist-row">
-                    <label id="defaultImageUrlLabel" for="defaultImageUrl">Default image URL</label>
-                    <input type="text" id="defaultImageUrl" data-i18n-placeholder="defaultImageUrlPlaceholder"
-                        placeholder="https://example.com/background.jpg" />
+            <div class="settings-card collapsed" id="displaySettingsCard">
+                <div class="blocklist-header">
+                    <h3 id="displaySettingsTitle">🖼 Display Settings</h3>
+                    <button class="blocklist-toggle" id="displaySettingsToggle">Show</button>
                 </div>
-                <div class="default-image-actions">
-                    <button type="button" class="btn-inline" id="defaultImageUploadBtn">Upload Local Image</button>
-                    <button type="button" class="btn-inline btn-inline-danger" id="defaultImageClearBtn">Clear Default Image</button>
-                    <input type="file" id="defaultImageFileInput" accept="image/*" hidden />
+                <div class="settings-body">
+                    <label class="toggle-row" for="randomImageEnabled">
+                        <span id="randomImageEnabledLabel">Enable random Pixiv images</span>
+                        <input type="checkbox" id="randomImageEnabled" checked />
+                    </label>
+                    <div class="blocklist-row">
+                        <label id="defaultImageUrlLabel" for="defaultImageUrl">Default image URL</label>
+                        <input type="text" id="defaultImageUrl" data-i18n-placeholder="defaultImageUrlPlaceholder"
+                            placeholder="https://example.com/background.jpg" />
+                    </div>
+                    <div class="default-image-actions">
+                        <button type="button" class="btn-inline" id="defaultImageUploadBtn">Upload Local Image</button>
+                        <button type="button" class="btn-inline btn-inline-danger" id="defaultImageClearBtn">Clear Default Image</button>
+                        <input type="file" id="defaultImageFileInput" accept="image/*" hidden />
+                    </div>
+                    <div class="blocklist-tip" id="defaultImageHelp">Shown on first paint, on request failure, and when random images are disabled.</div>
+                    <div class="settings-meta" id="defaultImageSourceHint">Current source: URL</div>
+                    <div class="default-image-preview" id="defaultImagePreview">No default image configured</div>
                 </div>
-                <div class="blocklist-tip" id="defaultImageHelp">Shown on first paint, on request failure, and when random images are disabled.</div>
-                <div class="settings-meta" id="defaultImageSourceHint">Current source: URL</div>
-                <div class="default-image-preview" id="defaultImagePreview">No default image configured</div>
             </div>
 
             <!-- Preset Selector -->

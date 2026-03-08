@@ -29,6 +29,8 @@ const presetRenameInput = document.getElementById("presetRenameInput");
 const globalMinusInput = document.getElementById("globalMinusKeywords");
 const blocklistCard = document.getElementById("blocklistCard");
 const blocklistToggle = document.getElementById("blocklistToggle");
+const displaySettingsCard = document.getElementById("displaySettingsCard");
+const displaySettingsToggle = document.getElementById("displaySettingsToggle");
 const randomImageEnabledInput = document.getElementById("randomImageEnabled");
 const defaultImageUrlInput = document.getElementById("defaultImageUrl");
 const defaultImagePreview = document.getElementById("defaultImagePreview");
@@ -784,6 +786,13 @@ if (blocklistToggle && blocklistCard) {
   blocklistToggle.addEventListener("click", () => {
     const isCollapsed = blocklistCard.classList.toggle("collapsed");
     blocklistToggle.textContent = isCollapsed ? "Show" : "Hide";
+  });
+}
+
+if (displaySettingsToggle && displaySettingsCard) {
+  displaySettingsToggle.addEventListener("click", () => {
+    const isCollapsed = displaySettingsCard.classList.toggle("collapsed");
+    displaySettingsToggle.textContent = isCollapsed ? "Show" : "Hide";
   });
 }
 
