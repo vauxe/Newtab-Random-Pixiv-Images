@@ -378,6 +378,7 @@ async function resetDefaultImage() {
     defaultImageFileInput.value = "";
   }
   syncDefaultImageControls();
+  await persistDisplaySettings();
 }
 
 function readFileAsDataUrl(file) {
@@ -411,6 +412,48 @@ function persistRandomImageEnabledSetting(enabled) {
         return;
       }
       resolve();
+    });
+  });
+}
+
+function notifyRuntimeConfigUpdated() {
+  return new Promise((resolve, reject) => {
+    if (ext && ext.runtime && ext.runtime.sendMessage) {
+      ext.runtime.sendMessage({ action: "updateConfig" }, () => {
+        if (ext.runtime.lastError) {
+          reject(new Error(ext.runtime.lastError.message));
+          return;
+        }
+        resolve();
+      });
+      return;
+    }
+    resolve();
+  });
+}
+
+function persistDisplaySettings() {
+  return new Promise((resolve, reject) => {
+    if (!ext || !ext.storage || !ext.storage.local) {
+      reject(new Error("Chrome storage unavailable."));
+      return;
+    }
+    ext.storage.local.set({
+      randomImageEnabled,
+      defaultImageUrl: defaultImageSourceType === "url" ? defaultImageUrl : "",
+      defaultImageSourceType,
+      defaultImageUploadName,
+    }, async () => {
+      if (ext.runtime && ext.runtime.lastError) {
+        reject(new Error(ext.runtime.lastError.message));
+        return;
+      }
+      try {
+        await notifyRuntimeConfigUpdated();
+        resolve();
+      } catch (error) {
+        reject(error);
+      }
     });
   });
 }
@@ -528,14 +571,10 @@ async function saveTags() {
     );
   });
 
-  if (ext && ext.runtime && ext.runtime.sendMessage) {
-    ext.runtime.sendMessage({ action: "updateConfig" }, (response) => {
-      if (ext.runtime.lastError) {
-        console.log(ext.runtime.lastError.message);
-      }
-    });
-  } else {
-    console.warn("Extension runtime unavailable, updateConfig not sent.");
+  try {
+    await notifyRuntimeConfigUpdated();
+  } catch (error) {
+    console.warn("Extension runtime unavailable, updateConfig not sent.", error);
   }
 
   updatePreview();
@@ -872,6 +911,14 @@ if (defaultImageUrlInput) {
     defaultImagePreviewUrl = defaultImageUrl;
     syncDefaultImageControls();
   });
+  defaultImageUrlInput.addEventListener("change", async () => {
+    try {
+      await persistDisplaySettings();
+    } catch (error) {
+      console.error("Failed to persist default image URL:", error);
+      showToast("Failed to save default image settings", "error");
+    }
+  });
 }
 
 if (defaultImageUploadBtn && defaultImageFileInput) {
@@ -882,7 +929,18 @@ if (defaultImageUploadBtn && defaultImageFileInput) {
 
 if (defaultImageClearBtn) {
   defaultImageClearBtn.addEventListener("click", async () => {
-    await resetDefaultImage();
+    try {
+      await resetDefaultImage();
+      showToast(
+        _translations["defaultImagePreviewEmpty"]
+          ? _translations["defaultImagePreviewEmpty"].message
+          : "No default image configured",
+        "success"
+      );
+    } catch (error) {
+      console.error("Failed to clear default image:", error);
+      showToast("Failed to save default image settings", "error");
+    }
   });
 }
 
@@ -918,6 +976,7 @@ if (defaultImageFileInput) {
       defaultImageSourceType = "upload";
       defaultImageUploadName = file.name || "";
       syncDefaultImageControls();
+      await persistDisplaySettings();
       showToast(
         _translations["defaultImageUploadSuccess"]
           ? _translations["defaultImageUploadSuccess"].message
