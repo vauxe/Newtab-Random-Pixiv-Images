@@ -275,6 +275,207 @@ function handleLike() {
 }
 ```
 
+## 附录 A. 开发过程中的坑与修正结论
+
+这一节记录本轮开发里已经踩过、并且实际影响过功能稳定性的点，后续继续改 `src` 时应优先参考。
+
+### A.1 Pixiv 主图不能稳定依赖扩展页直连
+
+现象：
+
+1. 新标签页已经拿到 `imageObjectUrl`
+2. 但浏览器层面对 `https://i.pximg.net/...` 的真实图片请求返回 `net::ERR_CONNECTION_CLOSED`
+3. 前台会出现“选图成功但主图不显示”
+
+原因：
+
+1. 扩展页上下文对 `pximg` 直连不稳定
+2. `div + background-image` 这类请求链路很难精细控制请求上下文
+3. 仅依赖页面层 `image` 请求时，Pixiv 源站可能直接断开连接
+
+修正结论：
+
+1. 主图优先走后台下载
+2. 后台优先使用 `XMLHttpRequest + blob`
+3. 成功后转成 `data URL` 再返回给前台
+4. 页面层不要把 `pximg` 直链作为主路径
+
+当前代码：
+
+1. `src/background.js` 已经把主图拉取改成 `XHR -> blob -> data URL`
+2. `src/index.html/index.js` 仍使用 `<img>` 层显示，但主图应尽量吃后台返回的可直接展示数据
+
+### A.2 头像不能在抓取失败时回退成原始 pximg URL
+
+现象：
+
+1. 后台抓头像失败
+2. 如果继续把原始 `https://i.pximg.net/user-profile/...` 返回给前台
+3. 前台会再次发起一个大概率失败的请求
+
+原因：
+
+1. 头像和主图一样，`pximg` 直连在扩展页里不稳定
+2. “抓取失败 -> 直接回原始 URL”这个回退会制造二次失败
+
+修正结论：
+
+1. 头像抓取成功才显示
+2. 失败时直接清空头像
+3. 不要把失败后的原始 `pximg` URL 交给前台
+
+### A.3 DNR 规则不能只按 initiatorDomains 侥幸匹配
+
+现象：
+
+1. 规则已经写了 `referer=https://www.pixiv.net/`
+2. 但某些图片请求并没有稳定命中这条规则
+
+原因：
+
+1. 扩展页发起的图片请求和后台 `fetch/XMLHttpRequest` 不完全一样
+2. 只按 `initiatorDomains: [chrome.runtime.id]` 匹配，实际命中面不稳定
+
+修正结论：
+
+1. 对 `pximg` 规则优先按 `requestDomains` 匹配
+2. 同时覆盖 `xmlhttprequest` 和 `image`
+3. 后台启动时要重新确保规则存在
+
+### A.4 storage.local 不适合存本地默认图的大块内容
+
+现象：
+
+1. 把本地图片转成 base64 后写进 `storage.local`
+2. 会让配置体积明显变大
+3. 设置页保存、导出配置、初始化读取都变慢
+
+原因：
+
+1. `storage.local` 更适合存小体积配置
+2. 图片 base64 体积会膨胀
+
+修正结论：
+
+1. 本地默认图内容放 `IndexedDB`
+2. `storage.local` 只保留来源类型、文件名等元信息
+3. 对旧版本 data URL 配置要做迁移
+
+### A.5 默认图配置不能依赖“最后统一保存”
+
+现象：
+
+1. 用户在 `tags` 页已经上传/修改了默认图
+2. 但没点底部保存时，新标签页仍判断“没有默认图”
+
+原因：
+
+1. 文件本体已经写入 `IndexedDB`
+2. 但 `defaultImageSourceType/defaultImageUploadName/defaultImageUrl` 等元数据没有立刻写入 `storage.local`
+
+修正结论：
+
+1. 默认图 URL 变更、本地上传、清空操作，都要立即持久化
+2. 持久化后要立刻通知后台刷新运行时配置
+
+### A.6 跨页面配置同步不能只同步一个字段
+
+现象：
+
+1. 在 `tags` 页修改默认图或开关
+2. 新标签页只同步了部分状态
+3. 页面会出现“实际上有默认图，但仍提示未配置”的错判
+
+原因：
+
+1. 新标签页只监听了 `randomImageEnabled`
+2. 没有同步默认图相关字段和作者偏好字段
+
+修正结论：
+
+1. `randomImageEnabled`
+2. `mode`
+3. `defaultImageUrl`
+4. `defaultImageSourceType`
+5. `defaultImageUploadName`
+6. `likedUserIds/dislikedUserIds`
+
+这些状态都需要在新标签页监听并更新运行时内存。
+
+### A.7 runtime message 不回包会把前端开关锁死
+
+现象：
+
+1. 页面点开关后进入 busy 状态
+2. 后台如果没有回 `sendResponse`
+3. 前端就会一直等待，开关无法再次操作
+
+原因：
+
+1. `chrome.runtime.sendMessage` 的一部分调用链按异步回包模型写了
+2. 但后台某些 action 分支没有统一响应
+
+修正结论：
+
+1. 后台 `updateConfig` 等分支必须明确回包
+2. 前台也要加超时兜底，不能无限等
+
+### A.8 Pixiv 请求和页面刷新都需要超时控制
+
+现象：
+
+1. `sendRefreshMessage:start` 之后页面一直卡住
+2. 后台某个 Pixiv 请求悬挂时，整条刷新链路就挂住
+
+修正结论：
+
+1. 后台请求 Pixiv JSON、图片抓取都要带超时
+2. 前台等待 `fetchImage` 消息也要带超时
+3. 超时后释放按钮和开关 busy 状态
+
+### A.9 需要保留足够细的调试日志
+
+建议保留以下日志前缀，后续不要轻易删：
+
+1. `[bg] fetchPixivJson:*`
+2. `[bg] fetchImage:*`
+3. `[bg] getRandomIllust:*`
+4. `[newtab] sendRefreshMessage:*`
+5. `[newtab] changeElement:*`
+6. `[newtab] wallpaper:load/error`
+
+这些日志已经多次用于区分：
+
+1. 搜索结果没拿到
+2. 作品详情没拿到
+3. 后台抓图失败
+4. 页面层显示失败
+
+### A.10 收藏功能不要再继续走“后台直连 Pixiv”这条路
+
+现象：
+
+1. 页面内收藏按钮已接线
+2. 但后台直连 Pixiv 收藏接口时，`CSRF token` 获取不稳定
+3. 即使拿到 HTML，也不代表能稳定抽出当前 token
+
+修正结论：
+
+1. 当前实现不应继续在“后台自己伪造 Pixiv 收藏请求”上投入
+2. 如果后续一定要稳定做收藏，应改成借助已打开 Pixiv 页面上下文执行请求
+
+## 附录 B. 后续维护建议
+
+1. 任何涉及 `pximg` 的改动，先区分“后台抓取失败”还是“页面层显示失败”
+2. 任何涉及默认图的改动，都要同时检查 `storage.local` 元数据和 `IndexedDB` 内容
+3. 任何新增配置项，都要检查：
+   迁移
+   导入导出
+   `tags` 页保存
+   `new tab` 实时同步
+   `background` 运行时更新
+4. 在继续做作者喜欢/不喜欢推荐前，先保持现有“作者屏蔽”链路稳定
+
 ### 7.3 后台改动
 
 `src/background.js` 主要保持现有实现，只做以下增强：
