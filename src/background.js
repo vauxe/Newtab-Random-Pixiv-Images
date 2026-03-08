@@ -64,6 +64,14 @@ function getRandomInt(min, max) {
   max = Math.floor(max);
   return Math.floor(Math.random() * (max - min) + min);
 }
+
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = getRandomInt(0, i + 1);
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
 class Queue {
   constructor(maxsize) {
     this.maxsize = maxsize;
@@ -135,14 +143,22 @@ class SearchSource {
     this.params = ["order", "mode", "p", "s_mode", "type", "scd", "ecd", "blt", "bgt"];
     this.totalPage = 0;
     this.itemsPerPage = 60;
-    this.seenIds = new Set(); // Track recently shown IDs to avoid repeats
+    this.pageCache = new Map();
+    this.pageCacheLimit = 8;
+    this.candidateQueue = [];
+    this.candidateQueueTargetSize = 24;
+    this.enqueuedIds = new Set();
+    this.seenMap = new Map();
     this.lastErrorMessage = null;
   }
 
   updateConfig(config) {
     this.searchParam = config;
     this.totalPage = 0;
-    this.seenIds.clear();
+    this.pageCache.clear();
+    this.candidateQueue = [];
+    this.enqueuedIds.clear();
+    this.seenMap.clear();
     this.lastErrorMessage = null;
   }
 
@@ -166,14 +182,14 @@ class SearchSource {
 
   generateSearchUrl(p = 1) {
     let sp = this.searchParam;
-    sp.p = p;
+    let runtimeParam = { ...sp, p };
     let word = buildQuery(sp);
     let firstPart = encodeURIComponent(word);
     let secondPartArray = [];
     secondPartArray.push("?word=" + this.replaceSpecialCharacter(word));
     for (let o of this.params) {
-      if (sp.hasOwnProperty(o) && sp[o]) {
-        secondPartArray.push(`${o}=${sp[o]}`);
+      if (runtimeParam.hasOwnProperty(o) && runtimeParam[o]) {
+        secondPartArray.push(`${o}=${runtimeParam[o]}`);
       }
     }
     let secondPart = secondPartArray.join("&");
@@ -190,52 +206,190 @@ class SearchSource {
     return jsonResult;
   }
 
+  getSeenHistoryLimit() {
+    return Number.isInteger(this.searchParam.seenHistoryLimit) && this.searchParam.seenHistoryLimit > 0
+      ? this.searchParam.seenHistoryLimit
+      : 300;
+  }
+
+  getSeenHistoryTtlMs() {
+    return Number.isInteger(this.searchParam.seenHistoryTtlMs) && this.searchParam.seenHistoryTtlMs > 0
+      ? this.searchParam.seenHistoryTtlMs
+      : 21600000;
+  }
+
+  pruneSeenHistory() {
+    const now = Date.now();
+    const ttl = this.getSeenHistoryTtlMs();
+    for (const [illustId, timestamp] of this.seenMap.entries()) {
+      if (now - timestamp > ttl) {
+        this.seenMap.delete(illustId);
+      }
+    }
+    const limit = this.getSeenHistoryLimit();
+    if (this.seenMap.size <= limit) {
+      return;
+    }
+    const overflow = this.seenMap.size - limit;
+    let trimmed = 0;
+    for (const illustId of this.seenMap.keys()) {
+      this.seenMap.delete(illustId);
+      trimmed += 1;
+      if (trimmed >= overflow) {
+        break;
+      }
+    }
+  }
+
+  hasSeenRecently(illustId) {
+    this.pruneSeenHistory();
+    const seenAt = this.seenMap.get(illustId);
+    if (!seenAt) {
+      return false;
+    }
+    if (Date.now() - seenAt > this.getSeenHistoryTtlMs()) {
+      this.seenMap.delete(illustId);
+      return false;
+    }
+    return true;
+  }
+
+  markSeen(illustId) {
+    this.pruneSeenHistory();
+    this.seenMap.set(illustId, Date.now());
+  }
+
+  cachePage(pageNumber, pageObj) {
+    if (!pageObj) {
+      return;
+    }
+    if (this.pageCache.has(pageNumber)) {
+      this.pageCache.delete(pageNumber);
+    }
+    this.pageCache.set(pageNumber, pageObj);
+    while (this.pageCache.size > this.pageCacheLimit) {
+      const oldestPageNumber = this.pageCache.keys().next().value;
+      this.pageCache.delete(oldestPageNumber);
+    }
+  }
+
+  async getPage(pageNumber) {
+    if (this.pageCache.has(pageNumber)) {
+      const cached = this.pageCache.get(pageNumber);
+      this.pageCache.delete(pageNumber);
+      this.pageCache.set(pageNumber, cached);
+      return cached;
+    }
+    const pageObj = await this.searchIllustPage(pageNumber);
+    if (pageObj && pageObj.body) {
+      this.cachePage(pageNumber, pageObj);
+      const total = pageObj.body.illust.total;
+      const nextTotalPage = Math.ceil(total / this.itemsPerPage);
+      if (nextTotalPage > this.totalPage) {
+        this.totalPage = nextTotalPage;
+      }
+    }
+    return pageObj;
+  }
+
+  filterIllustArray(illustArray) {
+    if (!Array.isArray(illustArray)) {
+      return [];
+    }
+    return illustArray.filter((el) => {
+      let condition1 = !this.searchParam.min_sl || el.sl >= this.searchParam.min_sl;
+      let condition2 = !this.searchParam.max_sl || el.sl <= this.searchParam.max_sl;
+      let condition3 = !this.searchParam.aiType || el.aiType == this.searchParam.aiType;
+      return condition1 && condition2 && condition3;
+    });
+  }
+
+  enqueueCandidates(candidates) {
+    const shuffled = shuffleArray(candidates.slice());
+    for (const candidate of shuffled) {
+      if (!candidate || !candidate.id) {
+        continue;
+      }
+      if (this.enqueuedIds.has(candidate.id) || this.hasSeenRecently(candidate.id)) {
+        continue;
+      }
+      this.candidateQueue.push(candidate);
+      this.enqueuedIds.add(candidate.id);
+    }
+  }
+
+  dequeueCandidate() {
+    while (this.candidateQueue.length > 0) {
+      const candidate = this.candidateQueue.shift();
+      if (!candidate || !candidate.id) {
+        continue;
+      }
+      this.enqueuedIds.delete(candidate.id);
+      if (this.hasSeenRecently(candidate.id)) {
+        continue;
+      }
+      return candidate;
+    }
+    return null;
+  }
+
+  async ensureTotalPages() {
+    if (this.totalPage > 0) {
+      return this.totalPage;
+    }
+    let firstPage = await this.getPage(1);
+    if (!firstPage || !firstPage.body) {
+      return 0;
+    }
+    let total = firstPage.body.illust.total;
+    this.totalPage = Math.ceil(total / this.itemsPerPage);
+    return this.totalPage;
+  }
+
+  pickSamplePages(maxPagesToSample) {
+    if (this.totalPage <= 0) {
+      return [];
+    }
+    const pickedPages = new Set();
+    while (pickedPages.size < Math.min(maxPagesToSample, this.totalPage)) {
+      pickedPages.add(getRandomInt(1, this.totalPage + 1));
+    }
+    return Array.from(pickedPages);
+  }
+
+  async fillCandidateQueue() {
+    if (this.candidateQueue.length >= this.candidateQueueTargetSize) {
+      return;
+    }
+    const totalPage = await this.ensureTotalPages();
+    if (totalPage === 0) {
+      return;
+    }
+
+    const maxPagesToSample = Math.min(4, totalPage);
+    const pageNumbers = this.pickSamplePages(maxPagesToSample);
+    for (const pageNumber of pageNumbers) {
+      const pageObj = await this.getPage(pageNumber);
+      if (!pageObj || !pageObj.body || !pageObj.body.illust) {
+        continue;
+      }
+      const filtered = this.filterIllustArray(pageObj.body.illust.data);
+      this.enqueueCandidates(filtered);
+      if (this.candidateQueue.length >= this.candidateQueueTargetSize) {
+        break;
+      }
+    }
+  }
+
   async getRandomIllust() {
-    const MAX_RETRIES = 8;
+    const MAX_RETRIES = 12;
     this.lastErrorMessage = null;
     for (let i = 0; i < MAX_RETRIES; i++) {
       try {
-        if (this.totalPage === 0) {
-          let firstPage = await this.searchIllustPage(1);
-          if (!firstPage || !firstPage.body) continue;
-          let total = firstPage.body.illust.total;
-          this.totalPage = Math.ceil(total / this.itemsPerPage);
-          if (this.totalPage === 0) return null;
-        }
-
-        let randomPage = getRandomInt(0, this.totalPage) + 1;
-        let pageObj = await this.searchIllustPage(randomPage);
-        if (!pageObj || !pageObj.body) continue;
-
-        let total = pageObj.body.illust.total;
-        let tp = Math.ceil(total / this.itemsPerPage);
-        if (tp > this.totalPage) {
-          this.totalPage = tp;
-        }
-
-        // filter images
-        let illustArray = pageObj.body.illust.data.filter(
-          (el) => {
-            let condition1 = !this.searchParam.min_sl || el.sl >= this.searchParam.min_sl;
-            let condition2 = !this.searchParam.max_sl || el.sl <= this.searchParam.max_sl;
-            let condition3 = !this.searchParam.aiType || el.aiType == this.searchParam.aiType;
-            return condition1 && condition2 && condition3;
-          }
-        );
-
-        if (!illustArray || illustArray.length === 0) continue;
-
-        // Filter out recently seen IDs
-        let candidates = illustArray.filter(el => !this.seenIds.has(el.id));
-        if (candidates.length === 0) continue;
-
-        let randomIndex = getRandomInt(0, candidates.length);
-        let picked = candidates[randomIndex];
-
-        // Track as seen (auto-clear when set gets too large)
-        this.seenIds.add(picked.id);
-        if (this.seenIds.size > 200) {
-          this.seenIds.clear();
+        await this.fillCandidateQueue();
+        let picked = this.dequeueCandidate();
+        if (!picked) {
+          continue;
         }
 
         let res = {};
@@ -281,6 +435,7 @@ class SearchSource {
             // ignore profile image error
           }
         }
+        this.markSeen(picked.id);
         return res;
       } catch (e) {
         console.error("Error in getRandomIllust loop:", e);
