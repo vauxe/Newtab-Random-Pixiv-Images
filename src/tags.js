@@ -21,6 +21,7 @@ let defaultImageSourceType = "url";
 let defaultImageUploadName = "";
 let randomTagPoolEnabled = false;
 let randomTagPool = [];
+let randomTagPoolCounts = {};
 let randomTagPoolPickCount = 0;
 let randomTagPoolLastResolvedTags = [];
 let randomTagPoolLastResolvedAt = 0;
@@ -148,6 +149,14 @@ function createPoolCapsule(tag, index) {
   textSpan.className = "capsule-text";
   textSpan.textContent = tag;
 
+  const count = getRandomTagPoolCount(tag);
+  if (count > 0) {
+    const countSpan = document.createElement("span");
+    countSpan.className = "capsule-count";
+    countSpan.textContent = String(count);
+    el.appendChild(countSpan);
+  }
+
   const dragHandle = document.createElement("span");
   dragHandle.className = "capsule-text";
   dragHandle.textContent = "↕";
@@ -200,6 +209,32 @@ function createReadonlyPoolCapsule(tag) {
   return el;
 }
 
+function getRandomTagPoolCount(tag) {
+  return Number.isInteger(randomTagPoolCounts[tag]) && randomTagPoolCounts[tag] > 0
+    ? randomTagPoolCounts[tag]
+    : 0;
+}
+
+function normalizeRandomTagPoolCounts(counts, pool = randomTagPool) {
+  const normalized = {};
+  const poolSet = new Set(
+    Array.isArray(pool)
+      ? pool.map((item) => String(item || "").trim()).filter(Boolean)
+      : []
+  );
+  if (!counts || typeof counts !== "object" || Array.isArray(counts)) {
+    return normalized;
+  }
+  for (const [tag, count] of Object.entries(counts)) {
+    const normalizedTag = String(tag || "").trim();
+    const normalizedCount = parseInt(count, 10);
+    if (poolSet.has(normalizedTag) && Number.isInteger(normalizedCount) && normalizedCount > 0) {
+      normalized[normalizedTag] = normalizedCount;
+    }
+  }
+  return normalized;
+}
+
 function createInlineInput(group, container) {
   const wrapper = document.createElement("span");
   wrapper.className = "inline-input";
@@ -249,6 +284,7 @@ function createPoolInlineInput(container) {
           randomTagPool.push(value);
         }
       });
+      randomTagPoolCounts = normalizeRandomTagPoolCounts(randomTagPoolCounts, randomTagPool);
       renderRandomTagPool();
     } else {
       wrapper.remove();
@@ -436,6 +472,8 @@ function moveRandomTagPoolItemToGlobal() {
     queryTree.children.push({ type: "tag", value: tag, negated: false });
   }
   randomTagPool.splice(activeRandomTagPoolIndex, 1);
+  delete randomTagPoolCounts[tag];
+  randomTagPoolCounts = normalizeRandomTagPoolCounts(randomTagPoolCounts, randomTagPool);
   closeRandomTagPoolMenu();
   renderAll();
 }
@@ -444,7 +482,9 @@ function deleteRandomTagPoolItem() {
   if (activeRandomTagPoolIndex === null) {
     return;
   }
-  randomTagPool.splice(activeRandomTagPoolIndex, 1);
+  const [removedTag] = randomTagPool.splice(activeRandomTagPoolIndex, 1);
+  delete randomTagPoolCounts[removedTag];
+  randomTagPoolCounts = normalizeRandomTagPoolCounts(randomTagPoolCounts, randomTagPool);
   closeRandomTagPoolMenu();
   renderRandomTagPool();
 }
@@ -726,6 +766,7 @@ function loadTags() {
     randomImageEnabled: true,
     randomTagPoolEnabled: false,
     randomTagPool: [],
+    randomTagPoolCounts: {},
     randomTagPoolPickCount: 0,
     randomTagPoolLastResolvedTags: [],
     randomTagPoolLastResolvedAt: 0,
@@ -755,6 +796,7 @@ function loadTags() {
     randomTagPool = Array.isArray(items.randomTagPool)
       ? items.randomTagPool.map((item) => String(item || "").trim()).filter(Boolean)
       : [];
+    randomTagPoolCounts = normalizeRandomTagPoolCounts(items.randomTagPoolCounts, randomTagPool);
     randomTagPoolPickCount = Number.isInteger(items.randomTagPoolPickCount) && items.randomTagPoolPickCount >= 0
       ? items.randomTagPoolPickCount
       : 0;
@@ -830,6 +872,7 @@ async function saveTags() {
     randomImageEnabled: randomImageEnabled,
     randomTagPoolEnabled: randomTagPoolEnabled,
     randomTagPool: JSON.parse(JSON.stringify(randomTagPool)),
+    randomTagPoolCounts: JSON.parse(JSON.stringify(normalizeRandomTagPoolCounts(randomTagPoolCounts, randomTagPool))),
     randomTagPoolPickCount: randomTagPoolPickCount,
     defaultImageUrl: defaultImageUrl,
     defaultImageSourceType: defaultImageSourceType,
@@ -895,6 +938,7 @@ function importRandomTagPoolFromText(text) {
       randomTagPool.push(tag);
     }
   });
+  randomTagPoolCounts = normalizeRandomTagPoolCounts(randomTagPoolCounts, randomTagPool);
   renderRandomTagPool();
   showToast(
     (_translations["importedCount"]
@@ -937,6 +981,7 @@ function importFromJsonFile(file) {
       randomTagPool = Array.isArray(data.randomTagPool)
         ? data.randomTagPool.map((item) => String(item || "").trim()).filter(Boolean)
         : [];
+      randomTagPoolCounts = normalizeRandomTagPoolCounts(data.randomTagPoolCounts, randomTagPool);
       randomTagPoolPickCount = Number.isInteger(data.randomTagPoolPickCount) && data.randomTagPoolPickCount >= 0
         ? data.randomTagPoolPickCount
         : 0;
@@ -997,6 +1042,7 @@ function exportToJsonFile() {
     randomImageEnabled: randomImageEnabled,
     randomTagPoolEnabled: randomTagPoolEnabled,
     randomTagPool: JSON.parse(JSON.stringify(randomTagPool)),
+    randomTagPoolCounts: JSON.parse(JSON.stringify(normalizeRandomTagPoolCounts(randomTagPoolCounts, randomTagPool))),
     randomTagPoolPickCount: randomTagPoolPickCount,
     defaultImageUrl: defaultImageSourceType === "url" ? defaultImageUrl : "",
     defaultImageSourceType: defaultImageSourceType,
@@ -1403,6 +1449,20 @@ if (ext && ext.storage && ext.storage.onChanged) {
     if (changes.randomImageEnabled) {
       randomImageEnabled = changes.randomImageEnabled.newValue !== false;
       syncRandomImageToggleControl();
+    }
+
+    if (changes.randomTagPool) {
+      randomTagPool = Array.isArray(changes.randomTagPool.newValue)
+        ? changes.randomTagPool.newValue.map((item) => String(item || "").trim()).filter(Boolean)
+        : [];
+    }
+
+    if (changes.randomTagPoolCounts || changes.randomTagPool) {
+      const nextCountsSource = changes.randomTagPoolCounts
+        ? changes.randomTagPoolCounts.newValue
+        : randomTagPoolCounts;
+      randomTagPoolCounts = normalizeRandomTagPoolCounts(nextCountsSource, randomTagPool);
+      renderRandomTagPool();
     }
 
     if (changes.randomTagPoolLastResolvedTags) {

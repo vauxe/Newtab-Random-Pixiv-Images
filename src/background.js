@@ -858,21 +858,28 @@ chrome.runtime.onMessage.addListener(function (
           const pool = Array.isArray(config.randomTagPool)
             ? config.randomTagPool.map((item) => String(item || "").trim()).filter(Boolean)
             : [];
-          if (pool.includes(tag)) {
-            sendResponse({ success: true, exists: true, added: false });
-            return;
+          const counts = config.randomTagPoolCounts && typeof config.randomTagPoolCounts === "object" && !Array.isArray(config.randomTagPoolCounts)
+            ? { ...config.randomTagPoolCounts }
+            : {};
+          const currentCount = Number.isInteger(counts[tag]) && counts[tag] > 0
+            ? counts[tag]
+            : 0;
+          if (!pool.includes(tag)) {
+            pool.push(tag);
           }
-          pool.push(tag);
+          counts[tag] = currentCount + 1;
           config.randomTagPool = pool;
+          config.randomTagPoolCounts = counts;
           config.randomTagPoolEnabled = true;
 
           await chrome.storage.local.set({
             randomTagPool: config.randomTagPool,
+            randomTagPoolCounts: config.randomTagPoolCounts,
             randomTagPoolEnabled: config.randomTagPoolEnabled,
           });
 
           searchSource.updateConfig(config);
-          sendResponse({ success: true, added: true });
+          sendResponse({ success: true, added: true, count: counts[tag] });
         } catch (e) {
           console.error("Add random tag error:", e);
           sendResponse({ success: false, error: e.message });

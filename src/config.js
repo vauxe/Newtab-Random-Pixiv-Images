@@ -63,6 +63,7 @@ export const defaultConfig = {
   dislikedUserIds: [],
   randomTagPoolEnabled: false,
   randomTagPool: [],
+  randomTagPoolCounts: {},
   randomTagPoolPickCount: 0,
   randomSeedStrategy: "page_pool",
   seenHistoryLimit: 300,
@@ -284,6 +285,19 @@ export function migrateConfig(config) {
   }
   if (!Array.isArray(config.randomTagPool)) {
     config.randomTagPool = [];
+  }
+  if (!config.randomTagPoolCounts || typeof config.randomTagPoolCounts !== "object" || Array.isArray(config.randomTagPoolCounts)) {
+    config.randomTagPoolCounts = {};
+  } else {
+    const normalizedCounts = {};
+    for (const [tag, count] of Object.entries(config.randomTagPoolCounts)) {
+      const normalizedTag = String(tag || "").trim();
+      const normalizedCount = parseInt(count, 10);
+      if (normalizedTag && Number.isInteger(normalizedCount) && normalizedCount > 0) {
+        normalizedCounts[normalizedTag] = normalizedCount;
+      }
+    }
+    config.randomTagPoolCounts = normalizedCounts;
   }
   if (!Number.isInteger(config.randomTagPoolPickCount) || config.randomTagPoolPickCount < 0) {
     config.randomTagPoolPickCount = 0;
