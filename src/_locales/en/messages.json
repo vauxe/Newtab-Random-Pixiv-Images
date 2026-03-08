@@ -193,5 +193,38 @@
   },
   "randomTagPoolLastResolvedHelp": {
     "message": "Updates only after a successful random-image hit. If this round fell back to the base query, no random tags are shown here."
+  },
+  "creatorPreferenceTitle": {
+    "message": "👤 Creator Preferences"
+  },
+  "likedCreatorsLabel": {
+    "message": "Liked creators"
+  },
+  "likedCreatorsEmptyState": {
+    "message": "No liked creators yet"
+  },
+  "likedCreatorsAddLabel": {
+    "message": "Creator ID"
+  },
+  "likedCreatorsCapsuleTitle": {
+    "message": "Liked creator"
+  },
+  "dislikedCreatorsLabel": {
+    "message": "Blocked creators"
+  },
+  "dislikedCreatorsEmptyState": {
+    "message": "No blocked creators yet"
+  },
+  "dislikedCreatorsAddLabel": {
+    "message": "Creator ID"
+  },
+  "dislikedCreatorsCapsuleTitle": {
+    "message": "Blocked creator"
+  },
+  "creatorPreferenceHelp": {
+    "message": "Manage creator IDs here. Blocking a creator will exclude their artworks from future random results."
+  },
+  "creatorIdInputPlaceholder": {
+    "message": "123456"
   }
 }

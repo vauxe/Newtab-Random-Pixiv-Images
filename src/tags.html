@@ -1114,6 +1114,42 @@
                 </div>
             </div>
 
+            <div class="blocklist-card collapsed" id="creatorPreferenceCard">
+                <div class="blocklist-header">
+                    <h3 id="creatorPreferenceTitle">👤 Creator Preferences</h3>
+                    <button class="blocklist-toggle" id="creatorPreferenceToggle">Show</button>
+                </div>
+                <div class="blocklist-body">
+                    <div class="blocklist-row">
+                        <label id="likedCreatorsLabel">Liked creators</label>
+                        <div class="flow-builder">
+                            <div class="flow-container" id="likedCreatorsContainer">
+                                <div class="empty-state" id="likedCreatorsEmptyState">No liked creators yet</div>
+                            </div>
+                        </div>
+                        <div class="actions-bar">
+                            <button class="btn-action btn-add-keyword" id="likedCreatorsAddBtn">
+                                + <span id="likedCreatorsAddLabel">Creator ID</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="blocklist-row">
+                        <label id="dislikedCreatorsLabel">Blocked creators</label>
+                        <div class="flow-builder">
+                            <div class="flow-container" id="dislikedCreatorsContainer">
+                                <div class="empty-state" id="dislikedCreatorsEmptyState">No blocked creators yet</div>
+                            </div>
+                        </div>
+                        <div class="actions-bar">
+                            <button class="btn-action btn-add-keyword" id="dislikedCreatorsAddBtn">
+                                + <span id="dislikedCreatorsAddLabel">Creator ID</span>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="blocklist-tip" id="creatorPreferenceHelp">Manage creator IDs here. Blocking a creator will exclude their artworks from future random results.</div>
+                </div>
+            </div>
+
             <!-- Capsule Flow Builder -->
             <div class="flow-builder">
                 <div class="flow-container" id="flowContainer">

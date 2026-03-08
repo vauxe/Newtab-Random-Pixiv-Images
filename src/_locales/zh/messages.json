@@ -193,5 +193,38 @@
   },
   "randomTagPoolLastResolvedHelp": {
     "message": "仅在随机图片成功命中后更新；如果这一轮退回基础查询，这里不会显示随机 Tags。"
+  },
+  "creatorPreferenceTitle": {
+    "message": "👤 作者偏好"
+  },
+  "likedCreatorsLabel": {
+    "message": "喜欢作者"
+  },
+  "likedCreatorsEmptyState": {
+    "message": "还没有喜欢作者"
+  },
+  "likedCreatorsAddLabel": {
+    "message": "作者 ID"
+  },
+  "likedCreatorsCapsuleTitle": {
+    "message": "喜欢作者"
+  },
+  "dislikedCreatorsLabel": {
+    "message": "屏蔽作者"
+  },
+  "dislikedCreatorsEmptyState": {
+    "message": "还没有屏蔽作者"
+  },
+  "dislikedCreatorsAddLabel": {
+    "message": "作者 ID"
+  },
+  "dislikedCreatorsCapsuleTitle": {
+    "message": "屏蔽作者"
+  },
+  "creatorPreferenceHelp": {
+    "message": "在这里管理作者 ID。屏蔽作者后，后续随机结果会排除该作者作品。"
+  },
+  "creatorIdInputPlaceholder": {
+    "message": "123456"
   }
 }

@@ -193,5 +193,38 @@
   },
   "randomTagPoolLastResolvedHelp": {
     "message": "ランダム画像が正常にヒットした後のみ更新されます。このラウンドがベースクエリまで後退した場合、ここにはランダム Tags は表示されません。"
+  },
+  "creatorPreferenceTitle": {
+    "message": "👤 作者設定"
+  },
+  "likedCreatorsLabel": {
+    "message": "お気に入り作者"
+  },
+  "likedCreatorsEmptyState": {
+    "message": "お気に入り作者はまだありません"
+  },
+  "likedCreatorsAddLabel": {
+    "message": "作者 ID"
+  },
+  "likedCreatorsCapsuleTitle": {
+    "message": "お気に入り作者"
+  },
+  "dislikedCreatorsLabel": {
+    "message": "非表示作者"
+  },
+  "dislikedCreatorsEmptyState": {
+    "message": "非表示作者はまだありません"
+  },
+  "dislikedCreatorsAddLabel": {
+    "message": "作者 ID"
+  },
+  "dislikedCreatorsCapsuleTitle": {
+    "message": "非表示作者"
+  },
+  "creatorPreferenceHelp": {
+    "message": "ここで作者 ID を管理します。作者を非表示にすると、今後のランダム結果からその作品を除外します。"
+  },
+  "creatorIdInputPlaceholder": {
+    "message": "123456"
   }
 }

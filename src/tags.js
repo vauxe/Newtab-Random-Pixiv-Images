@@ -20,6 +20,8 @@ let defaultImageUrl = "";
 let defaultImagePreviewUrl = "";
 let defaultImageSourceType = "url";
 let defaultImageUploadName = "";
+let likedUserIds = [];
+let dislikedUserIds = [];
 let randomTagPoolEnabled = false;
 let randomTagPool = [];
 let randomTagPoolCounts = {};
@@ -57,6 +59,14 @@ const randomTagPoolImportBtn = document.getElementById("randomTagPoolImportBtn")
 const randomTagPoolMenu = document.getElementById("randomTagPoolMenu");
 const randomTagPoolMoveToGlobalBtn = document.getElementById("randomTagPoolMoveToGlobalBtn");
 const randomTagPoolDeleteBtn = document.getElementById("randomTagPoolDeleteBtn");
+const creatorPreferenceCard = document.getElementById("creatorPreferenceCard");
+const creatorPreferenceToggle = document.getElementById("creatorPreferenceToggle");
+const likedCreatorsContainer = document.getElementById("likedCreatorsContainer");
+const likedCreatorsEmptyState = document.getElementById("likedCreatorsEmptyState");
+const likedCreatorsAddBtn = document.getElementById("likedCreatorsAddBtn");
+const dislikedCreatorsContainer = document.getElementById("dislikedCreatorsContainer");
+const dislikedCreatorsEmptyState = document.getElementById("dislikedCreatorsEmptyState");
+const dislikedCreatorsAddBtn = document.getElementById("dislikedCreatorsAddBtn");
 
 let currentImportTarget = "queryTree";
 let activeRandomTagPoolIndex = null;
@@ -200,6 +210,82 @@ function createReadonlyPoolCapsule(tag) {
   return el;
 }
 
+function createCreatorCapsule(userId, listType, index) {
+  const el = document.createElement("span");
+  el.className = `capsule ${listType === "liked" ? "capsule-normal" : "capsule-negated"}`;
+
+  const icon = document.createElement("button");
+  icon.className = "toggle-neg";
+  icon.textContent = listType === "liked" ? "+" : "−";
+  icon.title = listType === "liked"
+    ? (_translations["likedCreatorsCapsuleTitle"] ? _translations["likedCreatorsCapsuleTitle"].message : "Liked creator")
+    : (_translations["dislikedCreatorsCapsuleTitle"] ? _translations["dislikedCreatorsCapsuleTitle"].message : "Blocked creator");
+  icon.disabled = true;
+
+  const textSpan = document.createElement("span");
+  textSpan.className = "capsule-text";
+  textSpan.textContent = userId;
+
+  const removeBtn = document.createElement("button");
+  removeBtn.className = "remove-btn";
+  removeBtn.textContent = "×";
+  removeBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    if (listType === "liked") {
+      likedUserIds.splice(index, 1);
+      likedUserIds = normalizeCreatorIds(likedUserIds);
+    } else {
+      dislikedUserIds.splice(index, 1);
+      dislikedUserIds = normalizeCreatorIds(dislikedUserIds);
+    }
+    renderCreatorPreferences();
+  });
+
+  el.appendChild(icon);
+  el.appendChild(textSpan);
+  el.appendChild(removeBtn);
+  return el;
+}
+
+function createCreatorInlineInput(container, listType) {
+  const wrapper = document.createElement("span");
+  wrapper.className = "inline-input";
+
+  const input = document.createElement("input");
+  input.placeholder = _translations["creatorIdInputPlaceholder"]
+    ? _translations["creatorIdInputPlaceholder"].message
+    : "123456";
+
+  const commit = () => {
+    const values = parseRandomTagPoolInput(input.value);
+    if (values.length > 0) {
+      if (listType === "liked") {
+        likedUserIds = normalizeCreatorIds([...likedUserIds, ...values]);
+        dislikedUserIds = dislikedUserIds.filter((id) => !likedUserIds.includes(id));
+      } else {
+        dislikedUserIds = normalizeCreatorIds([...dislikedUserIds, ...values]);
+        likedUserIds = likedUserIds.filter((id) => !dislikedUserIds.includes(id));
+      }
+      renderCreatorPreferences();
+    } else {
+      wrapper.remove();
+    }
+  };
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      commit();
+    } else if (e.key === "Escape") {
+      wrapper.remove();
+    }
+  });
+
+  input.addEventListener("blur", commit);
+
+  wrapper.appendChild(input);
+  return wrapper;
+}
+
 function normalizeRandomTagPoolCounts(counts, pool = randomTagPool) {
   const normalized = {};
   const poolSet = new Set(
@@ -218,6 +304,14 @@ function normalizeRandomTagPoolCounts(counts, pool = randomTagPool) {
     }
   }
   return normalized;
+}
+
+function normalizeCreatorIds(ids) {
+  return Array.from(new Set(
+    (Array.isArray(ids) ? ids : [])
+      .map((id) => String(id || "").trim())
+      .filter(Boolean)
+  ));
 }
 
 function parseGlobalMinusKeywords(value = globalMinusKeywords) {
@@ -494,6 +588,7 @@ function renderAll() {
 
   renderRandomTagPool();
   renderLastResolvedRandomTags();
+  renderCreatorPreferences();
   updatePreview();
 }
 
@@ -545,6 +640,40 @@ function renderLastResolvedRandomTags() {
   randomTagPoolLastResolvedTags.forEach((tag) => {
     randomTagPoolLastResolvedContainer.appendChild(createReadonlyPoolCapsule(tag));
   });
+}
+
+function renderCreatorPreferences() {
+  if (likedCreatorsContainer && likedCreatorsEmptyState) {
+    likedCreatorsContainer.innerHTML = "";
+    if (likedUserIds.length === 0) {
+      likedCreatorsEmptyState.textContent = _translations["likedCreatorsEmptyState"]
+        ? _translations["likedCreatorsEmptyState"].message
+        : "No liked creators yet";
+      likedCreatorsEmptyState.style.display = "";
+      likedCreatorsContainer.appendChild(likedCreatorsEmptyState);
+    } else {
+      likedCreatorsEmptyState.style.display = "none";
+      likedUserIds.forEach((userId, index) => {
+        likedCreatorsContainer.appendChild(createCreatorCapsule(userId, "liked", index));
+      });
+    }
+  }
+
+  if (dislikedCreatorsContainer && dislikedCreatorsEmptyState) {
+    dislikedCreatorsContainer.innerHTML = "";
+    if (dislikedUserIds.length === 0) {
+      dislikedCreatorsEmptyState.textContent = _translations["dislikedCreatorsEmptyState"]
+        ? _translations["dislikedCreatorsEmptyState"].message
+        : "No blocked creators yet";
+      dislikedCreatorsEmptyState.style.display = "";
+      dislikedCreatorsContainer.appendChild(dislikedCreatorsEmptyState);
+    } else {
+      dislikedCreatorsEmptyState.style.display = "none";
+      dislikedUserIds.forEach((userId, index) => {
+        dislikedCreatorsContainer.appendChild(createCreatorCapsule(userId, "disliked", index));
+      });
+    }
+  }
 }
 
 function closeRandomTagPoolMenu() {
@@ -687,6 +816,8 @@ function savePresetsToStorage() {
     globalMinusKeywords: globalMinusKeywords,
     randomImageEnabled: randomImageEnabled,
     mode: onlyR18Content ? "r18" : "safe",
+    likedUserIds: JSON.parse(JSON.stringify(normalizeCreatorIds(likedUserIds))),
+    dislikedUserIds: JSON.parse(JSON.stringify(normalizeCreatorIds(dislikedUserIds))),
     randomTagPoolEnabled: randomTagPoolEnabled,
     randomTagPool: JSON.parse(JSON.stringify(randomTagPool)),
     randomTagPoolPickCount: randomTagPoolPickCount,
@@ -851,6 +982,8 @@ function persistDisplaySettings() {
     ext.storage.local.set({
       randomImageEnabled,
       mode: onlyR18Content ? "r18" : "safe",
+      likedUserIds: JSON.parse(JSON.stringify(normalizeCreatorIds(likedUserIds))),
+      dislikedUserIds: JSON.parse(JSON.stringify(normalizeCreatorIds(dislikedUserIds))),
       defaultImageUrl: defaultImageSourceType === "url" ? defaultImageUrl : "",
       defaultImageSourceType,
       defaultImageUploadName,
@@ -892,6 +1025,8 @@ function loadTags() {
     randomTagPool: [],
     randomTagPoolCounts: {},
     randomTagPoolPickCount: 2,
+    likedUserIds: [],
+    dislikedUserIds: [],
     randomTagPoolLastResolvedTags: [],
     randomTagPoolLastResolvedAt: 0,
     mode: "safe",
@@ -917,6 +1052,8 @@ function loadTags() {
     globalMinusKeywords = items.globalMinusKeywords || "";
     randomImageEnabled = items.randomImageEnabled !== false;
     onlyR18Content = items.mode === "r18";
+    likedUserIds = normalizeCreatorIds(items.likedUserIds);
+    dislikedUserIds = normalizeCreatorIds(items.dislikedUserIds);
     randomTagPoolEnabled = items.randomTagPoolEnabled === true;
     randomTagPool = Array.isArray(items.randomTagPool)
       ? items.randomTagPool.map((item) => String(item || "").trim()).filter(Boolean)
@@ -989,6 +1126,8 @@ async function saveTags() {
     globalMinusKeywords: globalMinusKeywords,
     randomImageEnabled: randomImageEnabled,
     mode: onlyR18Content ? "r18" : "safe",
+    likedUserIds: JSON.parse(JSON.stringify(normalizeCreatorIds(likedUserIds))),
+    dislikedUserIds: JSON.parse(JSON.stringify(normalizeCreatorIds(dislikedUserIds))),
     randomTagPoolEnabled: randomTagPoolEnabled,
     randomTagPool: JSON.parse(JSON.stringify(randomTagPool)),
     randomTagPoolCounts: JSON.parse(JSON.stringify(normalizeRandomTagPoolCounts(randomTagPoolCounts, randomTagPool))),
@@ -1097,6 +1236,8 @@ function importFromJsonFile(file) {
       globalMinusKeywords = data.globalMinusKeywords || "";
       randomImageEnabled = data.randomImageEnabled !== false;
       onlyR18Content = data.mode === "r18";
+      likedUserIds = normalizeCreatorIds(data.likedUserIds);
+      dislikedUserIds = normalizeCreatorIds(data.dislikedUserIds);
       randomTagPoolEnabled = data.randomTagPoolEnabled === true;
       randomTagPool = Array.isArray(data.randomTagPool)
         ? data.randomTagPool.map((item) => String(item || "").trim()).filter(Boolean)
@@ -1158,6 +1299,8 @@ function exportToJsonFile() {
     globalMinusKeywords: globalMinusKeywords,
     randomImageEnabled: randomImageEnabled,
     mode: onlyR18Content ? "r18" : "safe",
+    likedUserIds: JSON.parse(JSON.stringify(normalizeCreatorIds(likedUserIds))),
+    dislikedUserIds: JSON.parse(JSON.stringify(normalizeCreatorIds(dislikedUserIds))),
     randomTagPoolEnabled: randomTagPoolEnabled,
     randomTagPool: JSON.parse(JSON.stringify(randomTagPool)),
     randomTagPoolCounts: JSON.parse(JSON.stringify(normalizeRandomTagPoolCounts(randomTagPoolCounts, randomTagPool))),
@@ -1282,6 +1425,22 @@ if (randomTagPoolAddBtn && randomTagPoolContainer) {
   });
 }
 
+if (likedCreatorsAddBtn && likedCreatorsContainer) {
+  likedCreatorsAddBtn.addEventListener("click", () => {
+    const inputEl = createCreatorInlineInput(likedCreatorsContainer, "liked");
+    likedCreatorsContainer.appendChild(inputEl);
+    inputEl.querySelector("input").focus();
+  });
+}
+
+if (dislikedCreatorsAddBtn && dislikedCreatorsContainer) {
+  dislikedCreatorsAddBtn.addEventListener("click", () => {
+    const inputEl = createCreatorInlineInput(dislikedCreatorsContainer, "disliked");
+    dislikedCreatorsContainer.appendChild(inputEl);
+    inputEl.querySelector("input").focus();
+  });
+}
+
 if (randomTagPoolImportBtn) {
   randomTagPoolImportBtn.addEventListener("click", () => {
     openImportModal("randomTagPool");
@@ -1391,6 +1550,13 @@ if (randomTagPoolToggle && randomTagPoolCard) {
   randomTagPoolToggle.addEventListener("click", () => {
     const isCollapsed = randomTagPoolCard.classList.toggle("collapsed");
     randomTagPoolToggle.textContent = isCollapsed ? "Show" : "Hide";
+  });
+}
+
+if (creatorPreferenceToggle && creatorPreferenceCard) {
+  creatorPreferenceToggle.addEventListener("click", () => {
+    const isCollapsed = creatorPreferenceCard.classList.toggle("collapsed");
+    creatorPreferenceToggle.textContent = isCollapsed ? "Show" : "Hide";
   });
 }
 
@@ -1573,6 +1739,16 @@ if (ext && ext.storage && ext.storage.onChanged) {
     if (changes.mode) {
       onlyR18Content = changes.mode.newValue === "r18";
       syncRandomImageToggleControl();
+    }
+
+    if (changes.likedUserIds) {
+      likedUserIds = normalizeCreatorIds(changes.likedUserIds.newValue);
+      renderCreatorPreferences();
+    }
+
+    if (changes.dislikedUserIds) {
+      dislikedUserIds = normalizeCreatorIds(changes.dislikedUserIds.newValue);
+      renderCreatorPreferences();
     }
 
     if (changes.randomTagPool) {
