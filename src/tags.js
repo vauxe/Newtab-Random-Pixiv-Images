@@ -19,7 +19,7 @@ let defaultImageUrl = "";
 let defaultImagePreviewUrl = "";
 let defaultImageSourceType = "url";
 let defaultImageUploadName = "";
-const MAX_DEFAULT_IMAGE_FILE_SIZE = 2 * 1024 * 1024;
+const MAX_DEFAULT_IMAGE_FILE_SIZE = 20 * 1024 * 1024;
 
 // ── DOM refs ──
 const flowContainer = document.getElementById("flowContainer");
@@ -849,7 +849,7 @@ if (defaultImageFileInput) {
     }
     try {
       defaultImagePreviewUrl = await readFileAsDataUrl(file);
-      await saveUploadedDefaultImage(defaultImagePreviewUrl, file.name || "");
+      await saveUploadedDefaultImage(file, file.name || "");
       defaultImageUrl = "";
       defaultImageSourceType = "upload";
       defaultImageUploadName = file.name || "";

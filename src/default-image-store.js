@@ -62,13 +62,27 @@ function requestToPromise(request) {
   });
 }
 
-export async function saveUploadedDefaultImage(dataUrl, uploadName = "") {
+function blobToDataUrl(blob) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error("Failed to read blob"));
+    reader.readAsDataURL(blob);
+  });
+}
+
+export async function saveUploadedDefaultImage(data, uploadName = "") {
   const record = {
     id: DEFAULT_IMAGE_UPLOAD_KEY,
-    dataUrl,
     uploadName,
     updatedAt: Date.now(),
   };
+  if (data instanceof Blob) {
+    record.blob = data;
+    record.mimeType = data.type || "application/octet-stream";
+  } else {
+    record.dataUrl = data;
+  }
   await withStore("readwrite", async (store) => {
     await requestToPromise(store.put(record));
   });
@@ -106,7 +120,14 @@ export async function resolveDefaultImageUrl(config, options = {}) {
     }
 
     const record = await getUploadedDefaultImageRecord();
-    return record && typeof record.dataUrl === "string" ? record.dataUrl : "";
+    if (!record) return "";
+    if (typeof record.dataUrl === "string") {
+      return record.dataUrl;
+    }
+    if (record.blob instanceof Blob) {
+      return await blobToDataUrl(record.blob);
+    }
+    return "";
   }
 
   return typeof config.defaultImageUrl === "string"

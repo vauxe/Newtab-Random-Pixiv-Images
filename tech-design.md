@@ -241,13 +241,13 @@ key: "default-image-upload"
 ```js
 {
   id: "default-image-upload",
-  dataUrl: "data:image/png;base64,...",
+  blob: FileOrBlob,
   uploadName: "wallpaper.png",
   updatedAt: 1710000000000
 }
 ```
 
-这样可以把大图片内容从配置字段里挪出去，避免拖慢 `storage.local` 的读写和导出。
+读取时再按需转换成页面可用的 URL。这样可以把大图片内容从配置字段里挪出去，避免拖慢 `storage.local` 的读写和导出，也能避免 base64 带来的体积膨胀。
 
 ## 7. 收藏功能设计
 
