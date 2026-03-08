@@ -12,7 +12,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   let activeTagPopupHandler = null;
   let activeTagPopupTrigger = null;
   let activeTagPopupPendingTags = new Set();
-  let currentLikedTagForImage = "";
+  let currentLikedTagsForImage = new Set();
   let currentQueuedPriorityTagForImage = "";
   let activeTagPopupMode = "exclude";
   let shouldRefreshOnTagPopupClose = false;
@@ -447,7 +447,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     currentIllustId = illustObject.illustId || null;
     currentIllustUrl = illustObject.illustIdUrl || null;
     currentImageVisible = !!illustObject.imageObjectUrl;
-    currentLikedTagForImage = "";
+    currentLikedTagsForImage = new Set();
     currentQueuedPriorityTagForImage = "";
     console.log("Illust tags:", currentTags.map(t => t.tag));
 
@@ -499,7 +499,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     if (activeTagPopupPendingTags.has(tag)) {
       return;
     }
-    if (currentLikedTagForImage) {
+    if (currentLikedTagsForImage.has(tag)) {
       queueNextPriorityRandomTag(tag);
       return;
     }
@@ -517,11 +517,11 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
         if (res && res.success && res.added !== false) {
           document.getElementById("likeButton").classList.add("liked");
           markTagChipState(tag, "selected-like");
-          currentLikedTagForImage = tag;
+          currentLikedTagsForImage.add(tag);
           showToast(translate("addedRandomTag", { tag }), "success");
         } else if (res && res.success && res.exists) {
           markTagChipState(tag, "selected-like");
-          currentLikedTagForImage = tag;
+          currentLikedTagsForImage.add(tag);
           showToast(translate("randomTagExists", { tag }), "success");
         } else {
           showToast(res?.error || translate("addRandomTagFailed"), "error");
@@ -549,10 +549,11 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
           if (currentQueuedPriorityTagForImage && currentQueuedPriorityTagForImage !== tag) {
             markTagChipState(
               currentQueuedPriorityTagForImage,
-              currentQueuedPriorityTagForImage === currentLikedTagForImage ? "selected-like" : ""
+              currentLikedTagsForImage.has(currentQueuedPriorityTagForImage) ? "selected-like" : ""
             );
           }
           currentQueuedPriorityTagForImage = tag;
+          currentLikedTagsForImage.add(tag);
           markTagChipState(tag, "queued-next");
           showToast(translate("queuedNextRandomTag", { tag }), "success");
         } else {
@@ -606,10 +607,10 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
         }
       });
       tagList.appendChild(chip);
-      if (activeTagPopupMode === "random" && currentLikedTagForImage && currentLikedTagForImage === t.tag) {
-        markTagChipState(t.tag, "selected-like");
-      } else if (activeTagPopupMode === "random" && currentQueuedPriorityTagForImage && currentQueuedPriorityTagForImage === t.tag) {
+      if (activeTagPopupMode === "random" && currentQueuedPriorityTagForImage && currentQueuedPriorityTagForImage === t.tag) {
         markTagChipState(t.tag, "queued-next");
+      } else if (activeTagPopupMode === "random" && currentLikedTagsForImage.has(t.tag)) {
+        markTagChipState(t.tag, "selected-like");
       }
     });
 
