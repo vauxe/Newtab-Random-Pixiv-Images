@@ -303,6 +303,21 @@ class SearchSource {
     return pageObj;
   }
 
+  normalizeUserId(userId) {
+    return String(userId || "").trim();
+  }
+
+  isDislikedUser(userId) {
+    const normalizedUserId = this.normalizeUserId(userId);
+    if (!normalizedUserId) {
+      return false;
+    }
+    const dislikedUserIds = Array.isArray(this.searchParam.dislikedUserIds)
+      ? this.searchParam.dislikedUserIds.map((id) => this.normalizeUserId(id)).filter(Boolean)
+      : [];
+    return dislikedUserIds.includes(normalizedUserId);
+  }
+
   filterIllustArray(illustArray) {
     if (!Array.isArray(illustArray)) {
       return [];
@@ -311,7 +326,8 @@ class SearchSource {
       let condition1 = !this.searchParam.min_sl || el.sl >= this.searchParam.min_sl;
       let condition2 = !this.searchParam.max_sl || el.sl <= this.searchParam.max_sl;
       let condition3 = !this.searchParam.aiType || el.aiType == this.searchParam.aiType;
-      return condition1 && condition2 && condition3;
+      let condition4 = !this.isDislikedUser(el.userId);
+      return condition1 && condition2 && condition3 && condition4;
     });
   }
 
@@ -478,6 +494,10 @@ class SearchSource {
 
         res.userName = illustInfo.body.userName;
         res.userId = illustInfo.body.userId;
+        if (this.isDislikedUser(res.userId)) {
+          this.markSeen(picked.id);
+          continue;
+        }
         res.illustId = illustInfo.body.illustId;
         res.userIdUrl = baseUrl + "/users/" + illustInfo.body.userId;
         res.illustIdUrl = baseUrl + "/artworks/" + illustInfo.body.illustId;
@@ -854,6 +874,53 @@ chrome.runtime.onMessage.addListener(function (
           sendResponse({ success: true });
         } catch (e) {
           console.error("Exclude tag error:", e);
+          sendResponse({ success: false, error: e.message });
+        }
+      } else if (message.action === "setCreatorPreference") {
+        try {
+          const userId = String(message.userId || "").trim();
+          const preference = String(message.preference || "").trim();
+          if (!userId) {
+            sendResponse({ success: false, error: "Invalid user id" });
+            return;
+          }
+          if (!["like", "dislike", "neutral"].includes(preference)) {
+            sendResponse({ success: false, error: "Invalid preference" });
+            return;
+          }
+          let config = await getStoredConfig();
+          const likedUserIds = Array.isArray(config.likedUserIds)
+            ? config.likedUserIds.map((id) => String(id || "").trim()).filter(Boolean)
+            : [];
+          const dislikedUserIds = Array.isArray(config.dislikedUserIds)
+            ? config.dislikedUserIds.map((id) => String(id || "").trim()).filter(Boolean)
+            : [];
+          const nextLikedUserIds = likedUserIds.filter((id) => id !== userId);
+          const nextDislikedUserIds = dislikedUserIds.filter((id) => id !== userId);
+
+          if (preference === "like") {
+            nextLikedUserIds.push(userId);
+          } else if (preference === "dislike") {
+            nextDislikedUserIds.push(userId);
+          }
+
+          config.likedUserIds = nextLikedUserIds;
+          config.dislikedUserIds = nextDislikedUserIds;
+
+          await chrome.storage.local.set({
+            likedUserIds: config.likedUserIds,
+            dislikedUserIds: config.dislikedUserIds,
+          });
+
+          searchSource.updateConfig(config);
+          sendResponse({
+            success: true,
+            preference,
+            likedUserIds: config.likedUserIds,
+            dislikedUserIds: config.dislikedUserIds,
+          });
+        } catch (e) {
+          console.error("Set creator preference error:", e);
           sendResponse({ success: false, error: e.message });
         }
       } else if (message.action === "addRandomTag") {

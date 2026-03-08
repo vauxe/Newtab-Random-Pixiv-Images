@@ -288,10 +288,19 @@ body {
   white-space: nowrap;
 }
 
+#creatorActions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin-top: 6px;
+}
+
 /* Like / Dislike buttons */
 #likeButton,
 #bookmarkButton,
-#dislikeButton {
+#dislikeButton,
+#creatorLikeButton,
+#creatorDislikeButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -314,9 +323,21 @@ body {
   transform: scale(1.15);
 }
 
+#creatorLikeButton:hover {
+  background-color: rgba(72, 199, 116, 0.7);
+  transform: scale(1.1);
+}
+
+#creatorDislikeButton:hover {
+  background-color: rgba(244, 114, 114, 0.7);
+  transform: scale(1.1);
+}
+
 #likeButton.disabled,
 #bookmarkButton.disabled,
-#dislikeButton.disabled {
+#dislikeButton.disabled,
+#creatorLikeButton.disabled,
+#creatorDislikeButton.disabled {
   opacity: 0.35;
   cursor: default;
   pointer-events: none;
@@ -328,6 +349,14 @@ body {
 
 #bookmarkButton.bookmarked svg {
   fill: #58c490;
+}
+
+#creatorLikeButton.active svg {
+  fill: #48c774;
+}
+
+#creatorDislikeButton.active svg {
+  fill: #f87171;
 }
 
 #bookmarkButton.loading {

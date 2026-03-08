@@ -5,10 +5,13 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   let currentTags = [];
   let currentIllustId = null;
   let currentIllustUrl = null;
+  let currentUserId = null;
+  let currentUserName = "";
   let currentBookmarkedIllustId = null;
   let runtimeConfig = null;
   let currentImageVisible = false;
   let isBookmarkBusy = false;
+  let isCreatorPreferenceBusy = false;
   let isRandomToggleBusy = false;
   let latestRefreshRequestId = 0;
   let activeTagPopupHandler = null;
@@ -29,12 +32,19 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       settingsTitle: "Tag Manager",
       refreshTitle: "Refresh image",
       bookmarkTitle: "Bookmark artwork",
+      creatorLikeTitle: "Like creator",
+      creatorDislikeTitle: "Dislike creator",
       defaultBackgroundTitle: "Default background",
       configuredDefaultImage: "Configured default image",
       randomDisabledNoDefault: "Random images are off and no default image is configured.",
       failedLoadImage: "Failed to load image",
       bookmarkFailed: "Bookmark failed",
       bookmarked: "Bookmarked!",
+      creatorUnavailable: "Creator information is unavailable",
+      creatorPreferenceFailed: "Failed to update creator preference",
+      likedCreator: "Liked creator: {name}",
+      dislikedCreator: "Disliked creator: {name}",
+      clearedCreatorPreference: "Cleared creator preference: {name}",
       addRandomTagTitle: "Select tags to add to random pool",
       addRandomTagFailed: "Failed to add tag to random pool",
       addedRandomTag: "Added to random pool: {tag}",
@@ -60,12 +70,19 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       settingsTitle: "标签管理",
       refreshTitle: "刷新图片",
       bookmarkTitle: "收藏作品",
+      creatorLikeTitle: "喜欢作者",
+      creatorDislikeTitle: "不喜欢作者",
       defaultBackgroundTitle: "默认背景",
       configuredDefaultImage: "已配置的默认图片",
       randomDisabledNoDefault: "随机图片已关闭，且尚未配置默认图片。",
       failedLoadImage: "图片加载失败",
       bookmarkFailed: "收藏失败",
       bookmarked: "已收藏",
+      creatorUnavailable: "当前没有可操作的作者信息",
+      creatorPreferenceFailed: "更新作者偏好失败",
+      likedCreator: "已喜欢作者：{name}",
+      dislikedCreator: "已屏蔽作者：{name}",
+      clearedCreatorPreference: "已清除作者偏好：{name}",
       addRandomTagTitle: "选择要加入随机池的标签",
       addRandomTagFailed: "加入随机池失败",
       addedRandomTag: "已加入随机池：{tag}",
@@ -91,12 +108,19 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       settingsTitle: "タグ管理",
       refreshTitle: "画像を更新",
       bookmarkTitle: "作品をブックマーク",
+      creatorLikeTitle: "作者をお気に入り",
+      creatorDislikeTitle: "作者を非表示",
       defaultBackgroundTitle: "デフォルト背景",
       configuredDefaultImage: "設定済みのデフォルト画像",
       randomDisabledNoDefault: "ランダム画像は無効で、デフォルト画像も未設定です。",
       failedLoadImage: "画像の読み込みに失敗しました",
       bookmarkFailed: "ブックマークに失敗しました",
       bookmarked: "ブックマークしました",
+      creatorUnavailable: "作者情報がありません",
+      creatorPreferenceFailed: "作者設定の更新に失敗しました",
+      likedCreator: "作者をお気に入りに追加しました: {name}",
+      dislikedCreator: "作者を非表示にしました: {name}",
+      clearedCreatorPreference: "作者設定を解除しました: {name}",
       addRandomTagTitle: "ランダムプールに追加する tag を選択",
       addRandomTagFailed: "ランダムプールへの追加に失敗しました",
       addedRandomTag: "ランダムプールに追加しました: {tag}",
@@ -151,6 +175,8 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     const refreshButton = document.getElementById("refreshButton");
     const settingsButton = document.getElementById("settingsButton");
     const bookmarkButton = document.getElementById("bookmarkButton");
+    const creatorLikeButton = document.getElementById("creatorLikeButton");
+    const creatorDislikeButton = document.getElementById("creatorDislikeButton");
     if (randomToggleText) {
       const enabled = runtimeConfig ? runtimeConfig.randomImageEnabled !== false : true;
       randomToggleText.innerHTML = `<strong>${translate("randomLabel")}</strong><small>${enabled ? translate("randomOn") : translate("randomOff")}</small>`;
@@ -163,6 +189,12 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     }
     if (bookmarkButton) {
       bookmarkButton.title = translate("bookmarkTitle");
+    }
+    if (creatorLikeButton) {
+      creatorLikeButton.title = translate("creatorLikeTitle");
+    }
+    if (creatorDislikeButton) {
+      creatorDislikeButton.title = translate("creatorDislikeTitle");
     }
   }
 
@@ -187,6 +219,8 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       const likeElement = document.body.querySelector("#likeButton");
       const bookmarkElement = document.body.querySelector("#bookmarkButton");
       const dislikeElement = document.body.querySelector("#dislikeButton");
+      const creatorLikeElement = document.body.querySelector("#creatorLikeButton");
+      const creatorDislikeElement = document.body.querySelector("#creatorDislikeButton");
       const containerElement = document.body.querySelector("#container");
       const wallpaperElement = document.body.querySelector("#wallpaper");
       const illustInfoElement = document.body.querySelector("#illustInfo");
@@ -267,6 +301,10 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       // Dislike button
       dislikeElement.addEventListener("click", handleDislike);
 
+      // Creator preference buttons
+      creatorLikeElement.addEventListener("click", handleCreatorLike);
+      creatorDislikeElement.addEventListener("click", handleCreatorDislike);
+
       this.illustInfoFadeOutTimeoutId = null;
       illustInfoElement.addEventListener("mouseleave", () => {
         this.illustInfoFadeOutTimeoutId = setTimeout(() => {
@@ -302,11 +340,20 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     const likeBtn = document.getElementById("likeButton");
     const bookmarkBtn = document.getElementById("bookmarkButton");
     const dislikeBtn = document.getElementById("dislikeButton");
+    const creatorLikeBtn = document.getElementById("creatorLikeButton");
+    const creatorDislikeBtn = document.getElementById("creatorDislikeButton");
     likeBtn.classList.toggle("disabled", !currentTags || currentTags.length === 0);
     bookmarkBtn.classList.toggle("disabled", !currentIllustId || isBookmarkBusy);
     bookmarkBtn.classList.toggle("loading", !!currentIllustId && isBookmarkBusy);
     bookmarkBtn.classList.toggle("bookmarked", !!currentIllustId && currentBookmarkedIllustId === currentIllustId);
     dislikeBtn.classList.toggle("disabled", !currentTags || currentTags.length === 0);
+    const hasCreator = !!currentUserId;
+    const likedUserIds = Array.isArray(runtimeConfig?.likedUserIds) ? runtimeConfig.likedUserIds : [];
+    const dislikedUserIds = Array.isArray(runtimeConfig?.dislikedUserIds) ? runtimeConfig.dislikedUserIds : [];
+    creatorLikeBtn.classList.toggle("disabled", !hasCreator || isCreatorPreferenceBusy);
+    creatorLikeBtn.classList.toggle("active", hasCreator && likedUserIds.includes(currentUserId));
+    creatorDislikeBtn.classList.toggle("disabled", !hasCreator || isCreatorPreferenceBusy);
+    creatorDislikeBtn.classList.toggle("active", hasCreator && dislikedUserIds.includes(currentUserId));
   }
 
   function setBookmarkBusy(isBusy) {
@@ -358,12 +405,16 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
         defaultImageUrl: "",
         defaultImageSourceType: "url",
         defaultImageUploadName: "",
+        likedUserIds: [],
+        dislikedUserIds: [],
       }, async (items) => {
         const config = items || {
           randomImageEnabled: true,
           defaultImageUrl: "",
           defaultImageSourceType: "url",
           defaultImageUploadName: "",
+          likedUserIds: [],
+          dislikedUserIds: [],
         };
         config.resolvedDefaultImageUrl = await resolveDefaultImageUrl(config, {
           onLegacyMigrated: (patch) => new Promise((patchResolve) => {
@@ -373,6 +424,12 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
         if (config.defaultImageSourceType === "upload") {
           config.defaultImageUrl = "";
         }
+        config.likedUserIds = Array.isArray(config.likedUserIds)
+          ? config.likedUserIds.map((id) => String(id || "").trim()).filter(Boolean)
+          : [];
+        config.dislikedUserIds = Array.isArray(config.dislikedUserIds)
+          ? config.dislikedUserIds.map((id) => String(id || "").trim()).filter(Boolean)
+          : [];
         resolve(config);
       });
     });
@@ -437,6 +494,23 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     }
   }
 
+  function refreshRuntimeCreatorPreferences(changes) {
+    if (!runtimeConfig) {
+      return;
+    }
+    if (changes.likedUserIds) {
+      runtimeConfig.likedUserIds = Array.isArray(changes.likedUserIds.newValue)
+        ? changes.likedUserIds.newValue.map((id) => String(id || "").trim()).filter(Boolean)
+        : [];
+    }
+    if (changes.dislikedUserIds) {
+      runtimeConfig.dislikedUserIds = Array.isArray(changes.dislikedUserIds.newValue)
+        ? changes.dislikedUserIds.newValue.map((id) => String(id || "").trim()).filter(Boolean)
+        : [];
+    }
+    updateActionButtons();
+  }
+
   async function showConfiguredDefaultImage(options = {}) {
     const defaultDisplay = createDefaultDisplayObject(runtimeConfig, options);
     if (!defaultDisplay) {
@@ -475,6 +549,8 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     currentTags = illustObject.tags || [];
     currentIllustId = illustObject.illustId || null;
     currentIllustUrl = illustObject.illustIdUrl || null;
+    currentUserId = illustObject.userId ? String(illustObject.userId) : null;
+    currentUserName = illustObject.userName || "";
     currentImageVisible = !!illustObject.imageObjectUrl;
     if (currentIllustId !== currentBookmarkedIllustId) {
       currentBookmarkedIllustId = null;
@@ -556,6 +632,56 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       }
       showToast(localizeRuntimeMessage(res?.error) || translate("bookmarkFailed"), "error");
     });
+  }
+
+  function updateCreatorPreference(preference) {
+    if (!currentUserId) {
+      showToast(translate("creatorUnavailable"), "error");
+      return;
+    }
+    if (isCreatorPreferenceBusy) {
+      return;
+    }
+    isCreatorPreferenceBusy = true;
+    updateActionButtons();
+    chrome.runtime.sendMessage(
+      { action: "setCreatorPreference", userId: currentUserId, preference },
+      (res) => {
+        isCreatorPreferenceBusy = false;
+        if (chrome.runtime.lastError) {
+          updateActionButtons();
+          showToast(translate("creatorPreferenceFailed"), "error");
+          return;
+        }
+        if (res && res.success) {
+          runtimeConfig.likedUserIds = Array.isArray(res.likedUserIds) ? res.likedUserIds : [];
+          runtimeConfig.dislikedUserIds = Array.isArray(res.dislikedUserIds) ? res.dislikedUserIds : [];
+          updateActionButtons();
+          const creatorName = currentUserName || currentUserId;
+          if (preference === "dislike") {
+            showToast(translate("dislikedCreator", { name: creatorName }), "success");
+            sendRefreshMessage();
+          } else if (preference === "like") {
+            showToast(translate("likedCreator", { name: creatorName }), "success");
+          } else {
+            showToast(translate("clearedCreatorPreference", { name: creatorName }), "success");
+          }
+          return;
+        }
+        updateActionButtons();
+        showToast(res?.error || translate("creatorPreferenceFailed"), "error");
+      }
+    );
+  }
+
+  function handleCreatorLike() {
+    const likedUserIds = Array.isArray(runtimeConfig?.likedUserIds) ? runtimeConfig.likedUserIds : [];
+    updateCreatorPreference(likedUserIds.includes(currentUserId) ? "neutral" : "like");
+  }
+
+  function handleCreatorDislike() {
+    const dislikedUserIds = Array.isArray(runtimeConfig?.dislikedUserIds) ? runtimeConfig.dislikedUserIds : [];
+    updateCreatorPreference(dislikedUserIds.includes(currentUserId) ? "neutral" : "dislike");
   }
 
   function addTagToRandomPool(tag) {
@@ -941,6 +1067,9 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       refreshRuntimeDefaultImageConfig(changes).catch((error) => {
         console.error("Failed to refresh default image config:", error);
       });
+    }
+    if (changes.likedUserIds || changes.dislikedUserIds) {
+      refreshRuntimeCreatorPreferences(changes);
     }
   });
 
