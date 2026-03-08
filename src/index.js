@@ -516,7 +516,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       return;
     }
     if (runtimeConfig.randomImageEnabled !== false) {
-      sendRefreshMessage();
+      sendRefreshMessage({ force: true });
     }
   }
 
@@ -1034,7 +1034,18 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
 
   const sendRefreshMessage = (() => {
     let isRequestInProgress = false;
-    return () => {
+    let pendingRefreshRequested = false;
+
+    const flushPendingRefresh = () => {
+      if (!pendingRefreshRequested || (runtimeConfig && runtimeConfig.randomImageEnabled === false)) {
+        return;
+      }
+      pendingRefreshRequested = false;
+      sendRefreshMessage({ force: false });
+    };
+
+    return (options = {}) => {
+      const force = !!options.force;
       if (runtimeConfig && runtimeConfig.randomImageEnabled === false) {
         showConfiguredDefaultImage().then((hasDefaultImage) => {
           if (!hasDefaultImage) {
@@ -1044,29 +1055,34 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
         return;
       }
       if (isRequestInProgress) {
+        pendingRefreshRequested = true;
+        if (force) {
+          latestRefreshRequestId += 1;
+        }
         return;
       }
       isRequestInProgress = true;
+      pendingRefreshRequested = false;
       const requestId = ++latestRefreshRequestId;
       console.log("Refresh: sending fetchImage");
       chrome.runtime.sendMessage({ action: "fetchImage" }, (res) => {
         if (chrome.runtime.lastError) {
           console.warn("Context invalidated, message could not be processed:", chrome.runtime.lastError.message);
           isRequestInProgress = false;
+          flushPendingRefresh();
           return;
         }
         if (requestId !== latestRefreshRequestId || (runtimeConfig && runtimeConfig.randomImageEnabled === false)) {
           isRequestInProgress = false;
+          flushPendingRefresh();
           return;
         }
-        try {
-          changeElement(res).finally(() => {
-            isRequestInProgress = false;
-          });
-        } catch (e) {
+        Promise.resolve(changeElement(res)).catch((e) => {
           console.error("changeElement error:", e);
+        }).finally(() => {
           isRequestInProgress = false;
-        }
+          flushPendingRefresh();
+        });
       });
     };
   })();
@@ -1136,7 +1152,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       runtimeConfig.mode = nextEnabled ? "r18" : "safe";
       setR18ToggleState(nextEnabled);
       if (runtimeConfig.randomImageEnabled !== false) {
-        sendRefreshMessage();
+        sendRefreshMessage({ force: true });
       }
     } catch (error) {
       console.error("Failed to update R18 setting:", error);
