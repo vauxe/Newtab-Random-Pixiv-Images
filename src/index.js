@@ -13,6 +13,8 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   let activeTagPopupTrigger = null;
   let activeTagPopupPendingTags = new Set();
   let activeTagPopupLikeCounts = {};
+  let currentLikedTagForImage = "";
+  let currentLikedTagCount = 0;
   let activeTagPopupMode = "exclude";
   let shouldRefreshOnTagPopupClose = false;
   const UI_STRINGS = {
@@ -33,6 +35,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       addRandomTagTitle: "Select tags to add to random pool",
       addRandomTagFailed: "Failed to add tag to random pool",
       addedRandomTag: "Added to random pool: {tag}",
+      oneLikedTagPerImage: "Only one liked tag can be added before the next refresh",
       randomTagExists: "Tag already exists in random pool: {tag}",
       excludeTagTitle: "Select a tag to exclude",
       noTagsAvailable: "No tags available",
@@ -60,6 +63,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       addRandomTagTitle: "选择要加入随机池的标签",
       addRandomTagFailed: "加入随机池失败",
       addedRandomTag: "已加入随机池：{tag}",
+      oneLikedTagPerImage: "下一次刷新前，每张图只能成功添加一个喜欢标签",
       randomTagExists: "随机池中已存在：{tag}",
       excludeTagTitle: "选择要排除的标签",
       noTagsAvailable: "当前图片没有可排除的标签",
@@ -87,6 +91,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       addRandomTagTitle: "ランダムプールに追加する tag を選択",
       addRandomTagFailed: "ランダムプールへの追加に失敗しました",
       addedRandomTag: "ランダムプールに追加しました: {tag}",
+      oneLikedTagPerImage: "次回更新まで、1枚の画像につき好きな tag を1つだけ追加できます",
       randomTagExists: "ランダムプールに既に存在します: {tag}",
       excludeTagTitle: "除外する tag を選択",
       noTagsAvailable: "除外できるタグがありません",
@@ -443,6 +448,8 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     currentIllustId = illustObject.illustId || null;
     currentIllustUrl = illustObject.illustIdUrl || null;
     currentImageVisible = !!illustObject.imageObjectUrl;
+    currentLikedTagForImage = "";
+    currentLikedTagCount = 0;
     console.log("Illust tags:", currentTags.map(t => t.tag));
 
     // Reset like state
@@ -493,6 +500,10 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     if (activeTagPopupPendingTags.has(tag)) {
       return;
     }
+    if (currentLikedTagForImage) {
+      showToast(translate("oneLikedTagPerImage"), "error");
+      return;
+    }
     activeTagPopupPendingTags.add(tag);
     setTagChipPending(tag, true);
     chrome.runtime.sendMessage(
@@ -507,11 +518,15 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
         if (res && res.success && res.added !== false) {
           document.getElementById("likeButton").classList.add("liked");
           markTagChipState(tag, "selected-like");
-          updateTagChipLikeCount(tag, Number.isInteger(res.count) ? res.count : getTagChipLikeCount(tag) + 1);
+          currentLikedTagForImage = tag;
+          currentLikedTagCount = Number.isInteger(res.count) ? res.count : 1;
+          updateTagChipLikeCount(tag, currentLikedTagCount);
           showToast(translate("addedRandomTag", { tag }), "success");
         } else if (res && res.success && res.exists) {
           markTagChipState(tag, "selected-like");
-          updateTagChipLikeCount(tag, Number.isInteger(res.count) ? res.count : getTagChipLikeCount(tag));
+          currentLikedTagForImage = tag;
+          currentLikedTagCount = Number.isInteger(res.count) ? res.count : 1;
+          updateTagChipLikeCount(tag, currentLikedTagCount);
           showToast(translate("randomTagExists", { tag }), "success");
         } else {
           showToast(res?.error || translate("addRandomTagFailed"), "error");
@@ -565,6 +580,10 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
         }
       });
       tagList.appendChild(chip);
+      if (activeTagPopupMode === "random" && currentLikedTagForImage && currentLikedTagForImage === t.tag) {
+        markTagChipState(t.tag, "selected-like");
+        updateTagChipLikeCount(t.tag, currentLikedTagCount);
+      }
     });
 
     popup.classList.remove("hidden");
