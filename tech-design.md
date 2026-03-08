@@ -74,6 +74,7 @@ randomImageEnabled: true,
 defaultImageUrl: "",
 defaultImageFit: "cover",
 defaultImageSourceType: "url",
+defaultImageUploadName: "",
 likedUserIds: [],
 dislikedUserIds: [],
 randomTagPoolEnabled: false,
@@ -90,24 +91,27 @@ seenHistoryTtlMs: 21600000
    控制是否启用随机 Pixiv 图片。关闭时直接显示默认图，不请求 Pixiv。
 
 2. `defaultImageUrl`
-   默认图地址。第一阶段先支持 URL 字符串；如果后续需要支持本地上传，可以扩展为 data URL 或 blob URL 持久化。
+   默认图地址。仅用于远程 URL 模式；本地上传图片不再写入 `storage.local`。
 
 3. `defaultImageFit`
    默认图显示策略，先保留 `cover`，后续可扩展为 `contain`。
 
 4. `defaultImageSourceType`
-   当前预留字段，先支持 `url`，后续可以支持 `upload`。
+   支持 `url` 和 `upload`。当为 `upload` 时，实际图片数据存储在 `IndexedDB`。
 
-5. `likedUserIds`
+5. `defaultImageUploadName`
+   本地上传图片的文件名元信息，仅用于设置页展示。
+
+6. `likedUserIds`
    用户级喜欢名单。第一阶段只作为“优先保留和优先命中”的候选加权来源。
 
-6. `dislikedUserIds`
+7. `dislikedUserIds`
    用户级不喜欢名单。作为硬过滤条件。
 
-7. `randomTagPoolEnabled`
+8. `randomTagPoolEnabled`
    控制是否启用随机 tag 池。
 
-8. `randomTagPool`
+9. `randomTagPool`
    存储随机 tag 池条目。建议采用对象数组结构，而不是纯字符串数组，便于后续扩展。
 
 ```js
@@ -117,16 +121,16 @@ seenHistoryTtlMs: 21600000
 ]
 ```
 
-9. `randomTagPoolPickCount`
+10. `randomTagPoolPickCount`
    每次请求从 tag 池抽取的条目数。
 
-10. `randomSeedStrategy`
+11. `randomSeedStrategy`
     预留给随机策略切换，当前可以只支持 `page_pool`。
 
-11. `seenHistoryLimit`
+12. `seenHistoryLimit`
     最近已看作品上限。
 
-12. `seenHistoryTtlMs`
+13. `seenHistoryTtlMs`
     最近已看作品的有效期，避免长时间运行后永久污染随机性。
 
 ### 5.1 迁移策略
@@ -137,7 +141,8 @@ seenHistoryTtlMs: 21600000
 2. 确保 `likedUserIds/dislikedUserIds/randomTagPool` 始终为数组
 3. 确保 `randomTagPoolPickCount` 为非负整数
 4. 对空字符串默认图进行容错
-5. 旧版本导入文件缺少这些字段时自动补齐
+5. 对旧版本把上传图片 data URL 写在 `defaultImageUrl` 里的配置进行自动迁移
+6. 旧版本导入文件缺少这些字段时自动补齐
 
 ### 5.2 导入导出策略
 
@@ -146,6 +151,7 @@ seenHistoryTtlMs: 21600000
 1. `saveTags()` 写入新增字段
 2. `importFromJsonFile()` 读取新增字段并做兜底
 3. `exportToJsonFile()` 导出新增字段
+4. 本地上传默认图的二进制内容不进入导出 JSON，只保留来源类型和文件名元信息
 
 ## 6. 默认图与随机开关设计
 
@@ -200,17 +206,48 @@ function applyDefaultImage(config) {}
 
 ### 6.4 默认图数据来源
 
-第一阶段先支持 URL 配置，不支持上传文件。原因：
+默认图分成两类来源：
 
-1. 改动最小
-2. 不需要额外二进制持久化处理
-3. 足够覆盖“公司统一默认背景”或“个人固定图”的需求
+1. URL 模式
+   图片地址保存在 `storage.local.defaultImageUrl`
 
-第二阶段如果要支持上传：
+2. 本地上传模式
+   图片元信息保存在 `storage.local`
+   图片内容存放在 `IndexedDB`
 
-1. 在 `tags.html` 增加文件选择控件
-2. 用 `FileReader.readAsDataURL()` 持久化
-3. 注意 `storage.local` 容量
+新增一个轻量存储模块，例如：
+
+```js
+src/default-image-store.js
+```
+
+职责：
+
+1. 打开 `IndexedDB`
+2. 读写默认图片记录
+3. 清理默认图片记录
+4. 将旧版本嵌在 `storage.local.defaultImageUrl` 的 data URL 迁移到 `IndexedDB`
+
+数据组织建议：
+
+```js
+db: "newtab-random-pixiv-images"
+store: "assets"
+key: "default-image-upload"
+```
+
+记录结构：
+
+```js
+{
+  id: "default-image-upload",
+  dataUrl: "data:image/png;base64,...",
+  uploadName: "wallpaper.png",
+  updatedAt: 1710000000000
+}
+```
+
+这样可以把大图片内容从配置字段里挪出去，避免拖慢 `storage.local` 的读写和导出。
 
 ## 7. 收藏功能设计
 

@@ -1,4 +1,5 @@
 import { defaultConfig, buildQuery, migrateConfig } from "./config.js";
+import { resolveDefaultImageUrl } from "./default-image-store.js";
 
 chrome.runtime.onInstalled.addListener((details) => {
   const RULE = [
@@ -310,11 +311,18 @@ function normalizeRuntimeConfig(config) {
 
 async function getStoredConfig() {
   let config = await chrome.storage.local.get(defaultConfig);
-  return normalizeRuntimeConfig(config);
+  config = normalizeRuntimeConfig(config);
+  config.resolvedDefaultImageUrl = await resolveDefaultImageUrl(config, {
+    onLegacyMigrated: (patch) => chrome.storage.local.set(patch),
+  });
+  if (config.defaultImageSourceType === "upload") {
+    config.defaultImageUrl = "";
+  }
+  return config;
 }
 
 function buildDefaultImageResponse(config, options = {}) {
-  const defaultImageUrl = (config.defaultImageUrl || "").trim();
+  const defaultImageUrl = (config.resolvedDefaultImageUrl || "").trim();
   if (!defaultImageUrl) {
     return null;
   }

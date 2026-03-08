@@ -1,3 +1,5 @@
+import { resolveDefaultImageUrl } from "./default-image-store.js";
+
 (function () {
   // ── State ──
   let currentTags = [];
@@ -131,7 +133,7 @@
   }
 
   function createDefaultDisplayObject(config, options = {}) {
-    const defaultImageUrl = (config && config.defaultImageUrl ? config.defaultImageUrl : "").trim();
+    const defaultImageUrl = (config && config.resolvedDefaultImageUrl ? config.resolvedDefaultImageUrl : "").trim();
     if (!defaultImageUrl) {
       return null;
     }
@@ -156,8 +158,24 @@
       chrome.storage.local.get({
         randomImageEnabled: true,
         defaultImageUrl: "",
-      }, (items) => {
-        resolve(items || { randomImageEnabled: true, defaultImageUrl: "" });
+        defaultImageSourceType: "url",
+        defaultImageUploadName: "",
+      }, async (items) => {
+        const config = items || {
+          randomImageEnabled: true,
+          defaultImageUrl: "",
+          defaultImageSourceType: "url",
+          defaultImageUploadName: "",
+        };
+        config.resolvedDefaultImageUrl = await resolveDefaultImageUrl(config, {
+          onLegacyMigrated: (patch) => new Promise((patchResolve) => {
+            chrome.storage.local.set(patch, patchResolve);
+          })
+        });
+        if (config.defaultImageSourceType === "upload") {
+          config.defaultImageUrl = "";
+        }
+        resolve(config);
       });
     });
   }

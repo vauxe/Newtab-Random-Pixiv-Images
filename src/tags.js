@@ -1,4 +1,9 @@
 import { defaultConfig, buildQuery, migrateConfig, legacyToTree, treeToLegacy } from "./config.js";
+import {
+  clearUploadedDefaultImage,
+  resolveDefaultImageUrl,
+  saveUploadedDefaultImage,
+} from "./default-image-store.js";
 
 const ext = typeof chrome !== "undefined"
   ? chrome
@@ -11,6 +16,7 @@ let activePresetIndex = 0;
 let globalMinusKeywords = "";
 let randomImageEnabled = true;
 let defaultImageUrl = "";
+let defaultImagePreviewUrl = "";
 let defaultImageSourceType = "url";
 let defaultImageUploadName = "";
 const MAX_DEFAULT_IMAGE_FILE_SIZE = 2 * 1024 * 1024;
@@ -296,7 +302,7 @@ function savePresetsToStorage() {
     activePresetIndex: activePresetIndex,
     globalMinusKeywords: globalMinusKeywords,
     randomImageEnabled: randomImageEnabled,
-    defaultImageUrl: defaultImageUrl,
+    defaultImageUrl: defaultImageSourceType === "url" ? defaultImageUrl : "",
     defaultImageSourceType: defaultImageSourceType,
     defaultImageUploadName: defaultImageUploadName,
     presetMinusKeywords: [],
@@ -327,17 +333,17 @@ function updateDefaultImagePreview(url) {
 
 function updateDefaultImageSourceHint() {
   if (!defaultImageSourceHint) return;
-  if (!defaultImageUrl) {
-    defaultImageSourceHint.textContent = _translations["defaultImageSourceNone"]
-      ? _translations["defaultImageSourceNone"].message
-      : "Current source: none";
-    return;
-  }
-  if (defaultImageSourceType === "upload") {
+  if (defaultImageSourceType === "upload" && defaultImageUploadName) {
     const template = _translations["defaultImageSourceUpload"]
       ? _translations["defaultImageSourceUpload"].message
       : "Current source: local upload ({name})";
     defaultImageSourceHint.textContent = template.replace("{name}", defaultImageUploadName || "image");
+    return;
+  }
+  if (!defaultImageUrl) {
+    defaultImageSourceHint.textContent = _translations["defaultImageSourceNone"]
+      ? _translations["defaultImageSourceNone"].message
+      : "Current source: none";
     return;
   }
   defaultImageSourceHint.textContent = _translations["defaultImageSourceUrl"]
@@ -349,14 +355,16 @@ function syncDefaultImageControls() {
   if (defaultImageUrlInput) {
     defaultImageUrlInput.value = defaultImageSourceType === "url" ? defaultImageUrl : "";
   }
-  updateDefaultImagePreview(defaultImageUrl);
+  updateDefaultImagePreview(defaultImagePreviewUrl);
   updateDefaultImageSourceHint();
 }
 
-function resetDefaultImage() {
+async function resetDefaultImage() {
   defaultImageUrl = "";
+  defaultImagePreviewUrl = "";
   defaultImageSourceType = "url";
   defaultImageUploadName = "";
+  await clearUploadedDefaultImage();
   if (defaultImageFileInput) {
     defaultImageFileInput.value = "";
   }
@@ -395,7 +403,7 @@ function loadTags() {
     defaultImageSourceType: "url",
     defaultImageUploadName: "",
     presetMinusKeywords: [],
-  }, (items) => {
+  }, async (items) => {
     migrateConfig(items);
 
     if (items.queryPresets && Array.isArray(items.queryPresets) && items.queryPresets.length > 0) {
@@ -413,9 +421,16 @@ function loadTags() {
     globalMinusKeywords = items.globalMinusKeywords || "";
     if (globalMinusInput) globalMinusInput.value = globalMinusKeywords;
     randomImageEnabled = items.randomImageEnabled !== false;
-    defaultImageUrl = items.defaultImageUrl || "";
+    defaultImageUrl = items.defaultImageSourceType === "url"
+      ? (items.defaultImageUrl || "").trim()
+      : "";
     defaultImageSourceType = items.defaultImageSourceType || "url";
     defaultImageUploadName = items.defaultImageUploadName || "";
+    defaultImagePreviewUrl = await resolveDefaultImageUrl(items, {
+      onLegacyMigrated: (patch) => new Promise((patchResolve) => {
+        ext.storage.local.set(patch, patchResolve);
+      }),
+    });
     if (randomImageEnabledInput) randomImageEnabledInput.checked = randomImageEnabled;
     syncDefaultImageControls();
 
@@ -424,7 +439,7 @@ function loadTags() {
   });
 }
 
-function saveTags() {
+async function saveTags() {
   // Sync to preset
   if (presets[activePresetIndex]) {
     presets[activePresetIndex].tree = JSON.parse(JSON.stringify(queryTree));
@@ -439,7 +454,11 @@ function saveTags() {
     if (defaultImageSourceType === "url") {
       defaultImageUrl = defaultImageUrlInput.value.trim();
       defaultImageUploadName = "";
+      defaultImagePreviewUrl = defaultImageUrl;
     }
+  }
+  if (defaultImageSourceType === "url") {
+    await clearUploadedDefaultImage();
   }
 
   // Derive legacy fields from active preset
@@ -517,7 +536,7 @@ function importFromText(text) {
 
 function importFromJsonFile(file) {
   const reader = new FileReader();
-  reader.onload = (e) => {
+  reader.onload = async (e) => {
     try {
       const data = JSON.parse(e.target.result);
 
@@ -543,9 +562,23 @@ function importFromJsonFile(file) {
 
       globalMinusKeywords = data.globalMinusKeywords || "";
       randomImageEnabled = data.randomImageEnabled !== false;
-      defaultImageUrl = (data.defaultImageUrl || "").trim();
       defaultImageSourceType = data.defaultImageSourceType || "url";
       defaultImageUploadName = data.defaultImageUploadName || "";
+      defaultImageUrl = defaultImageSourceType === "url"
+        ? (data.defaultImageUrl || "").trim()
+        : "";
+      defaultImagePreviewUrl = "";
+      if (defaultImageSourceType === "upload") {
+        if (typeof data.defaultImageUrl === "string" && data.defaultImageUrl.trim().startsWith("data:image/")) {
+          defaultImagePreviewUrl = data.defaultImageUrl.trim();
+          await saveUploadedDefaultImage(defaultImagePreviewUrl, defaultImageUploadName);
+        } else {
+          await clearUploadedDefaultImage();
+        }
+      } else {
+        await clearUploadedDefaultImage();
+        defaultImagePreviewUrl = defaultImageUrl;
+      }
       if (Array.isArray(data.presetMinusKeywords) && data.presetMinusKeywords.length > 0) {
         const extra = data.presetMinusKeywords.map(s => (s || "").trim()).filter(Boolean).join(" ");
         if (extra) {
@@ -583,7 +616,7 @@ function exportToJsonFile() {
     activePresetIndex: activePresetIndex,
     globalMinusKeywords: globalMinusKeywords,
     randomImageEnabled: randomImageEnabled,
-    defaultImageUrl: defaultImageUrl,
+    defaultImageUrl: defaultImageSourceType === "url" ? defaultImageUrl : "",
     defaultImageSourceType: defaultImageSourceType,
     defaultImageUploadName: defaultImageUploadName,
     presetMinusKeywords: [],
@@ -772,6 +805,7 @@ if (defaultImageUrlInput) {
     defaultImageSourceType = "url";
     defaultImageUploadName = "";
     defaultImageUrl = defaultImageUrlInput.value.trim();
+    defaultImagePreviewUrl = defaultImageUrl;
     syncDefaultImageControls();
   });
 }
@@ -783,8 +817,8 @@ if (defaultImageUploadBtn && defaultImageFileInput) {
 }
 
 if (defaultImageClearBtn) {
-  defaultImageClearBtn.addEventListener("click", () => {
-    resetDefaultImage();
+  defaultImageClearBtn.addEventListener("click", async () => {
+    await resetDefaultImage();
   });
 }
 
@@ -814,7 +848,9 @@ if (defaultImageFileInput) {
       return;
     }
     try {
-      defaultImageUrl = await readFileAsDataUrl(file);
+      defaultImagePreviewUrl = await readFileAsDataUrl(file);
+      await saveUploadedDefaultImage(defaultImagePreviewUrl, file.name || "");
+      defaultImageUrl = "";
       defaultImageSourceType = "upload";
       defaultImageUploadName = file.name || "";
       syncDefaultImageControls();
