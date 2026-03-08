@@ -125,6 +125,21 @@
   "defaultImageUploadError": {
     "message": "Failed to read local image"
   },
+  "globalBlocklistInlineTitle": {
+    "message": "Global Blocklist"
+  },
+  "globalBlocklistAddLabel": {
+    "message": "Blocklist Tag"
+  },
+  "globalBlocklistEmptyState": {
+    "message": "No global blocklist tags"
+  },
+  "globalBlocklistInputPlaceholder": {
+    "message": "tag1 tag2"
+  },
+  "globalBlocklistCapsuleTitle": {
+    "message": "Global blocklist tag"
+  },
   "randomTagPoolTitle": {
     "message": "🎲 Random Tag Pool"
   },

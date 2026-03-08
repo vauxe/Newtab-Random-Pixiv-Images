@@ -125,6 +125,21 @@
   "defaultImageUploadError": {
     "message": "读取本地图片失败"
   },
+  "globalBlocklistInlineTitle": {
+    "message": "全局屏蔽词"
+  },
+  "globalBlocklistAddLabel": {
+    "message": "屏蔽标签"
+  },
+  "globalBlocklistEmptyState": {
+    "message": "还没有全局屏蔽标签"
+  },
+  "globalBlocklistInputPlaceholder": {
+    "message": "标签1 标签2"
+  },
+  "globalBlocklistCapsuleTitle": {
+    "message": "全局屏蔽标签"
+  },
   "randomTagPoolTitle": {
     "message": "🎲 随机 Tag 池"
   },

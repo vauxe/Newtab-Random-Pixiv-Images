@@ -125,6 +125,21 @@
   "defaultImageUploadError": {
     "message": "ローカル画像の読み込みに失敗しました"
   },
+  "globalBlocklistInlineTitle": {
+    "message": "グローバルブロックリスト"
+  },
+  "globalBlocklistAddLabel": {
+    "message": "除外タグ"
+  },
+  "globalBlocklistEmptyState": {
+    "message": "グローバル除外タグはまだありません"
+  },
+  "globalBlocklistInputPlaceholder": {
+    "message": "tag1 tag2"
+  },
+  "globalBlocklistCapsuleTitle": {
+    "message": "グローバル除外タグ"
+  },
   "randomTagPoolTitle": {
     "message": "🎲 ランダム Tag プール"
   },

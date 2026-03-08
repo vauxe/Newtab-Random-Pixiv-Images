@@ -595,6 +595,61 @@
             border-color: rgba(108, 99, 255, 0.5);
         }
 
+        .inline-blocklist-section {
+            display: flex;
+            flex-direction: column;
+            gap: 10px;
+            margin-bottom: 14px;
+            padding: 14px 16px;
+            border-radius: 16px;
+            border: 1px dashed rgba(244, 67, 54, 0.28);
+            background: rgba(244, 67, 54, 0.06);
+        }
+
+        .inline-blocklist-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+
+        .inline-blocklist-title {
+            font-size: 13px;
+            font-weight: 600;
+            color: #ffb4b4;
+        }
+
+        .inline-blocklist-flow {
+            display: flex;
+            flex-wrap: wrap;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .inline-blocklist-empty {
+            font-size: 12px;
+            color: rgba(255, 255, 255, 0.56);
+        }
+
+        .inline-blocklist-header .group-add-btn {
+            display: inline-flex;
+            align-items: center;
+            gap: 3px;
+            padding: 4px 10px;
+            background: transparent;
+            border: 1px dashed rgba(244, 67, 54, 0.35);
+            border-radius: 16px;
+            color: #ffb4b4;
+            font-size: 12px;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .inline-blocklist-header .group-add-btn:hover {
+            background: rgba(244, 67, 54, 0.1);
+            border-color: rgba(244, 67, 54, 0.5);
+        }
+
         .actions-bar {
             display: flex;
             gap: 8px;
@@ -1014,21 +1069,6 @@
                 <button class="btn-preset" id="presetNewBtn">+ New</button>
                 <button class="btn-preset" id="presetRenameBtn">✏️</button>
                 <button class="btn-preset btn-preset-danger" id="presetDeleteBtn">🗑</button>
-            </div>
-
-            <!-- Blocklist -->
-            <div class="blocklist-card collapsed" id="blocklistCard">
-                <div class="blocklist-header">
-                    <h3>🚫 Blocklist</h3>
-                    <button class="blocklist-toggle" id="blocklistToggle">Show</button>
-                </div>
-                <div class="blocklist-body">
-                    <div class="blocklist-row">
-                        <label for="globalMinusKeywords">Global blocklist (space separated)</label>
-                        <input type="text" id="globalMinusKeywords" placeholder="tag1 tag2 tag3" />
-                    </div>
-                    <div class="blocklist-tip">Blocklist applies to all presets.</div>
-                </div>
             </div>
 
             <div class="blocklist-card collapsed" id="randomTagPoolCard">

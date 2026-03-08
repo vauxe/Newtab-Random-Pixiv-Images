@@ -34,9 +34,6 @@ const flowContainer = document.getElementById("flowContainer");
 const emptyState = document.getElementById("emptyState");
 const presetSelect = document.getElementById("presetSelect");
 const presetRenameInput = document.getElementById("presetRenameInput");
-const globalMinusInput = document.getElementById("globalMinusKeywords");
-const blocklistCard = document.getElementById("blocklistCard");
-const blocklistToggle = document.getElementById("blocklistToggle");
 const displaySettingsCard = document.getElementById("displaySettingsCard");
 const displaySettingsToggle = document.getElementById("displaySettingsToggle");
 const randomImageEnabledInput = document.getElementById("randomImageEnabled");
@@ -223,6 +220,21 @@ function normalizeRandomTagPoolCounts(counts, pool = randomTagPool) {
   return normalized;
 }
 
+function parseGlobalMinusKeywords(value = globalMinusKeywords) {
+  return String(value || "")
+    .split(/\s+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function setGlobalMinusKeywordsFromList(tags) {
+  globalMinusKeywords = Array.from(new Set(
+    (Array.isArray(tags) ? tags : [])
+      .map((item) => String(item || "").trim())
+      .filter(Boolean)
+  )).join(" ");
+}
+
 function createInlineInput(group, container) {
   const wrapper = document.createElement("span");
   wrapper.className = "inline-input";
@@ -292,6 +304,72 @@ function createPoolInlineInput(container) {
   return wrapper;
 }
 
+function createGlobalMinusCapsule(tag, index) {
+  const el = document.createElement("span");
+  el.className = "capsule capsule-negated";
+
+  const toggleBtn = document.createElement("button");
+  toggleBtn.className = "toggle-neg";
+  toggleBtn.textContent = "−";
+  toggleBtn.title = _translations["globalBlocklistCapsuleTitle"]
+    ? _translations["globalBlocklistCapsuleTitle"].message
+    : "Global blocklist tag";
+  toggleBtn.disabled = true;
+
+  const textSpan = document.createElement("span");
+  textSpan.className = "capsule-text";
+  textSpan.textContent = tag;
+
+  const removeBtn = document.createElement("button");
+  removeBtn.className = "remove-btn";
+  removeBtn.textContent = "×";
+  removeBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    const nextTags = parseGlobalMinusKeywords();
+    nextTags.splice(index, 1);
+    setGlobalMinusKeywordsFromList(nextTags);
+    renderAll();
+  });
+
+  el.appendChild(toggleBtn);
+  el.appendChild(textSpan);
+  el.appendChild(removeBtn);
+  return el;
+}
+
+function createGlobalMinusInlineInput(container) {
+  const wrapper = document.createElement("span");
+  wrapper.className = "inline-input";
+
+  const input = document.createElement("input");
+  input.placeholder = _translations["globalBlocklistInputPlaceholder"]
+    ? _translations["globalBlocklistInputPlaceholder"].message
+    : "tag1 tag2";
+
+  const commit = () => {
+    const values = parseRandomTagPoolInput(input.value);
+    if (values.length > 0) {
+      setGlobalMinusKeywordsFromList([...parseGlobalMinusKeywords(), ...values]);
+      renderAll();
+    } else {
+      wrapper.remove();
+    }
+  };
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      commit();
+    } else if (e.key === "Escape") {
+      wrapper.remove();
+    }
+  });
+
+  input.addEventListener("blur", commit);
+
+  wrapper.appendChild(input);
+  return wrapper;
+}
+
 function renderGroupCard(group, parentGroup, indexInParent) {
   const card = document.createElement("div");
   card.className = "group-card";
@@ -355,8 +433,56 @@ function renderFlowItems(group, container) {
   });
 }
 
+function renderGlobalMinusKeywords(container) {
+  const section = document.createElement("div");
+  section.className = "inline-blocklist-section";
+
+  const header = document.createElement("div");
+  header.className = "inline-blocklist-header";
+
+  const title = document.createElement("div");
+  title.className = "inline-blocklist-title";
+  title.textContent = _translations["globalBlocklistInlineTitle"]
+    ? _translations["globalBlocklistInlineTitle"].message
+    : "Global Blocklist";
+
+  const addBtn = document.createElement("button");
+  addBtn.className = "group-add-btn";
+  addBtn.type = "button";
+  addBtn.innerHTML = `+ <span>${_translations["globalBlocklistAddLabel"] ? _translations["globalBlocklistAddLabel"].message : "Blocklist Tag"}</span>`;
+  addBtn.addEventListener("click", () => {
+    const inputEl = createGlobalMinusInlineInput(flowContainer);
+    flowContainer.insertBefore(inputEl, section.nextSibling);
+    inputEl.querySelector("input").focus();
+  });
+
+  header.appendChild(title);
+  header.appendChild(addBtn);
+  section.appendChild(header);
+
+  const list = document.createElement("div");
+  list.className = "inline-blocklist-flow";
+  const tags = parseGlobalMinusKeywords();
+  if (tags.length === 0) {
+    const empty = document.createElement("div");
+    empty.className = "inline-blocklist-empty";
+    empty.textContent = _translations["globalBlocklistEmptyState"]
+      ? _translations["globalBlocklistEmptyState"].message
+      : "No global blocklist tags";
+    list.appendChild(empty);
+  } else {
+    tags.forEach((tag, index) => {
+      list.appendChild(createGlobalMinusCapsule(tag, index));
+    });
+  }
+
+  section.appendChild(list);
+  container.appendChild(section);
+}
+
 function renderAll() {
   flowContainer.innerHTML = "";
+  renderGlobalMinusKeywords(flowContainer);
 
   if (queryTree.children.length === 0) {
     emptyState.style.display = "";
@@ -789,7 +915,6 @@ function loadTags() {
     }
 
     globalMinusKeywords = items.globalMinusKeywords || "";
-    if (globalMinusInput) globalMinusInput.value = globalMinusKeywords;
     randomImageEnabled = items.randomImageEnabled !== false;
     onlyR18Content = items.mode === "r18";
     randomTagPoolEnabled = items.randomTagPoolEnabled === true;
@@ -828,9 +953,6 @@ async function saveTags() {
   // Sync to preset
   if (presets[activePresetIndex]) {
     presets[activePresetIndex].tree = JSON.parse(JSON.stringify(queryTree));
-  }
-  if (globalMinusInput) {
-    globalMinusKeywords = globalMinusInput.value.trim();
   }
   if (randomImageEnabledInput) {
     randomImageEnabled = !!randomImageEnabledInput.checked;
@@ -1004,7 +1126,6 @@ function importFromJsonFile(file) {
           globalMinusKeywords = [globalMinusKeywords, extra].filter(Boolean).join(" ").replace(/\s+/g, " ");
         }
       }
-      if (globalMinusInput) globalMinusInput.value = globalMinusKeywords;
       if (randomImageEnabledInput) randomImageEnabledInput.checked = randomImageEnabled;
       syncRandomTagPoolControls();
       syncDefaultImageControls();
@@ -1259,13 +1380,6 @@ document.addEventListener("click", (e) => {
   }
 });
 
-if (blocklistToggle && blocklistCard) {
-  blocklistToggle.addEventListener("click", () => {
-    const isCollapsed = blocklistCard.classList.toggle("collapsed");
-    blocklistToggle.textContent = isCollapsed ? "Show" : "Hide";
-  });
-}
-
 if (displaySettingsToggle && displaySettingsCard) {
   displaySettingsToggle.addEventListener("click", () => {
     const isCollapsed = displaySettingsCard.classList.toggle("collapsed");
@@ -1277,13 +1391,6 @@ if (randomTagPoolToggle && randomTagPoolCard) {
   randomTagPoolToggle.addEventListener("click", () => {
     const isCollapsed = randomTagPoolCard.classList.toggle("collapsed");
     randomTagPoolToggle.textContent = isCollapsed ? "Show" : "Hide";
-  });
-}
-
-if (globalMinusInput) {
-  globalMinusInput.addEventListener("input", () => {
-    globalMinusKeywords = globalMinusInput.value.trim();
-    updatePreview();
   });
 }
 
