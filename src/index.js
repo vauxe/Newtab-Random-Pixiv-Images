@@ -6,8 +6,130 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   let currentIllustId = null;
   let currentIllustUrl = null;
   let runtimeConfig = null;
+  let currentImageVisible = false;
   let isRandomToggleBusy = false;
   let latestRefreshRequestId = 0;
+  const UI_STRINGS = {
+    en: {
+      randomLabel: "Random Pixiv",
+      randomOn: "On",
+      randomOff: "Off",
+      randomEnabledTitle: "Random Pixiv image requests are enabled",
+      randomDisabledTitle: "Random Pixiv image requests are disabled",
+      settingsTitle: "Tag Manager",
+      refreshTitle: "Refresh image",
+      defaultBackgroundTitle: "Default background",
+      configuredDefaultImage: "Configured default image",
+      randomDisabledNoDefault: "Random images are off and no default image is configured.",
+      failedLoadImage: "Failed to load image",
+      bookmarkFailed: "Bookmark failed",
+      bookmarked: "Bookmarked!",
+      noTagsAvailable: "No tags available",
+      excludeFailed: "Failed to exclude tag",
+      excludedTag: "Excluded: -{tag}",
+      randomSettingFailed: "Failed to update random image setting",
+      fallbackDefaultImage: "Failed to load a Pixiv image. Showing the default image instead.",
+      fetchFailedDefaultImage: "Failed to fetch image. Showing the default image instead.",
+      noResult: "No image found. Please check your tags or Pixiv availability.",
+    },
+    zh: {
+      randomLabel: "随机 Pixiv",
+      randomOn: "开启",
+      randomOff: "关闭",
+      randomEnabledTitle: "当前会请求随机 Pixiv 图片",
+      randomDisabledTitle: "当前不会请求随机 Pixiv 图片",
+      settingsTitle: "标签管理",
+      refreshTitle: "刷新图片",
+      defaultBackgroundTitle: "默认背景",
+      configuredDefaultImage: "已配置的默认图片",
+      randomDisabledNoDefault: "随机图片已关闭，且尚未配置默认图片。",
+      failedLoadImage: "图片加载失败",
+      bookmarkFailed: "收藏失败",
+      bookmarked: "已收藏",
+      noTagsAvailable: "当前图片没有可排除的标签",
+      excludeFailed: "排除标签失败",
+      excludedTag: "已排除：-{tag}",
+      randomSettingFailed: "切换随机图片开关失败",
+      fallbackDefaultImage: "Pixiv 图片加载失败，已改为显示默认图片。",
+      fetchFailedDefaultImage: "图片请求失败，已改为显示默认图片。",
+      noResult: "没有找到图片，请检查标签配置或 Pixiv 可用性。",
+    },
+    ja: {
+      randomLabel: "Pixiv Random",
+      randomOn: "On",
+      randomOff: "Off",
+      randomEnabledTitle: "Pixiv のランダム画像取得が有効です",
+      randomDisabledTitle: "Pixiv のランダム画像取得が無効です",
+      settingsTitle: "タグ管理",
+      refreshTitle: "画像を更新",
+      defaultBackgroundTitle: "デフォルト背景",
+      configuredDefaultImage: "設定済みのデフォルト画像",
+      randomDisabledNoDefault: "ランダム画像は無効で、デフォルト画像も未設定です。",
+      failedLoadImage: "画像の読み込みに失敗しました",
+      bookmarkFailed: "ブックマークに失敗しました",
+      bookmarked: "ブックマークしました",
+      noTagsAvailable: "除外できるタグがありません",
+      excludeFailed: "タグの除外に失敗しました",
+      excludedTag: "除外済み: -{tag}",
+      randomSettingFailed: "ランダム画像設定の更新に失敗しました",
+      fallbackDefaultImage: "Pixiv 画像の読み込みに失敗したため、デフォルト画像を表示しています。",
+      fetchFailedDefaultImage: "画像取得に失敗したため、デフォルト画像を表示しています。",
+      noResult: "画像が見つかりません。タグ設定や Pixiv の状態を確認してください。",
+    },
+  };
+
+  function getUiLanguage() {
+    const raw = (chrome.i18n && chrome.i18n.getUILanguage ? chrome.i18n.getUILanguage() : navigator.language || "en").toLowerCase();
+    if (raw.startsWith("zh")) return "zh";
+    if (raw.startsWith("ja")) return "ja";
+    return "en";
+  }
+
+  function translate(key, variables = {}) {
+    const language = getUiLanguage();
+    const table = UI_STRINGS[language] || UI_STRINGS.en;
+    let value = table[key] || UI_STRINGS.en[key] || key;
+    for (const [name, replacement] of Object.entries(variables)) {
+      value = value.replace(`{${name}}`, replacement);
+    }
+    return value;
+  }
+
+  function localizeRuntimeMessage(message) {
+    if (!message) {
+      return message;
+    }
+    const mapping = {
+      "Random images are disabled and no default image is configured.": "randomDisabledNoDefault",
+      "Failed to load a Pixiv image. Showing the default image instead.": "fallbackDefaultImage",
+      "Failed to fetch image. Showing the default image instead.": "fetchFailedDefaultImage",
+      "No image found. Please check your tags or Pixiv availability.": "noResult",
+      "Failed to load image": "failedLoadImage",
+    };
+    return mapping[message] ? translate(mapping[message]) : message;
+  }
+
+  function applyUiText() {
+    const randomToggleText = document.getElementById("randomToggleText");
+    const refreshButton = document.getElementById("refreshButton");
+    const settingsButton = document.getElementById("settingsButton");
+    if (randomToggleText) {
+      const enabled = runtimeConfig ? runtimeConfig.randomImageEnabled !== false : true;
+      randomToggleText.innerHTML = `<strong>${translate("randomLabel")}</strong><small>${enabled ? translate("randomOn") : translate("randomOff")}</small>`;
+    }
+    if (refreshButton) {
+      refreshButton.title = translate("refreshTitle");
+    }
+    if (settingsButton) {
+      settingsButton.title = translate("settingsTitle");
+    }
+  }
+
+  function warnNoDefaultImageIfNeeded() {
+    if (!currentImageVisible) {
+      showToast(translate("randomDisabledNoDefault"), "error");
+    }
+  }
 
   class Binding {
     constructor() {
@@ -144,8 +266,9 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     if (!binding || !binding.randomToggleInput) return;
     binding.randomToggleInput.checked = !!enabled;
     binding.randomToggleControl.title = enabled
-      ? "Random Pixiv image requests are enabled"
-      : "Random Pixiv image requests are disabled";
+      ? translate("randomEnabledTitle")
+      : translate("randomDisabledTitle");
+    applyUiText();
   }
 
   function setRandomToggleBusy(isBusy) {
@@ -163,7 +286,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     return {
       mode: "default",
       title: options.title || "Default background",
-      userName: options.userName || "Configured default image",
+      userName: options.userName || translate("configuredDefaultImage"),
       userId: null,
       illustId: null,
       userIdUrl: "",
@@ -257,7 +380,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     if (runtimeConfig.randomImageEnabled === false) {
       const hasDefaultImage = await showConfiguredDefaultImage();
       if (!hasDefaultImage) {
-        showToast("Random images are disabled and no default image is configured.", "error");
+        warnNoDefaultImageIfNeeded();
       }
     }
   }
@@ -292,7 +415,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   async function changeElement(illustObject) {
     if (!illustObject) { return; }
     if (illustObject.error) {
-      showToast(illustObject.message || "Failed to load image", "error");
+      showToast(localizeRuntimeMessage(illustObject.message) || translate("failedLoadImage"), "error");
       return;
     }
 
@@ -300,6 +423,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     currentTags = illustObject.tags || [];
     currentIllustId = illustObject.illustId || null;
     currentIllustUrl = illustObject.illustIdUrl || null;
+    currentImageVisible = !!illustObject.imageObjectUrl;
     console.log("Illust tags:", currentTags.map(t => t.tag));
 
     // Reset like state
@@ -327,7 +451,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       binding.illustInfoElement.className = "unfocused";
     }, 10000);
     if (illustObject.fallback && illustObject.message) {
-      showToast(illustObject.message, "error");
+      showToast(localizeRuntimeMessage(illustObject.message), "error");
     }
   }
 
@@ -338,14 +462,14 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       { action: "bookmarkIllust", illustId: currentIllustId },
       (res) => {
         if (chrome.runtime.lastError) {
-          showToast("Bookmark failed", "error");
+          showToast(translate("bookmarkFailed"), "error");
           return;
         }
         if (res && res.success) {
           document.getElementById("likeButton").classList.add("liked");
-          showToast("Bookmarked!", "success");
+          showToast(translate("bookmarked"), "success");
         } else {
-          showToast(res?.error || "Bookmark failed", "error");
+          showToast(res?.error || translate("bookmarkFailed"), "error");
         }
       }
     );
@@ -354,7 +478,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   // ── Dislike (show tag popup) ──
   function handleDislike() {
     if (!currentTags || currentTags.length === 0) {
-      showToast("No tags available", "error");
+      showToast(translate("noTagsAvailable"), "error");
       return;
     }
     openTagPopup(currentTags);
@@ -392,15 +516,15 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       { action: "excludeTag", tag: tag, scope: "global" },
       (res) => {
         if (chrome.runtime.lastError) {
-          showToast("Failed to exclude tag", "error");
+          showToast(translate("excludeFailed"), "error");
           return;
         }
         if (res && res.success) {
-          showToast(`Excluded: −${tag}`, "success");
+          showToast(translate("excludedTag", { tag }), "success");
           // Auto refresh to next image
           sendRefreshMessage();
         } else {
-          showToast(res?.error || "Failed to exclude tag", "error");
+          showToast(res?.error || translate("excludeFailed"), "error");
         }
       }
     );
@@ -429,7 +553,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       if (runtimeConfig && runtimeConfig.randomImageEnabled === false) {
         showConfiguredDefaultImage().then((hasDefaultImage) => {
           if (!hasDefaultImage) {
-            showToast("Random images are disabled and no default image is configured.", "error");
+            warnNoDefaultImageIfNeeded();
           }
         });
         return;
@@ -493,14 +617,14 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
         latestRefreshRequestId += 1;
         const hasDefaultImage = await showConfiguredDefaultImage();
         if (!hasDefaultImage) {
-          showToast("Random images are disabled and no default image is configured.", "error");
+          warnNoDefaultImageIfNeeded();
         }
       }
     } catch (error) {
       console.error("Failed to update random image setting:", error);
       runtimeConfig.randomImageEnabled = previousEnabled;
       setRandomToggleState(previousEnabled);
-      showToast("Failed to update random image setting", "error");
+      showToast(translate("randomSettingFailed"), "error");
     } finally {
       setRandomToggleBusy(false);
     }
@@ -510,16 +634,17 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     initApplication();
     updateActionButtons();
     runtimeConfig = await loadStartupConfig();
+    applyUiText();
     setRandomToggleState(runtimeConfig.randomImageEnabled !== false);
 
     const hasDefaultImage = await showConfiguredDefaultImage({
-      title: "Default background",
-      userName: "Configured default image",
+      title: translate("defaultBackgroundTitle"),
+      userName: translate("configuredDefaultImage"),
     });
 
     if (!hasDefaultImage && runtimeConfig.randomImageEnabled === false) {
       binding.containerElement.classList.toggle("notReady", false);
-      showToast("Random images are disabled and no default image is configured.", "error");
+      warnNoDefaultImageIfNeeded();
     }
 
     if (runtimeConfig.randomImageEnabled !== false) {

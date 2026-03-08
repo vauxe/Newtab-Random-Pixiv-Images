@@ -60,61 +60,70 @@ body {
   transition: background 0.3s;
 }
 
-#refreshButton {
+#refreshButton,
+#settingsButton {
   display: inline-flex;
   align-items: center;
   justify-content: center;
   border-radius: 100%;
-  width: 18px;
-  height: 18px;
+  width: 20px;
+  height: 20px;
   margin-top: 0;
   margin-left: 0;
   cursor: pointer;
-  transition: background-color 0.5s;
-}
-
-#refreshButton:hover {
-  background-color: rgba(23, 24, 25, 1);
+  transition: background-color 0.25s ease, transform 0.2s ease;
 }
 
 #pageControls {
   position: fixed;
-  right: 8px;
-  bottom: 8px;
+  right: 14px;
+  bottom: 14px;
   z-index: 20;
   display: flex;
   align-items: center;
-  gap: 8px;
-}
-
-#randomToggleControl,
-#settingsButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  border-radius: 100%;
-  margin-top: 0;
-  margin-left: 0;
-  cursor: pointer;
-  background-color: rgba(23, 24, 25, 0.45);
-  backdrop-filter: blur(10px);
-  transition: background-color 0.5s;
-}
-
-#settingsButton {
-  width: 18px;
-  height: 18px;
-  padding: 6px;
-}
-
-#settingsButton:hover {
-  background-color: rgba(23, 24, 25, 1);
+  gap: 12px;
+  padding: 10px 12px;
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(12, 16, 30, 0.84), rgba(27, 31, 47, 0.78));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
 }
 
 #randomToggleControl {
-  gap: 8px;
-  padding: 6px 10px;
-  border-radius: 999px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: flex-start;
+  margin-top: 0;
+  margin-left: 0;
+  cursor: pointer;
+  transition: background-color 0.25s ease, opacity 0.25s ease;
+}
+
+#pageActionButtons {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding-left: 12px;
+  border-left: 1px solid rgba(255, 255, 255, 0.14);
+}
+
+#refreshButton,
+#settingsButton {
+  padding: 7px;
+  background-color: rgba(255, 255, 255, 0.06);
+}
+
+#refreshButton:hover,
+#settingsButton:hover {
+  background-color: rgba(255, 255, 255, 0.16);
+  transform: translateY(-1px);
+}
+
+#randomToggleControl {
+  gap: 10px;
+  min-width: 138px;
+  padding: 2px 0;
   color: #fff;
   font-family: HiraginoSans-W3, Hiragino Kaku Gothic Pro, Meiryo, Verdana,
     sans-serif;
@@ -122,8 +131,8 @@ body {
   user-select: none;
 }
 
-#randomToggleControl:hover {
-  background-color: rgba(23, 24, 25, 0.9);
+#randomToggleControl:hover .random-toggle-slider {
+  background: rgba(255, 255, 255, 0.34);
 }
 
 #randomToggleControl.disabled {
@@ -139,11 +148,12 @@ body {
 
 .random-toggle-slider {
   position: relative;
-  width: 34px;
-  height: 20px;
+  width: 42px;
+  height: 24px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.24);
+  background: rgba(255, 255, 255, 0.22);
   transition: background-color 0.2s ease;
+  box-shadow: inset 0 0 0 1px rgba(255, 255, 255, 0.08);
 }
 
 .random-toggle-slider::after {
@@ -151,23 +161,38 @@ body {
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 16px;
-  height: 16px;
+  width: 20px;
+  height: 20px;
   border-radius: 50%;
   background: #fff;
-  transition: transform 0.2s ease;
+  transition: transform 0.2s ease, box-shadow 0.2s ease;
+  box-shadow: 0 3px 8px rgba(0, 0, 0, 0.22);
 }
 
 #randomToggleInput:checked + .random-toggle-slider {
-  background: rgba(90, 180, 255, 0.8);
+  background: linear-gradient(135deg, rgba(66, 188, 255, 0.95), rgba(89, 132, 255, 0.9));
 }
 
 #randomToggleInput:checked + .random-toggle-slider::after {
-  transform: translateX(14px);
+  transform: translateX(18px);
 }
 
 #randomToggleText {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  line-height: 1.15;
   letter-spacing: 0.02em;
+}
+
+#randomToggleText strong {
+  font-size: 13px;
+  font-weight: 600;
+}
+
+#randomToggleText small {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.7);
 }
 
 #refreshButton.pressed {
@@ -209,13 +234,14 @@ body {
   position: fixed;
   width: auto;
   height: 50px;
-  bottom: 38px;
-  right: 8px;
+  bottom: 86px;
+  right: 14px;
   padding: 0 6px;
   font-family: HiraginoSans-W3, Hiragino Kaku Gothic Pro, Meiryo, Verdana,
     sans-serif;
   border-radius: 4px;
-  background-color: rgba(23, 24, 25, 0.3);
+  background-color: rgba(23, 24, 25, 0.38);
+  backdrop-filter: blur(10px);
   color: #fff;
   transition: opacity 1s;
 }
@@ -403,21 +429,23 @@ body {
 /* Toast */
 .toast {
   position: fixed;
-  bottom: 100px;
+  top: 22px;
   left: 50%;
-  transform: translateX(-50%) translateY(20px);
-  padding: 8px 20px;
-  border-radius: 8px;
+  transform: translateX(-50%) translateY(-16px);
+  max-width: min(560px, calc(100vw - 40px));
+  padding: 12px 20px;
+  border-radius: 14px;
   font-size: 13px;
   font-family: 'Segoe UI', Arial, sans-serif;
-  background: rgba(20, 20, 30, 0.9);
+  background: rgba(20, 20, 30, 0.92);
   color: #fff;
-  backdrop-filter: blur(8px);
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  backdrop-filter: blur(14px);
+  box-shadow: 0 10px 28px rgba(0, 0, 0, 0.32);
   opacity: 0;
   pointer-events: none;
   transition: opacity 0.3s, transform 0.3s;
   z-index: 2000;
+  text-align: center;
 }
 
 .toast.show {
