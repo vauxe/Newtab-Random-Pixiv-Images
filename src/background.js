@@ -644,6 +644,9 @@ chrome.runtime.onMessage.addListener(function (
           if (res) {
             res.mode = "random";
             res.fallback = false;
+            res.resolvedRandomTags = Array.isArray(searchSource.lastResolvedRandomTags)
+              ? searchSource.lastResolvedRandomTags.slice()
+              : [];
             sendResponse(res);
             let { profileImageUrl, imageObjectUrl, ...filteredRes } = res;
             console.log(filteredRes);

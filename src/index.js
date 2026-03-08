@@ -16,6 +16,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   let currentQueuedPriorityTagForImage = "";
   let activeTagPopupMode = "exclude";
   let shouldRefreshOnTagPopupClose = false;
+  let requestTagPopupTimer = null;
   const UI_STRINGS = {
     en: {
       randomLabel: "Random Pixiv",
@@ -35,6 +36,8 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       addRandomTagFailed: "Failed to add tag to random pool",
       addedRandomTag: "Added to random pool: {tag}",
       queuedNextRandomTag: "Next refresh will prioritize: {tag}",
+      requestRandomTagsTitle: "Random tags used this request",
+      requestRandomTagsEmpty: "Base query only",
       randomTagExists: "Tag already exists in random pool: {tag}",
       excludeTagTitle: "Select a tag to exclude",
       noTagsAvailable: "No tags available",
@@ -63,6 +66,8 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       addRandomTagFailed: "加入随机池失败",
       addedRandomTag: "已加入随机池：{tag}",
       queuedNextRandomTag: "下次刷新将优先使用：{tag}",
+      requestRandomTagsTitle: "本次请求使用的随机标签",
+      requestRandomTagsEmpty: "仅使用基础查询",
       randomTagExists: "随机池中已存在：{tag}",
       excludeTagTitle: "选择要排除的标签",
       noTagsAvailable: "当前图片没有可排除的标签",
@@ -91,6 +96,8 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       addRandomTagFailed: "ランダムプールへの追加に失敗しました",
       addedRandomTag: "ランダムプールに追加しました: {tag}",
       queuedNextRandomTag: "次回更新では優先して使用します: {tag}",
+      requestRandomTagsTitle: "今回のリクエストで使ったランダム tag",
+      requestRandomTagsEmpty: "ベースクエリのみ",
       randomTagExists: "ランダムプールに既に存在します: {tag}",
       excludeTagTitle: "除外する tag を選択",
       noTagsAvailable: "除外できるタグがありません",
@@ -478,6 +485,11 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     if (illustObject.fallback && illustObject.message) {
       showToast(localizeRuntimeMessage(illustObject.message), "error");
     }
+    if (illustObject.mode === "random") {
+      showRequestRandomTagsPopup(illustObject.resolvedRandomTags || []);
+    } else {
+      hideRequestRandomTagsPopup();
+    }
   }
 
   // ── Like (add to random tag pool) ──
@@ -708,6 +720,50 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     toast.className = `toast toast-${type} show`;
     clearTimeout(toastTimer);
     toastTimer = setTimeout(() => { toast.className = "toast"; }, 2500);
+  }
+
+  function showRequestRandomTagsPopup(tags) {
+    const popup = document.getElementById("requestTagPopup");
+    const title = document.getElementById("requestTagPopupTitle");
+    const list = document.getElementById("requestTagPopupList");
+    if (!popup || !title || !list) {
+      return;
+    }
+    title.textContent = translate("requestRandomTagsTitle");
+    list.innerHTML = "";
+
+    const normalizedTags = Array.isArray(tags)
+      ? tags.map((tag) => String(tag || "").trim()).filter(Boolean)
+      : [];
+
+    if (normalizedTags.length === 0) {
+      const empty = document.createElement("span");
+      empty.className = "request-tag-pill empty";
+      empty.textContent = translate("requestRandomTagsEmpty");
+      list.appendChild(empty);
+    } else {
+      normalizedTags.forEach((tag) => {
+        const pill = document.createElement("span");
+        pill.className = "request-tag-pill";
+        pill.textContent = tag;
+        list.appendChild(pill);
+      });
+    }
+
+    popup.classList.remove("hidden");
+    clearTimeout(requestTagPopupTimer);
+    requestTagPopupTimer = setTimeout(() => {
+      popup.classList.add("hidden");
+    }, 3200);
+  }
+
+  function hideRequestRandomTagsPopup() {
+    const popup = document.getElementById("requestTagPopup");
+    if (!popup) {
+      return;
+    }
+    clearTimeout(requestTagPopupTimer);
+    popup.classList.add("hidden");
   }
 
   // ── Util ──
