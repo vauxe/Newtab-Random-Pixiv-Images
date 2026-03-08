@@ -49,6 +49,7 @@ function ensurePixivHeaderRules() {
         "urlFilter": "pximg.net",
         "resourceTypes": [
           "xmlhttprequest",
+          "image",
         ]
       }
     }
@@ -576,9 +577,11 @@ class SearchSource {
           fetchImage(res.profileImageUrl, "profile")
         ]);
 
-        if (!imgBlob) continue;
+        if (!imgBlob && !resolvedImageUrl) continue;
         res.imageObjectUrl = resolvedImageUrl || res.imageObjectUrl;
-        res.imageObjectUrl = await blobToDataUrl(imgBlob);
+        if (imgBlob) {
+          res.imageObjectUrl = await blobToDataUrl(imgBlob);
+        }
 
         if (profileBlob) {
           try {
