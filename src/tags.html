@@ -991,9 +991,20 @@
                         <input type="number" id="randomTagPoolPickCount" min="0" step="1" value="0" />
                     </div>
                     <div class="blocklist-row">
-                        <label id="randomTagPoolInputLabel" for="randomTagPoolInput">Random tag pool</label>
-                        <textarea id="randomTagPoolInput" data-i18n-placeholder="randomTagPoolInputPlaceholder"
-                            placeholder="tag-a&#10;tag-b&#10;tag-c"></textarea>
+                        <label id="randomTagPoolInputLabel">Random tag pool</label>
+                        <div class="flow-builder">
+                            <div class="flow-container" id="randomTagPoolContainer">
+                                <div class="empty-state" id="randomTagPoolEmptyState">Add tags to build the random pool</div>
+                            </div>
+                        </div>
+                        <div class="actions-bar">
+                            <button class="btn-action btn-add-keyword" id="randomTagPoolAddBtn">
+                                + <span id="randomTagPoolAddLabel">Tag</span>
+                            </button>
+                            <button class="btn-action btn-add-group" id="randomTagPoolImportBtn">
+                                📋 <span id="randomTagPoolImportLabel">Import Text</span>
+                            </button>
+                        </div>
                     </div>
                     <div class="blocklist-tip" id="randomTagPoolHelp">Each request uses the fixed query plus a random subset from this pool.</div>
                 </div>

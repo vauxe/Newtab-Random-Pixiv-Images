@@ -134,10 +134,25 @@
   "randomTagPoolInputLabel": {
     "message": "Random tag pool"
   },
+  "randomTagPoolEmptyState": {
+    "message": "Add tags to build the random pool"
+  },
+  "randomTagPoolAddLabel": {
+    "message": "Tag"
+  },
+  "randomTagPoolImportLabel": {
+    "message": "Import Text"
+  },
   "randomTagPoolInputPlaceholder": {
     "message": "tag-a\ntag-b\ntag-c"
   },
   "randomTagPoolHelp": {
     "message": "Each request uses the fixed query plus a random subset from this pool."
+  },
+  "randomTagPoolModalTitle": {
+    "message": "Import Random Pool Tags"
+  },
+  "randomTagPoolModalDesc": {
+    "message": "Paste tags for the random pool (separated by spaces, commas, or newlines)"
   }
 }

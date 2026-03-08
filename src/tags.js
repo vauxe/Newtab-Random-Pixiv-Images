@@ -46,7 +46,12 @@ const randomTagPoolCard = document.getElementById("randomTagPoolCard");
 const randomTagPoolToggle = document.getElementById("randomTagPoolToggle");
 const randomTagPoolEnabledInput = document.getElementById("randomTagPoolEnabled");
 const randomTagPoolPickCountInput = document.getElementById("randomTagPoolPickCount");
-const randomTagPoolInput = document.getElementById("randomTagPoolInput");
+const randomTagPoolContainer = document.getElementById("randomTagPoolContainer");
+const randomTagPoolEmptyState = document.getElementById("randomTagPoolEmptyState");
+const randomTagPoolAddBtn = document.getElementById("randomTagPoolAddBtn");
+const randomTagPoolImportBtn = document.getElementById("randomTagPoolImportBtn");
+
+let currentImportTarget = "queryTree";
 
 // ── Tree Manipulation ──
 
@@ -121,6 +126,28 @@ function createConnector(group, childIndex) {
   return conn;
 }
 
+function createPoolCapsule(tag, index) {
+  const el = document.createElement("span");
+  el.className = "capsule capsule-normal";
+
+  const textSpan = document.createElement("span");
+  textSpan.className = "capsule-text";
+  textSpan.textContent = tag;
+
+  const removeBtn = document.createElement("button");
+  removeBtn.className = "remove-btn";
+  removeBtn.textContent = "×";
+  removeBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    randomTagPool.splice(index, 1);
+    renderRandomTagPool();
+  });
+
+  el.appendChild(textSpan);
+  el.appendChild(removeBtn);
+  return el;
+}
+
 function createInlineInput(group, container) {
   const wrapper = document.createElement("span");
   wrapper.className = "inline-input";
@@ -149,6 +176,42 @@ function createInlineInput(group, container) {
     }
   });
 
+  wrapper.appendChild(input);
+  return wrapper;
+}
+
+function createPoolInlineInput(container) {
+  const wrapper = document.createElement("span");
+  wrapper.className = "inline-input";
+
+  const input = document.createElement("input");
+  input.placeholder = _translations["randomTagPoolInputPlaceholder"]
+    ? _translations["randomTagPoolInputPlaceholder"].message
+    : "tag-a";
+
+  const commit = () => {
+    const values = parseRandomTagPoolInput(input.value);
+    if (values.length > 0) {
+      values.forEach((value) => {
+        if (!randomTagPool.includes(value)) {
+          randomTagPool.push(value);
+        }
+      });
+      renderRandomTagPool();
+    } else {
+      wrapper.remove();
+    }
+  };
+
+  input.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      commit();
+    } else if (e.key === "Escape") {
+      wrapper.remove();
+    }
+  });
+
+  input.addEventListener("blur", commit);
   wrapper.appendChild(input);
   return wrapper;
 }
@@ -227,7 +290,27 @@ function renderAll() {
     renderFlowItems(queryTree, flowContainer);
   }
 
+  renderRandomTagPool();
   updatePreview();
+}
+
+function renderRandomTagPool() {
+  if (!randomTagPoolContainer || !randomTagPoolEmptyState) {
+    return;
+  }
+  randomTagPoolContainer.innerHTML = "";
+  if (randomTagPool.length === 0) {
+    randomTagPoolEmptyState.textContent = _translations["randomTagPoolEmptyState"]
+      ? _translations["randomTagPoolEmptyState"].message
+      : "Add tags to build the random pool";
+    randomTagPoolEmptyState.style.display = "";
+    randomTagPoolContainer.appendChild(randomTagPoolEmptyState);
+    return;
+  }
+  randomTagPoolEmptyState.style.display = "none";
+  randomTagPool.forEach((tag, index) => {
+    randomTagPoolContainer.appendChild(createPoolCapsule(tag, index));
+  });
 }
 
 // ── Preset Management ──
@@ -393,9 +476,7 @@ function syncRandomTagPoolControls() {
   if (randomTagPoolPickCountInput) {
     randomTagPoolPickCountInput.value = String(randomTagPoolPickCount);
   }
-  if (randomTagPoolInput) {
-    randomTagPoolInput.value = randomTagPool.join("\n");
-  }
+  renderRandomTagPool();
 }
 
 async function resetDefaultImage() {
@@ -578,9 +659,6 @@ async function saveTags() {
       ? parsedPickCount
       : 0;
   }
-  if (randomTagPoolInput) {
-    randomTagPool = parseRandomTagPoolInput(randomTagPoolInput.value);
-  }
   if (defaultImageUrlInput) {
     if (defaultImageSourceType === "url") {
       defaultImageUrl = defaultImageUrlInput.value.trim();
@@ -655,6 +733,24 @@ function importFromText(text) {
   });
 
   renderAll();
+  showToast(
+    (_translations["importedCount"]
+      ? _translations["importedCount"].message
+      : "Imported {count} tags"
+    ).replace("{count}", tags.length),
+    "success"
+  );
+}
+
+function importRandomTagPoolFromText(text) {
+  const tags = parseRandomTagPoolInput(text);
+  if (tags.length === 0) return;
+  tags.forEach((tag) => {
+    if (!randomTagPool.includes(tag)) {
+      randomTagPool.push(tag);
+    }
+  });
+  renderRandomTagPool();
   showToast(
     (_translations["importedCount"]
       ? _translations["importedCount"].message
@@ -792,7 +888,20 @@ function showToast(message, type = "success") {
 
 // ── Modal ──
 
-function openImportModal() {
+function openImportModal(target = "queryTree") {
+  currentImportTarget = target;
+  const modalTitle = document.getElementById("modalTitle");
+  const modalDesc = document.getElementById("modalDesc");
+  if (modalTitle) {
+    modalTitle.textContent = target === "randomTagPool"
+      ? (_translations["randomTagPoolModalTitle"] ? _translations["randomTagPoolModalTitle"].message : "Import Random Pool Tags")
+      : (_translations["modalTitle"] ? _translations["modalTitle"].message : "Import Tags from Text");
+  }
+  if (modalDesc) {
+    modalDesc.textContent = target === "randomTagPool"
+      ? (_translations["randomTagPoolModalDesc"] ? _translations["randomTagPoolModalDesc"].message : "Paste tags for the random pool (separated by spaces, commas, or newlines)")
+      : (_translations["modalDesc"] ? _translations["modalDesc"].message : "Paste keywords below (separated by spaces, commas, or newlines)");
+  }
   document.getElementById("importModal").classList.add("active");
   document.getElementById("importTextarea").value = "";
   document.getElementById("importTextarea").focus();
@@ -805,7 +914,11 @@ function closeImportModal() {
 function confirmImport() {
   const text = document.getElementById("importTextarea").value;
   if (text.trim()) {
-    importFromText(text);
+    if (currentImportTarget === "randomTagPool") {
+      importRandomTagPoolFromText(text);
+    } else {
+      importFromText(text);
+    }
   }
   closeImportModal();
 }
@@ -851,6 +964,20 @@ document.getElementById("addKeywordBtn").addEventListener("click", () => {
 document.getElementById("addGroupBtn").addEventListener("click", () => {
   addGroupToGroup(queryTree);
 });
+
+if (randomTagPoolAddBtn && randomTagPoolContainer) {
+  randomTagPoolAddBtn.addEventListener("click", () => {
+    const inputEl = createPoolInlineInput(randomTagPoolContainer);
+    randomTagPoolContainer.appendChild(inputEl);
+    inputEl.querySelector("input").focus();
+  });
+}
+
+if (randomTagPoolImportBtn) {
+  randomTagPoolImportBtn.addEventListener("click", () => {
+    openImportModal("randomTagPool");
+  });
+}
 
 // Preset controls
 presetSelect.addEventListener("change", (e) => {
@@ -901,7 +1028,7 @@ if (presetRenameInput && presetSelect) {
 document.getElementById("saveBtn").addEventListener("click", saveTags);
 
 // Import / Export
-document.getElementById("importTextBtn").addEventListener("click", openImportModal);
+document.getElementById("importTextBtn").addEventListener("click", () => openImportModal("queryTree"));
 document.getElementById("modalCancelBtn").addEventListener("click", closeImportModal);
 document.getElementById("modalConfirmBtn").addEventListener("click", confirmImport);
 
@@ -1031,12 +1158,6 @@ if (randomTagPoolPickCountInput) {
     randomTagPoolPickCount = Number.isInteger(parsedPickCount) && parsedPickCount >= 0
       ? parsedPickCount
       : 0;
-  });
-}
-
-if (randomTagPoolInput) {
-  randomTagPoolInput.addEventListener("input", () => {
-    randomTagPool = parseRandomTagPoolInput(randomTagPoolInput.value);
   });
 }
 

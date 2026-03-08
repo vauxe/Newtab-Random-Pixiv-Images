@@ -134,10 +134,25 @@
   "randomTagPoolInputLabel": {
     "message": "随机 Tag 池"
   },
+  "randomTagPoolEmptyState": {
+    "message": "添加 Tag 以构建随机池"
+  },
+  "randomTagPoolAddLabel": {
+    "message": "Tag"
+  },
+  "randomTagPoolImportLabel": {
+    "message": "导入文本"
+  },
   "randomTagPoolInputPlaceholder": {
     "message": "tag-a\ntag-b\ntag-c"
   },
   "randomTagPoolHelp": {
     "message": "每次请求会在固定查询条件之外，从这个池子里随机抽取一部分 tag。"
+  },
+  "randomTagPoolModalTitle": {
+    "message": "导入随机池 Tag"
+  },
+  "randomTagPoolModalDesc": {
+    "message": "在下方粘贴随机池 Tag（支持空格、逗号或换行分隔）"
   }
 }

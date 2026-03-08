@@ -134,10 +134,25 @@
   "randomTagPoolInputLabel": {
     "message": "ランダム Tag プール"
   },
+  "randomTagPoolEmptyState": {
+    "message": "Tag を追加してランダムプールを作成"
+  },
+  "randomTagPoolAddLabel": {
+    "message": "Tag"
+  },
+  "randomTagPoolImportLabel": {
+    "message": "テキスト取込"
+  },
   "randomTagPoolInputPlaceholder": {
     "message": "tag-a\ntag-b\ntag-c"
   },
   "randomTagPoolHelp": {
     "message": "各リクエストで固定条件に加えて、このプールから一部の tag をランダムに追加します。"
+  },
+  "randomTagPoolModalTitle": {
+    "message": "ランダムプール Tag を取り込む"
+  },
+  "randomTagPoolModalDesc": {
+    "message": "ランダムプール用の Tag を貼り付けてください（空白、カンマ、改行区切り対応）"
   }
 }
