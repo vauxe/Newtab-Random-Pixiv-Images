@@ -83,6 +83,9 @@
   "randomImageEnabledLabel": {
     "message": "Pixiv ランダム画像を有効化"
   },
+  "onlyR18ContentLabel": {
+    "message": "R18 のみ表示"
+  },
   "defaultImageUrlLabel": {
     "message": "デフォルト画像 URL"
   },

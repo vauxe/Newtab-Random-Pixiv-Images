@@ -15,6 +15,7 @@ let presets = []; // Array of { name: string, tree: queryTree }
 let activePresetIndex = 0;
 let globalMinusKeywords = "";
 let randomImageEnabled = true;
+let onlyR18Content = false;
 let defaultImageUrl = "";
 let defaultImagePreviewUrl = "";
 let defaultImageSourceType = "url";
@@ -39,6 +40,7 @@ const blocklistToggle = document.getElementById("blocklistToggle");
 const displaySettingsCard = document.getElementById("displaySettingsCard");
 const displaySettingsToggle = document.getElementById("displaySettingsToggle");
 const randomImageEnabledInput = document.getElementById("randomImageEnabled");
+const onlyR18ContentInput = document.getElementById("onlyR18Content");
 const defaultImageUrlInput = document.getElementById("defaultImageUrl");
 const defaultImagePreview = document.getElementById("defaultImagePreview");
 const defaultImageUploadBtn = document.getElementById("defaultImageUploadBtn");
@@ -558,6 +560,7 @@ function savePresetsToStorage() {
     activePresetIndex: activePresetIndex,
     globalMinusKeywords: globalMinusKeywords,
     randomImageEnabled: randomImageEnabled,
+    mode: onlyR18Content ? "r18" : "safe",
     randomTagPoolEnabled: randomTagPoolEnabled,
     randomTagPool: JSON.parse(JSON.stringify(randomTagPool)),
     randomTagPoolPickCount: randomTagPoolPickCount,
@@ -622,6 +625,9 @@ function syncRandomImageToggleControl() {
   if (!randomImageEnabledInput) return;
   randomImageEnabledInput.checked = randomImageEnabled;
   randomImageEnabledInput.disabled = isRandomImageToggleBusy;
+  if (onlyR18ContentInput) {
+    onlyR18ContentInput.checked = onlyR18Content;
+  }
 }
 
 function parseRandomTagPoolInput(value) {
@@ -718,6 +724,7 @@ function persistDisplaySettings() {
     }
     ext.storage.local.set({
       randomImageEnabled,
+      mode: onlyR18Content ? "r18" : "safe",
       defaultImageUrl: defaultImageSourceType === "url" ? defaultImageUrl : "",
       defaultImageSourceType,
       defaultImageUploadName,
@@ -761,6 +768,7 @@ function loadTags() {
     randomTagPoolPickCount: 2,
     randomTagPoolLastResolvedTags: [],
     randomTagPoolLastResolvedAt: 0,
+    mode: "safe",
     defaultImageUrl: "",
     defaultImageSourceType: "url",
     defaultImageUploadName: "",
@@ -783,6 +791,7 @@ function loadTags() {
     globalMinusKeywords = items.globalMinusKeywords || "";
     if (globalMinusInput) globalMinusInput.value = globalMinusKeywords;
     randomImageEnabled = items.randomImageEnabled !== false;
+    onlyR18Content = items.mode === "r18";
     randomTagPoolEnabled = items.randomTagPoolEnabled === true;
     randomTagPool = Array.isArray(items.randomTagPool)
       ? items.randomTagPool.map((item) => String(item || "").trim()).filter(Boolean)
@@ -857,6 +866,7 @@ async function saveTags() {
     orKeywords: null,
     globalMinusKeywords: globalMinusKeywords,
     randomImageEnabled: randomImageEnabled,
+    mode: onlyR18Content ? "r18" : "safe",
     randomTagPoolEnabled: randomTagPoolEnabled,
     randomTagPool: JSON.parse(JSON.stringify(randomTagPool)),
     randomTagPoolCounts: JSON.parse(JSON.stringify(normalizeRandomTagPoolCounts(randomTagPoolCounts, randomTagPool))),
@@ -964,6 +974,7 @@ function importFromJsonFile(file) {
 
       globalMinusKeywords = data.globalMinusKeywords || "";
       randomImageEnabled = data.randomImageEnabled !== false;
+      onlyR18Content = data.mode === "r18";
       randomTagPoolEnabled = data.randomTagPoolEnabled === true;
       randomTagPool = Array.isArray(data.randomTagPool)
         ? data.randomTagPool.map((item) => String(item || "").trim()).filter(Boolean)
@@ -1025,6 +1036,7 @@ function exportToJsonFile() {
     activePresetIndex: activePresetIndex,
     globalMinusKeywords: globalMinusKeywords,
     randomImageEnabled: randomImageEnabled,
+    mode: onlyR18Content ? "r18" : "safe",
     randomTagPoolEnabled: randomTagPoolEnabled,
     randomTagPool: JSON.parse(JSON.stringify(randomTagPool)),
     randomTagPoolCounts: JSON.parse(JSON.stringify(normalizeRandomTagPoolCounts(randomTagPoolCounts, randomTagPool))),
@@ -1303,6 +1315,22 @@ if (randomImageEnabledInput) {
   });
 }
 
+if (onlyR18ContentInput) {
+  onlyR18ContentInput.addEventListener("change", async () => {
+    const previousValue = onlyR18Content;
+    onlyR18Content = !!onlyR18ContentInput.checked;
+    syncRandomImageToggleControl();
+    try {
+      await persistDisplaySettings();
+    } catch (error) {
+      console.error("Failed to update R18 content setting:", error);
+      onlyR18Content = previousValue;
+      syncRandomImageToggleControl();
+      showToast("Failed to update R18 content setting", "error");
+    }
+  });
+}
+
 if (defaultImageUrlInput) {
   defaultImageUrlInput.addEventListener("input", () => {
     defaultImageSourceType = "url";
@@ -1432,6 +1460,11 @@ if (ext && ext.storage && ext.storage.onChanged) {
 
     if (changes.randomImageEnabled) {
       randomImageEnabled = changes.randomImageEnabled.newValue !== false;
+      syncRandomImageToggleControl();
+    }
+
+    if (changes.mode) {
+      onlyR18Content = changes.mode.newValue === "r18";
       syncRandomImageToggleControl();
     }
 

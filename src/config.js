@@ -294,6 +294,9 @@ export function migrateConfig(config) {
   if (typeof config.defaultImageUploadName !== "string") {
     config.defaultImageUploadName = "";
   }
+  if (config.mode !== Mode.safe && config.mode !== Mode.r18) {
+    config.mode = Mode.safe;
+  }
   if (!Array.isArray(config.likedUserIds)) {
     config.likedUserIds = [];
   }

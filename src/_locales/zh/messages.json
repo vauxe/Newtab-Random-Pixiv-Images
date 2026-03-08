@@ -83,6 +83,9 @@
   "randomImageEnabledLabel": {
     "message": "启用 Pixiv 随机图片"
   },
+  "onlyR18ContentLabel": {
+    "message": "仅看 R18 内容"
+  },
   "defaultImageUrlLabel": {
     "message": "默认图片 URL"
   },

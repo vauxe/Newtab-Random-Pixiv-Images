@@ -83,6 +83,9 @@
   "randomImageEnabledLabel": {
     "message": "Enable random Pixiv images"
   },
+  "onlyR18ContentLabel": {
+    "message": "Only R18 content"
+  },
   "defaultImageUrlLabel": {
     "message": "Default image URL"
   },
