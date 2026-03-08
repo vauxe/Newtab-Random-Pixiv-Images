@@ -26,7 +26,7 @@ function ensurePixivHeaderRules() {
     },
     {
       "id": 2,
-      "priority": 1,
+      "priority": 2,
       "action": {
         "type": "modifyHeaders",
         "requestHeaders": [
@@ -45,8 +45,7 @@ function ensurePixivHeaderRules() {
         ]
       },
       "condition": {
-        initiatorDomains: [chrome.runtime.id],
-        "urlFilter": "pximg.net",
+        "requestDomains": ["i.pximg.net", "s.pximg.net"],
         "resourceTypes": [
           "xmlhttprequest",
           "image",
@@ -57,6 +56,16 @@ function ensurePixivHeaderRules() {
   chrome.declarativeNetRequest.updateDynamicRules({
     removeRuleIds: RULE.map(o => o.id),
     addRules: RULE,
+  }, () => {
+    if (chrome.runtime.lastError) {
+      console.error("Failed to update Pixiv header rules:", chrome.runtime.lastError);
+      return;
+    }
+    debugLog("ensurePixivHeaderRules:applied", RULE.map((rule) => ({
+      id: rule.id,
+      requestDomains: rule.condition.requestDomains || null,
+      resourceTypes: rule.condition.resourceTypes,
+    })));
   });
 }
 
