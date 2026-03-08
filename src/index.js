@@ -5,6 +5,9 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   let currentTags = [];
   let currentIllustId = null;
   let currentIllustUrl = null;
+  let runtimeConfig = null;
+  let isRandomToggleBusy = false;
+  let latestRefreshRequestId = 0;
 
   class Binding {
     constructor() {
@@ -16,6 +19,8 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       const illustNameElement = document.body.querySelector("#illustName");
       const refreshElement = document.body.querySelector("#refreshButton");
       const settingsElement = document.body.querySelector("#settingsButton");
+      const randomToggleInput = document.body.querySelector("#randomToggleInput");
+      const randomToggleControl = document.body.querySelector("#randomToggleControl");
       const likeElement = document.body.querySelector("#likeButton");
       const dislikeElement = document.body.querySelector("#dislikeButton");
       const containerElement = document.body.querySelector("#container");
@@ -23,6 +28,8 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       const illustInfoElement = document.body.querySelector("#illustInfo");
       this.containerElement = containerElement;
       this.illustInfoElement = illustInfoElement;
+      this.randomToggleInput = randomToggleInput;
+      this.randomToggleControl = randomToggleControl;
 
       const userNameBinding = (v) => {
         avatarImageElement.title = v;
@@ -77,7 +84,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       refreshElement.addEventListener("mouseup", () => {
         refreshElement.className = "unpressed";
       });
-      refreshElement.addEventListener("click", sendRefreshMessage);
+      refreshElement.addEventListener("click", refreshCurrentPageImage);
       settingsElement.addEventListener("click", () => {
         if (chrome && chrome.tabs && chrome.tabs.create) {
           chrome.tabs.create({ url: chrome.runtime.getURL("tags.html") });
@@ -85,6 +92,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
           window.open(chrome.runtime.getURL("tags.html"), "_blank");
         }
       });
+      randomToggleInput.addEventListener("change", handleRandomToggleChange);
 
       // Like button
       likeElement.addEventListener("click", handleLike);
@@ -132,6 +140,21 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     dislikeBtn.classList.toggle("disabled", !currentTags || currentTags.length === 0);
   }
 
+  function setRandomToggleState(enabled) {
+    if (!binding || !binding.randomToggleInput) return;
+    binding.randomToggleInput.checked = !!enabled;
+    binding.randomToggleControl.title = enabled
+      ? "Random Pixiv image requests are enabled"
+      : "Random Pixiv image requests are disabled";
+  }
+
+  function setRandomToggleBusy(isBusy) {
+    isRandomToggleBusy = isBusy;
+    if (!binding || !binding.randomToggleInput) return;
+    binding.randomToggleInput.disabled = isBusy;
+    binding.randomToggleControl.classList.toggle("disabled", isBusy);
+  }
+
   function createDefaultDisplayObject(config, options = {}) {
     const defaultImageUrl = (config && config.resolvedDefaultImageUrl ? config.resolvedDefaultImageUrl : "").trim();
     if (!defaultImageUrl) {
@@ -176,6 +199,33 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
           config.defaultImageUrl = "";
         }
         resolve(config);
+      });
+    });
+  }
+
+  async function showConfiguredDefaultImage(options = {}) {
+    const defaultDisplay = createDefaultDisplayObject(runtimeConfig, options);
+    if (!defaultDisplay) {
+      return false;
+    }
+    await changeElement(defaultDisplay);
+    return true;
+  }
+
+  function persistRandomImageEnabled(enabled) {
+    return new Promise((resolve, reject) => {
+      chrome.storage.local.set({ randomImageEnabled: enabled }, () => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        chrome.runtime.sendMessage({ action: "updateConfig" }, () => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+            return;
+          }
+          resolve();
+        });
       });
     });
   }
@@ -317,14 +367,27 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   const sendRefreshMessage = (() => {
     let isRequestInProgress = false;
     return () => {
+      if (runtimeConfig && runtimeConfig.randomImageEnabled === false) {
+        showConfiguredDefaultImage().then((hasDefaultImage) => {
+          if (!hasDefaultImage) {
+            showToast("Random images are disabled and no default image is configured.", "error");
+          }
+        });
+        return;
+      }
       if (isRequestInProgress) {
         return;
       }
       isRequestInProgress = true;
+      const requestId = ++latestRefreshRequestId;
       console.log("Refresh: sending fetchImage");
       chrome.runtime.sendMessage({ action: "fetchImage" }, (res) => {
         if (chrome.runtime.lastError) {
           console.warn("Context invalidated, message could not be processed:", chrome.runtime.lastError.message);
+          isRequestInProgress = false;
+          return;
+        }
+        if (requestId !== latestRefreshRequestId || (runtimeConfig && runtimeConfig.randomImageEnabled === false)) {
           isRequestInProgress = false;
           return;
         }
@@ -340,24 +403,67 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     };
   })();
 
+  function refreshCurrentPageImage() {
+    sendRefreshMessage();
+  }
+
+  async function handleRandomToggleChange(event) {
+    if (!runtimeConfig || isRandomToggleBusy) {
+      if (binding && binding.randomToggleInput) {
+        binding.randomToggleInput.checked = runtimeConfig ? runtimeConfig.randomImageEnabled !== false : true;
+      }
+      return;
+    }
+
+    const nextEnabled = !!event.target.checked;
+    const previousEnabled = runtimeConfig.randomImageEnabled !== false;
+
+    if (nextEnabled === previousEnabled) {
+      return;
+    }
+
+    setRandomToggleBusy(true);
+    try {
+      await persistRandomImageEnabled(nextEnabled);
+      runtimeConfig.randomImageEnabled = nextEnabled;
+      setRandomToggleState(nextEnabled);
+
+      if (nextEnabled) {
+        sendRefreshMessage();
+      } else {
+        latestRefreshRequestId += 1;
+        const hasDefaultImage = await showConfiguredDefaultImage();
+        if (!hasDefaultImage) {
+          showToast("Random images are disabled and no default image is configured.", "error");
+        }
+      }
+    } catch (error) {
+      console.error("Failed to update random image setting:", error);
+      runtimeConfig.randomImageEnabled = previousEnabled;
+      setRandomToggleState(previousEnabled);
+      showToast("Failed to update random image setting", "error");
+    } finally {
+      setRandomToggleBusy(false);
+    }
+  }
+
   async function bootstrap() {
     initApplication();
     updateActionButtons();
-    const startupConfig = await loadStartupConfig();
+    runtimeConfig = await loadStartupConfig();
+    setRandomToggleState(runtimeConfig.randomImageEnabled !== false);
 
-    const defaultDisplay = createDefaultDisplayObject(startupConfig, {
-      title: startupConfig.randomImageEnabled === false ? "Default background" : "Loading...",
-      userName: startupConfig.randomImageEnabled === false ? "Configured default image" : "Waiting for Pixiv image",
+    const hasDefaultImage = await showConfiguredDefaultImage({
+      title: "Default background",
+      userName: "Configured default image",
     });
 
-    if (defaultDisplay) {
-      await changeElement(defaultDisplay);
-    } else if (startupConfig.randomImageEnabled === false) {
+    if (!hasDefaultImage && runtimeConfig.randomImageEnabled === false) {
       binding.containerElement.classList.toggle("notReady", false);
       showToast("Random images are disabled and no default image is configured.", "error");
     }
 
-    if (startupConfig.randomImageEnabled !== false) {
+    if (runtimeConfig.randomImageEnabled !== false) {
       sendRefreshMessage();
     }
     console.log("content script loaded");

@@ -77,28 +77,97 @@ body {
   background-color: rgba(23, 24, 25, 1);
 }
 
-#settingsButton {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
+#pageControls {
   position: fixed;
   right: 8px;
   bottom: 8px;
   z-index: 20;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+#randomToggleControl,
+#settingsButton {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
   border-radius: 100%;
-  width: 18px;
-  height: 18px;
   margin-top: 0;
   margin-left: 0;
   cursor: pointer;
-  padding: 6px;
   background-color: rgba(23, 24, 25, 0.45);
   backdrop-filter: blur(10px);
   transition: background-color 0.5s;
 }
 
+#settingsButton {
+  width: 18px;
+  height: 18px;
+  padding: 6px;
+}
+
 #settingsButton:hover {
   background-color: rgba(23, 24, 25, 1);
+}
+
+#randomToggleControl {
+  gap: 8px;
+  padding: 6px 10px;
+  border-radius: 999px;
+  color: #fff;
+  font-family: HiraginoSans-W3, Hiragino Kaku Gothic Pro, Meiryo, Verdana,
+    sans-serif;
+  font-size: 12px;
+  user-select: none;
+}
+
+#randomToggleControl:hover {
+  background-color: rgba(23, 24, 25, 0.9);
+}
+
+#randomToggleControl.disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+#randomToggleInput {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.random-toggle-slider {
+  position: relative;
+  width: 34px;
+  height: 20px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.24);
+  transition: background-color 0.2s ease;
+}
+
+.random-toggle-slider::after {
+  content: "";
+  position: absolute;
+  top: 2px;
+  left: 2px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #fff;
+  transition: transform 0.2s ease;
+}
+
+#randomToggleInput:checked + .random-toggle-slider {
+  background: rgba(90, 180, 255, 0.8);
+}
+
+#randomToggleInput:checked + .random-toggle-slider::after {
+  transform: translateX(14px);
+}
+
+#randomToggleText {
+  letter-spacing: 0.02em;
 }
 
 #refreshButton.pressed {
