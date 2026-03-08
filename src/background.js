@@ -1,4 +1,4 @@
-import { defaultConfig, buildQuery, buildQueryWithRandomTagPool, migrateConfig } from "./config.js";
+import { defaultConfig, buildQuery, sampleRandomTagPool, migrateConfig } from "./config.js";
 import { resolveDefaultImageUrl } from "./default-image-store.js";
 
 chrome.runtime.onInstalled.addListener((details) => {
@@ -360,33 +360,61 @@ class SearchSource {
     return Array.from(pickedPages);
   }
 
+  buildQueryAttempts() {
+    const baseQuery = buildQuery(this.searchParam).trim();
+    const sampledTags = sampleRandomTagPool(this.searchParam);
+    const attempts = [];
+
+    for (let count = sampledTags.length; count >= 0; count--) {
+      const queryWord = [baseQuery, ...sampledTags.slice(0, count)]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+      if (queryWord && !attempts.includes(queryWord)) {
+        attempts.push(queryWord);
+      }
+    }
+
+    if (attempts.length === 0 && baseQuery) {
+      attempts.push(baseQuery);
+    }
+
+    return attempts;
+  }
+
   async fillCandidateQueue() {
     if (this.candidateQueue.length >= this.candidateQueueTargetSize) {
       return;
     }
-    const queryWord = buildQueryWithRandomTagPool(this.searchParam).trim() || buildQuery(this.searchParam).trim();
-    if (queryWord !== this.activeQueryWord) {
-      this.activeQueryWord = queryWord;
-      this.pageCache.clear();
-      this.totalPage = 0;
-    }
+    const queryAttempts = this.buildQueryAttempts();
 
-    const totalPage = await this.ensureTotalPages(queryWord);
-    if (totalPage === 0) {
-      return;
-    }
+    for (const queryWord of queryAttempts) {
+      if (queryWord !== this.activeQueryWord) {
+        this.activeQueryWord = queryWord;
+        this.totalPage = 0;
+      }
 
-    const maxPagesToSample = Math.min(4, totalPage);
-    const pageNumbers = this.pickSamplePages(maxPagesToSample);
-    for (const pageNumber of pageNumbers) {
-      const pageObj = await this.getPage(pageNumber, queryWord);
-      if (!pageObj || !pageObj.body || !pageObj.body.illust) {
+      const totalPage = await this.ensureTotalPages(queryWord);
+      if (totalPage === 0) {
         continue;
       }
-      const filtered = this.filterIllustArray(pageObj.body.illust.data);
-      this.enqueueCandidates(filtered);
-      if (this.candidateQueue.length >= this.candidateQueueTargetSize) {
-        break;
+
+      const maxPagesToSample = Math.min(4, totalPage);
+      const pageNumbers = this.pickSamplePages(maxPagesToSample);
+      for (const pageNumber of pageNumbers) {
+        const pageObj = await this.getPage(pageNumber, queryWord);
+        if (!pageObj || !pageObj.body || !pageObj.body.illust) {
+          continue;
+        }
+        const filtered = this.filterIllustArray(pageObj.body.illust.data);
+        this.enqueueCandidates(filtered);
+        if (this.candidateQueue.length >= this.candidateQueueTargetSize) {
+          break;
+        }
+      }
+
+      if (this.candidateQueue.length > 0) {
+        return;
       }
     }
   }
