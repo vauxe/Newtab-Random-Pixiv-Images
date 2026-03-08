@@ -291,7 +291,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
         avatarElement.href = v;
       };
       const avatarImageBinding = (v) => {
-        avatarImageElement.style["background-image"] = `url(${v})`;
+        avatarImageElement.style["background-image"] = v ? `url(${v})` : "none";
       };
       const bgImageBinding = (v) => {
         bgElement.style["background-image"] = `url(${v})`;

@@ -648,6 +648,12 @@ class SearchSource {
           } catch (e) {
             // ignore profile image error
           }
+        } else {
+          debugLog("getRandomIllust:profile-fallback-empty", {
+            illustId: res.illustId,
+            profileImageUrl: res.profileImageUrl,
+          });
+          res.profileImageUrl = "";
         }
         this.markSeen(picked.id);
         debugLog("getRandomIllust:success", {
