@@ -1539,25 +1539,49 @@ document.addEventListener("click", (e) => {
   }
 });
 
-if (displaySettingsToggle && displaySettingsCard) {
-  displaySettingsToggle.addEventListener("click", () => {
-    const isCollapsed = displaySettingsCard.classList.toggle("collapsed");
-    displaySettingsToggle.textContent = isCollapsed ? "Show" : "Hide";
+const collapsibleSections = [
+  { card: displaySettingsCard, toggle: displaySettingsToggle, expandedText: "Hide", collapsedText: "Show" },
+  { card: randomTagPoolCard, toggle: randomTagPoolToggle, expandedText: "Hide", collapsedText: "Show" },
+  { card: creatorPreferenceCard, toggle: creatorPreferenceToggle, expandedText: "Hide", collapsedText: "Show" },
+].filter((section) => section.card && section.toggle);
+
+function setSectionCollapsed(targetCard, shouldCollapse) {
+  const section = collapsibleSections.find((item) => item.card === targetCard);
+  if (!section) {
+    return;
+  }
+  section.card.classList.toggle("collapsed", shouldCollapse);
+  section.toggle.textContent = shouldCollapse ? section.collapsedText : section.expandedText;
+}
+
+function openAccordionSection(targetCard) {
+  collapsibleSections.forEach((section) => {
+    setSectionCollapsed(section.card, section.card !== targetCard);
   });
+}
+
+function toggleAccordionSection(targetCard) {
+  if (!targetCard) {
+    return;
+  }
+  const isCollapsed = targetCard.classList.contains("collapsed");
+  if (isCollapsed) {
+    openAccordionSection(targetCard);
+    return;
+  }
+  setSectionCollapsed(targetCard, true);
+}
+
+if (displaySettingsToggle && displaySettingsCard) {
+  displaySettingsToggle.addEventListener("click", () => toggleAccordionSection(displaySettingsCard));
 }
 
 if (randomTagPoolToggle && randomTagPoolCard) {
-  randomTagPoolToggle.addEventListener("click", () => {
-    const isCollapsed = randomTagPoolCard.classList.toggle("collapsed");
-    randomTagPoolToggle.textContent = isCollapsed ? "Show" : "Hide";
-  });
+  randomTagPoolToggle.addEventListener("click", () => toggleAccordionSection(randomTagPoolCard));
 }
 
 if (creatorPreferenceToggle && creatorPreferenceCard) {
-  creatorPreferenceToggle.addEventListener("click", () => {
-    const isCollapsed = creatorPreferenceCard.classList.toggle("collapsed");
-    creatorPreferenceToggle.textContent = isCollapsed ? "Show" : "Hide";
-  });
+  creatorPreferenceToggle.addEventListener("click", () => toggleAccordionSection(creatorPreferenceCard));
 }
 
 if (randomImageEnabledInput) {

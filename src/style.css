@@ -81,19 +81,19 @@ body {
   z-index: 20;
   display: flex;
   align-items: center;
-  gap: 12px;
-  padding: 10px 12px;
-  border-radius: 18px;
-  background: linear-gradient(135deg, rgba(12, 16, 30, 0.84), rgba(27, 31, 47, 0.78));
-  border: 1px solid rgba(255, 255, 255, 0.12);
-  backdrop-filter: blur(14px);
-  box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: 22px;
+  background: linear-gradient(135deg, rgba(19, 24, 38, 0.84), rgba(43, 48, 64, 0.78));
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  backdrop-filter: blur(18px);
+  box-shadow: 0 14px 36px rgba(0, 0, 0, 0.24);
 }
 
 #pageToggleGroup {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
 }
 
 .page-toggle-control {
@@ -110,14 +110,14 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding-left: 12px;
-  border-left: 1px solid rgba(255, 255, 255, 0.14);
+  padding-left: 10px;
+  border-left: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 #refreshButton,
 #settingsButton {
-  padding: 7px;
-  background-color: rgba(255, 255, 255, 0.06);
+  padding: 8px;
+  background-color: rgba(255, 255, 255, 0.08);
 }
 
 #refreshButton:hover,
@@ -128,8 +128,8 @@ body {
 
 .page-toggle-control {
   gap: 10px;
-  min-width: 122px;
-  padding: 2px 0;
+  min-width: 108px;
+  padding: 2px 4px;
   color: #fff;
   font-family: HiraginoSans-W3, Hiragino Kaku Gothic Pro, Meiryo, Verdana,
     sans-serif;
@@ -155,8 +155,8 @@ body {
 
 .random-toggle-slider {
   position: relative;
-  width: 42px;
-  height: 24px;
+  width: 40px;
+  height: 22px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.22);
   transition: background-color 0.2s ease;
@@ -168,8 +168,8 @@ body {
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 20px;
-  height: 20px;
+  width: 18px;
+  height: 18px;
   border-radius: 50%;
   background: #fff;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -197,13 +197,13 @@ body {
 
 #randomToggleText strong,
 #r18ToggleText strong {
-  font-size: 13px;
+  font-size: 12px;
   font-weight: 600;
 }
 
 #randomToggleText small,
 #r18ToggleText small {
-  font-size: 10px;
+  font-size: 11px;
   color: rgba(255, 255, 255, 0.7);
 }
 
@@ -242,20 +242,22 @@ body {
 #illustInfo {
   display: flex;
   align-items: center;
-  gap: 6px;
+  gap: 8px;
   position: fixed;
-  width: auto;
-  height: 50px;
-  bottom: 86px;
+  width: min(342px, calc(100vw - 28px));
+  min-height: 66px;
+  bottom: 98px;
   right: 14px;
-  padding: 0 6px;
+  padding: 10px 12px;
   font-family: HiraginoSans-W3, Hiragino Kaku Gothic Pro, Meiryo, Verdana,
     sans-serif;
-  border-radius: 4px;
-  background-color: rgba(23, 24, 25, 0.38);
-  backdrop-filter: blur(10px);
+  border-radius: 18px;
+  background: linear-gradient(135deg, rgba(31, 34, 43, 0.62), rgba(63, 67, 78, 0.52));
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  backdrop-filter: blur(18px);
   color: #fff;
   transition: opacity 1s;
+  box-shadow: 0 12px 28px rgba(0, 0, 0, 0.18);
 }
 
 #illustInfo.unfocused {
@@ -268,8 +270,8 @@ body {
 
 #avatarImage {
   display: inline-block;
-  width: 40px;
-  height: 40px;
+  width: 52px;
+  height: 52px;
   border-radius: 50%;
   margin-top: 0;
   margin-left: 0;
@@ -281,12 +283,13 @@ body {
   margin-top: 0;
   margin-left: 0;
   min-width: 0;
-  width: 135px;
+  width: 170px;
+  gap: 2px;
 }
 
 #illustTitle {
   display: block;
-  font-size: 14px;
+  font-size: 15px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -294,7 +297,7 @@ body {
 
 #illustName {
   display: block;
-  font-size: 12px;
+  font-size: 13px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -304,7 +307,7 @@ body {
   display: flex;
   align-items: center;
   gap: 6px;
-  margin-top: 6px;
+  margin-top: 4px;
 }
 
 /* Like / Dislike buttons */
@@ -317,8 +320,8 @@ body {
   align-items: center;
   justify-content: center;
   border-radius: 100%;
-  width: 18px;
-  height: 18px;
+  width: 22px;
+  height: 22px;
   margin-top: 0;
   margin-left: 0;
   cursor: pointer;
