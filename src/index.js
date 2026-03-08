@@ -12,6 +12,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   let activeTagPopupHandler = null;
   let activeTagPopupTrigger = null;
   let activeTagPopupPendingTags = new Set();
+  let activeTagPopupLikeCounts = {};
   let activeTagPopupMode = "exclude";
   let shouldRefreshOnTagPopupClose = false;
   const UI_STRINGS = {
@@ -489,7 +490,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   }
 
   function addTagToRandomPool(tag) {
-    if (activeTagPopupPendingTags.has(tag) || getTagChipState(tag) === "selected-like") {
+    if (activeTagPopupPendingTags.has(tag)) {
       return;
     }
     activeTagPopupPendingTags.add(tag);
@@ -506,9 +507,11 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
         if (res && res.success && res.added !== false) {
           document.getElementById("likeButton").classList.add("liked");
           markTagChipState(tag, "selected-like");
+          updateTagChipLikeCount(tag, Number.isInteger(res.count) ? res.count : getTagChipLikeCount(tag) + 1);
           showToast(translate("addedRandomTag", { tag }), "success");
         } else if (res && res.success && res.exists) {
           markTagChipState(tag, "selected-like");
+          updateTagChipLikeCount(tag, Number.isInteger(res.count) ? res.count : getTagChipLikeCount(tag));
           showToast(translate("randomTagExists", { tag }), "success");
         } else {
           showToast(res?.error || translate("addRandomTagFailed"), "error");
@@ -536,6 +539,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     const popupHeader = popup.querySelector(".tag-popup-header");
     const tagList = document.getElementById("tagList");
     activeTagPopupPendingTags = new Set();
+    activeTagPopupLikeCounts = {};
     activeTagPopupMode = options.mode === "random" ? "random" : "exclude";
     shouldRefreshOnTagPopupClose = false;
     popupHeader.textContent = options.title || translate("excludeTagTitle");
@@ -576,6 +580,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     activeTagPopupHandler = null;
     activeTagPopupTrigger = null;
     activeTagPopupPendingTags = new Set();
+    activeTagPopupLikeCounts = {};
     activeTagPopupMode = "exclude";
     shouldRefreshOnTagPopupClose = false;
     if (shouldTriggerRefresh) {
@@ -644,6 +649,34 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       return;
     }
     chip.classList.toggle("pending", !!pending);
+  }
+
+  function getTagChipLikeCount(tag) {
+    return Number.isInteger(activeTagPopupLikeCounts[tag]) && activeTagPopupLikeCounts[tag] > 0
+      ? activeTagPopupLikeCounts[tag]
+      : 0;
+  }
+
+  function updateTagChipLikeCount(tag, count) {
+    const chip = getTagChipByTag(tag);
+    const normalizedCount = Number.isInteger(count) && count > 0 ? count : 0;
+    activeTagPopupLikeCounts[tag] = normalizedCount;
+    if (!chip) {
+      return;
+    }
+    let countElement = chip.querySelector(".tag-chip-count");
+    if (normalizedCount <= 0) {
+      if (countElement) {
+        countElement.remove();
+      }
+      return;
+    }
+    if (!countElement) {
+      countElement = document.createElement("span");
+      countElement.className = "tag-chip-count";
+      chip.appendChild(countElement);
+    }
+    countElement.textContent = String(normalizedCount);
   }
 
   // ── Toast ──
