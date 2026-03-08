@@ -1,7 +1,7 @@
 import { defaultConfig, buildQuery, sampleRandomTagPool, migrateConfig } from "./config.js";
 import { resolveDefaultImageUrl } from "./default-image-store.js";
 
-chrome.runtime.onInstalled.addListener((details) => {
+function ensurePixivHeaderRules() {
   const RULE = [
     {
       "id": 1,
@@ -57,7 +57,17 @@ chrome.runtime.onInstalled.addListener((details) => {
     removeRuleIds: RULE.map(o => o.id),
     addRules: RULE,
   });
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+  ensurePixivHeaderRules();
 });
+
+chrome.runtime.onStartup.addListener(() => {
+  ensurePixivHeaderRules();
+});
+
+ensurePixivHeaderRules();
 
 function getRandomInt(min, max) {
   min = Math.ceil(min);
@@ -124,7 +134,12 @@ async function fetchPixivJson(url) {
 
 async function fetchImage(url) {
   try {
-    let res = await fetch(url);
+    let res = await fetch(url, {
+      referrer: "https://www.pixiv.net/",
+      referrerPolicy: "strict-origin-when-cross-origin",
+      mode: "cors",
+      credentials: "omit",
+    });
     if (!res.ok) return null;
     return await res.blob();
   } catch (e) {
