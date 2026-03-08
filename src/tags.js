@@ -22,7 +22,7 @@ let defaultImageUploadName = "";
 let randomTagPoolEnabled = false;
 let randomTagPool = [];
 let randomTagPoolCounts = {};
-let randomTagPoolPickCount = 0;
+let randomTagPoolPickCount = 2;
 let randomTagPoolLastResolvedTags = [];
 let randomTagPoolLastResolvedAt = 0;
 let isRandomImageToggleBusy = false;
@@ -645,11 +645,16 @@ function parseRandomTagPoolInput(value) {
     .filter(Boolean);
 }
 
+function normalizeRandomTagPoolPickCount(value) {
+  return 2;
+}
+
 function syncRandomTagPoolControls() {
   if (randomTagPoolEnabledInput) {
     randomTagPoolEnabledInput.checked = randomTagPoolEnabled;
   }
   if (randomTagPoolPickCountInput) {
+    randomTagPoolPickCount = normalizeRandomTagPoolPickCount(randomTagPoolPickCount);
     randomTagPoolPickCountInput.value = String(randomTagPoolPickCount);
   }
   renderRandomTagPool();
@@ -767,7 +772,7 @@ function loadTags() {
     randomTagPoolEnabled: false,
     randomTagPool: [],
     randomTagPoolCounts: {},
-    randomTagPoolPickCount: 0,
+    randomTagPoolPickCount: 2,
     randomTagPoolLastResolvedTags: [],
     randomTagPoolLastResolvedAt: 0,
     defaultImageUrl: "",
@@ -797,9 +802,7 @@ function loadTags() {
       ? items.randomTagPool.map((item) => String(item || "").trim()).filter(Boolean)
       : [];
     randomTagPoolCounts = normalizeRandomTagPoolCounts(items.randomTagPoolCounts, randomTagPool);
-    randomTagPoolPickCount = Number.isInteger(items.randomTagPoolPickCount) && items.randomTagPoolPickCount >= 0
-      ? items.randomTagPoolPickCount
-      : 0;
+    randomTagPoolPickCount = normalizeRandomTagPoolPickCount(items.randomTagPoolPickCount);
     randomTagPoolLastResolvedTags = Array.isArray(items.randomTagPoolLastResolvedTags)
       ? items.randomTagPoolLastResolvedTags.map((item) => String(item || "").trim()).filter(Boolean)
       : [];
@@ -842,9 +845,7 @@ async function saveTags() {
   }
   if (randomTagPoolPickCountInput) {
     const parsedPickCount = parseInt(randomTagPoolPickCountInput.value, 10);
-    randomTagPoolPickCount = Number.isInteger(parsedPickCount) && parsedPickCount >= 0
-      ? parsedPickCount
-      : 0;
+    randomTagPoolPickCount = normalizeRandomTagPoolPickCount(parsedPickCount);
   }
   if (defaultImageUrlInput) {
     if (defaultImageSourceType === "url") {
@@ -982,9 +983,7 @@ function importFromJsonFile(file) {
         ? data.randomTagPool.map((item) => String(item || "").trim()).filter(Boolean)
         : [];
       randomTagPoolCounts = normalizeRandomTagPoolCounts(data.randomTagPoolCounts, randomTagPool);
-      randomTagPoolPickCount = Number.isInteger(data.randomTagPoolPickCount) && data.randomTagPoolPickCount >= 0
-        ? data.randomTagPoolPickCount
-        : 0;
+      randomTagPoolPickCount = normalizeRandomTagPoolPickCount(data.randomTagPoolPickCount);
       defaultImageSourceType = data.defaultImageSourceType || "url";
       defaultImageUploadName = data.defaultImageUploadName || "";
       defaultImageUrl = defaultImageSourceType === "url"
@@ -1368,9 +1367,8 @@ if (randomTagPoolEnabledInput) {
 if (randomTagPoolPickCountInput) {
   randomTagPoolPickCountInput.addEventListener("input", () => {
     const parsedPickCount = parseInt(randomTagPoolPickCountInput.value, 10);
-    randomTagPoolPickCount = Number.isInteger(parsedPickCount) && parsedPickCount >= 0
-      ? parsedPickCount
-      : 0;
+    randomTagPoolPickCount = normalizeRandomTagPoolPickCount(parsedPickCount);
+    randomTagPoolPickCountInput.value = String(randomTagPoolPickCount);
   });
 }
 

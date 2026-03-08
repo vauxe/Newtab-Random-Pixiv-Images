@@ -64,7 +64,8 @@ export const defaultConfig = {
   randomTagPoolEnabled: false,
   randomTagPool: [],
   randomTagPoolCounts: {},
-  randomTagPoolPickCount: 0,
+  randomTagPoolPriorityTags: [],
+  randomTagPoolPickCount: 2,
   randomSeedStrategy: "page_pool",
   seenHistoryLimit: 300,
   seenHistoryTtlMs: 21600000,
@@ -226,29 +227,55 @@ export function normalizeRandomTagPool(pool) {
 
 export function sampleRandomTagPool(config) {
   if (!config || config.randomTagPoolEnabled !== true) {
-    return [];
+    return {
+      tags: [],
+      consumedPriorityTag: "",
+      remainingPriorityTags: [],
+    };
   }
   const pool = normalizeRandomTagPool(config.randomTagPool);
   if (pool.length === 0) {
-    return [];
+    return {
+      tags: [],
+      consumedPriorityTag: "",
+      remainingPriorityTags: [],
+    };
   }
-  const pickCount = Number.isInteger(config.randomTagPoolPickCount)
-    ? Math.max(0, config.randomTagPoolPickCount)
-    : 0;
-  if (pickCount === 0) {
-    return [];
-  }
+  const pickCount = 2;
   const shuffled = pool.slice();
   for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
-  return shuffled.slice(0, Math.min(pickCount, shuffled.length));
+  const priorityTags = Array.isArray(config.randomTagPoolPriorityTags)
+    ? config.randomTagPoolPriorityTags.map((tag) => String(tag || "").trim()).filter((tag) => pool.includes(tag))
+    : [];
+  let consumedPriorityTag = "";
+  const pickedTags = [];
+
+  if (priorityTags.length > 0) {
+    const priorityIndex = Math.floor(Math.random() * priorityTags.length);
+    consumedPriorityTag = priorityTags[priorityIndex];
+    pickedTags.push(consumedPriorityTag);
+  }
+
+  const remainingShuffled = shuffled.filter((tag) => !pickedTags.includes(tag));
+  while (pickedTags.length < Math.min(pickCount, pool.length) && remainingShuffled.length > 0) {
+    pickedTags.push(remainingShuffled.shift());
+  }
+
+  return {
+    tags: pickedTags,
+    consumedPriorityTag,
+    remainingPriorityTags: consumedPriorityTag
+      ? priorityTags.filter((tag) => tag !== consumedPriorityTag)
+      : priorityTags,
+  };
 }
 
 export function buildQueryWithRandomTagPool(config) {
   const baseQuery = buildQuery(config).trim();
-  const sampledTags = sampleRandomTagPool(config);
+  const sampledTags = sampleRandomTagPool(config).tags;
   if (sampledTags.length === 0) {
     return baseQuery;
   }
@@ -299,9 +326,20 @@ export function migrateConfig(config) {
     }
     config.randomTagPoolCounts = normalizedCounts;
   }
-  if (!Number.isInteger(config.randomTagPoolPickCount) || config.randomTagPoolPickCount < 0) {
-    config.randomTagPoolPickCount = 0;
+  if (!Array.isArray(config.randomTagPoolPriorityTags)) {
+    config.randomTagPoolPriorityTags = [];
+  } else {
+    const normalizedPriorityTags = [];
+    const knownTags = new Set(config.randomTagPool.map((tag) => String(tag || "").trim()).filter(Boolean));
+    for (const tag of config.randomTagPoolPriorityTags) {
+      const normalizedTag = String(tag || "").trim();
+      if (normalizedTag && knownTags.has(normalizedTag) && !normalizedPriorityTags.includes(normalizedTag)) {
+        normalizedPriorityTags.push(normalizedTag);
+      }
+    }
+    config.randomTagPoolPriorityTags = normalizedPriorityTags;
   }
+  config.randomTagPoolPickCount = 2;
   if (!config.randomSeedStrategy) {
     config.randomSeedStrategy = "page_pool";
   }
