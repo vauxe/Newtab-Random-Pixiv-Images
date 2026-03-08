@@ -132,20 +132,57 @@ async function fetchPixivJson(url) {
   }
 }
 
-async function fetchImage(url) {
-  try {
-    let res = await fetch(url, {
-      referrer: "https://www.pixiv.net/",
-      referrerPolicy: "strict-origin-when-cross-origin",
-      mode: "cors",
-      credentials: "omit",
-    });
-    if (!res.ok) return null;
-    return await res.blob();
-  } catch (e) {
-    console.error(`Fetch image error:`, e);
+async function fetchImage(url, label = "image") {
+  if (!url) {
     return null;
   }
+  const attempts = [
+    {
+      name: "pixiv-referrer",
+      init: {
+        referrer: "https://www.pixiv.net/",
+        referrerPolicy: "strict-origin-when-cross-origin",
+        credentials: "omit",
+        cache: "no-store",
+      }
+    },
+    {
+      name: "plain-fetch",
+      init: {
+        credentials: "omit",
+        cache: "no-store",
+      }
+    }
+  ];
+
+  for (const attempt of attempts) {
+    try {
+      const res = await fetch(url, attempt.init);
+      if (!res.ok) {
+        console.warn(`Fetch ${label} failed with status`, attempt.name, res.status, url);
+        continue;
+      }
+      return await res.blob();
+    } catch (e) {
+      console.error(`Fetch ${label} error [${attempt.name}] ${url}:`, e);
+    }
+  }
+  return null;
+}
+
+async function fetchFirstAvailableImage(urls, label = "image") {
+  const candidates = Array.from(new Set(
+    (Array.isArray(urls) ? urls : [])
+      .map((url) => String(url || "").trim())
+      .filter(Boolean)
+  ));
+  for (const url of candidates) {
+    const blob = await fetchImage(url, label);
+    if (blob) {
+      return { blob, url };
+    }
+  }
+  return { blob: null, url: null };
 }
 
 let baseUrl = "https://www.pixiv.net";
@@ -517,7 +554,7 @@ class SearchSource {
         res.userIdUrl = baseUrl + "/users/" + illustInfo.body.userId;
         res.illustIdUrl = baseUrl + "/artworks/" + illustInfo.body.illustId;
         res.title = illustInfo.body.title;
-        res.imageObjectUrl = illustInfo.body.urls.regular;
+        res.imageObjectUrl = illustInfo.body.urls.regular || illustInfo.body.urls.small || picked.url;
         // Extract tags for frontend (prefer zh → zh_tw → en translation)
         res.tags = (illustInfo.body.tags && illustInfo.body.tags.tags || []).map(t => {
           let tr = t.translation || {};
@@ -527,12 +564,20 @@ class SearchSource {
           };
         });
 
-        let [imgBlob, profileBlob] = await Promise.all([
-          fetchImage(res.imageObjectUrl),
-          fetchImage(res.profileImageUrl)
+        let [{ blob: imgBlob, url: resolvedImageUrl }, profileBlob] = await Promise.all([
+          fetchFirstAvailableImage(
+            [
+              illustInfo.body.urls.regular,
+              illustInfo.body.urls.small,
+              picked.url,
+            ],
+            "illust"
+          ),
+          fetchImage(res.profileImageUrl, "profile")
         ]);
 
         if (!imgBlob) continue;
+        res.imageObjectUrl = resolvedImageUrl || res.imageObjectUrl;
         res.imageObjectUrl = await blobToDataUrl(imgBlob);
 
         if (profileBlob) {

@@ -76,14 +76,14 @@ body {
 
 #pageControls {
   position: fixed;
-  right: 12px;
-  bottom: 12px;
+  right: 10px;
+  bottom: 10px;
   z-index: 20;
   display: flex;
   align-items: center;
-  gap: 8px;
-  padding: 8px 9px;
-  border-radius: 20px;
+  gap: 7px;
+  padding: 7px 8px;
+  border-radius: 18px;
   background: linear-gradient(135deg, rgba(19, 24, 38, 0.84), rgba(43, 48, 64, 0.78));
   border: 1px solid rgba(255, 255, 255, 0.14);
   backdrop-filter: blur(18px);
@@ -109,14 +109,14 @@ body {
 #pageActionButtons {
   display: flex;
   align-items: center;
-  gap: 5px;
-  padding-left: 8px;
+  gap: 4px;
+  padding-left: 7px;
   border-left: 1px solid rgba(255, 255, 255, 0.12);
 }
 
 #refreshButton,
 #settingsButton {
-  padding: 7px;
+  padding: 6px;
   background-color: rgba(255, 255, 255, 0.08);
 }
 
@@ -128,8 +128,8 @@ body {
 
 .page-toggle-control {
   gap: 8px;
-  min-width: 96px;
-  padding: 1px 3px;
+  min-width: 90px;
+  padding: 1px 2px;
   color: #fff;
   font-family: HiraginoSans-W3, Hiragino Kaku Gothic Pro, Meiryo, Verdana,
     sans-serif;
@@ -155,8 +155,8 @@ body {
 
 .random-toggle-slider {
   position: relative;
-  width: 36px;
-  height: 20px;
+  width: 34px;
+  height: 18px;
   border-radius: 999px;
   background: rgba(255, 255, 255, 0.22);
   transition: background-color 0.2s ease;
@@ -168,8 +168,8 @@ body {
   position: absolute;
   top: 2px;
   left: 2px;
-  width: 16px;
-  height: 16px;
+  width: 14px;
+  height: 14px;
   border-radius: 50%;
   background: #fff;
   transition: transform 0.2s ease, box-shadow 0.2s ease;
@@ -197,13 +197,13 @@ body {
 
 #randomToggleText strong,
 #r18ToggleText strong {
-  font-size: 11px;
+  font-size: 10px;
   font-weight: 600;
 }
 
 #randomToggleText small,
 #r18ToggleText small {
-  font-size: 10px;
+  font-size: 9px;
   color: rgba(255, 255, 255, 0.7);
 }
 
