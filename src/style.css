@@ -290,6 +290,7 @@ body {
 
 /* Like / Dislike buttons */
 #likeButton,
+#bookmarkButton,
 #dislikeButton {
   display: inline-flex;
   align-items: center;
@@ -308,7 +309,13 @@ body {
   transform: scale(1.15);
 }
 
+#bookmarkButton:hover {
+  background-color: rgba(88, 196, 144, 0.65);
+  transform: scale(1.15);
+}
+
 #likeButton.disabled,
+#bookmarkButton.disabled,
 #dislikeButton.disabled {
   opacity: 0.35;
   cursor: default;
@@ -319,9 +326,29 @@ body {
   fill: #ff4081;
 }
 
+#bookmarkButton.bookmarked svg {
+  fill: #58c490;
+}
+
+#bookmarkButton.loading {
+  animation: bookmarkPulse 0.9s ease-in-out infinite;
+}
+
 #dislikeButton:hover {
   background-color: rgba(255, 152, 0, 0.5);
   transform: scale(1.15);
+}
+
+@keyframes bookmarkPulse {
+  0%,
+  100% {
+    transform: scale(1);
+    opacity: 0.75;
+  }
+  50% {
+    transform: scale(1.12);
+    opacity: 1;
+  }
 }
 
 /* Tag Popup */

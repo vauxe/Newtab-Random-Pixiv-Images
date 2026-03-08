@@ -5,8 +5,10 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   let currentTags = [];
   let currentIllustId = null;
   let currentIllustUrl = null;
+  let currentBookmarkedIllustId = null;
   let runtimeConfig = null;
   let currentImageVisible = false;
+  let isBookmarkBusy = false;
   let isRandomToggleBusy = false;
   let latestRefreshRequestId = 0;
   let activeTagPopupHandler = null;
@@ -26,6 +28,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       randomDisabledTitle: "Random Pixiv image requests are disabled",
       settingsTitle: "Tag Manager",
       refreshTitle: "Refresh image",
+      bookmarkTitle: "Bookmark artwork",
       defaultBackgroundTitle: "Default background",
       configuredDefaultImage: "Configured default image",
       randomDisabledNoDefault: "Random images are off and no default image is configured.",
@@ -56,6 +59,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       randomDisabledTitle: "当前不会请求随机 Pixiv 图片",
       settingsTitle: "标签管理",
       refreshTitle: "刷新图片",
+      bookmarkTitle: "收藏作品",
       defaultBackgroundTitle: "默认背景",
       configuredDefaultImage: "已配置的默认图片",
       randomDisabledNoDefault: "随机图片已关闭，且尚未配置默认图片。",
@@ -86,6 +90,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       randomDisabledTitle: "Pixiv のランダム画像取得が無効です",
       settingsTitle: "タグ管理",
       refreshTitle: "画像を更新",
+      bookmarkTitle: "作品をブックマーク",
       defaultBackgroundTitle: "デフォルト背景",
       configuredDefaultImage: "設定済みのデフォルト画像",
       randomDisabledNoDefault: "ランダム画像は無効で、デフォルト画像も未設定です。",
@@ -145,6 +150,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     const randomToggleText = document.getElementById("randomToggleText");
     const refreshButton = document.getElementById("refreshButton");
     const settingsButton = document.getElementById("settingsButton");
+    const bookmarkButton = document.getElementById("bookmarkButton");
     if (randomToggleText) {
       const enabled = runtimeConfig ? runtimeConfig.randomImageEnabled !== false : true;
       randomToggleText.innerHTML = `<strong>${translate("randomLabel")}</strong><small>${enabled ? translate("randomOn") : translate("randomOff")}</small>`;
@@ -154,6 +160,9 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     }
     if (settingsButton) {
       settingsButton.title = translate("settingsTitle");
+    }
+    if (bookmarkButton) {
+      bookmarkButton.title = translate("bookmarkTitle");
     }
   }
 
@@ -176,6 +185,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       const randomToggleInput = document.body.querySelector("#randomToggleInput");
       const randomToggleControl = document.body.querySelector("#randomToggleControl");
       const likeElement = document.body.querySelector("#likeButton");
+      const bookmarkElement = document.body.querySelector("#bookmarkButton");
       const dislikeElement = document.body.querySelector("#dislikeButton");
       const containerElement = document.body.querySelector("#container");
       const wallpaperElement = document.body.querySelector("#wallpaper");
@@ -251,6 +261,9 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       // Like button
       likeElement.addEventListener("click", handleLike);
 
+      // Bookmark button
+      bookmarkElement.addEventListener("click", handleBookmark);
+
       // Dislike button
       dislikeElement.addEventListener("click", handleDislike);
 
@@ -287,9 +300,18 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
 
   function updateActionButtons() {
     const likeBtn = document.getElementById("likeButton");
+    const bookmarkBtn = document.getElementById("bookmarkButton");
     const dislikeBtn = document.getElementById("dislikeButton");
     likeBtn.classList.toggle("disabled", !currentTags || currentTags.length === 0);
+    bookmarkBtn.classList.toggle("disabled", !currentIllustId || isBookmarkBusy);
+    bookmarkBtn.classList.toggle("loading", !!currentIllustId && isBookmarkBusy);
+    bookmarkBtn.classList.toggle("bookmarked", !!currentIllustId && currentBookmarkedIllustId === currentIllustId);
     dislikeBtn.classList.toggle("disabled", !currentTags || currentTags.length === 0);
+  }
+
+  function setBookmarkBusy(isBusy) {
+    isBookmarkBusy = isBusy;
+    updateActionButtons();
   }
 
   function setRandomToggleState(enabled) {
@@ -454,6 +476,10 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     currentIllustId = illustObject.illustId || null;
     currentIllustUrl = illustObject.illustIdUrl || null;
     currentImageVisible = !!illustObject.imageObjectUrl;
+    if (currentIllustId !== currentBookmarkedIllustId) {
+      currentBookmarkedIllustId = null;
+    }
+    isBookmarkBusy = false;
     currentLikedTagsForImage = new Set();
     currentQueuedPriorityTagForImage = "";
     console.log("Illust tags:", currentTags.map(t => t.tag));
@@ -504,6 +530,31 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       expanded: true,
       triggerElement: document.getElementById("likeButton"),
       onSelect: addTagToRandomPool,
+    });
+  }
+
+  function handleBookmark() {
+    if (!currentIllustId || isBookmarkBusy) {
+      return;
+    }
+    if (currentBookmarkedIllustId === currentIllustId) {
+      showToast(translate("bookmarked"), "success");
+      return;
+    }
+    setBookmarkBusy(true);
+    chrome.runtime.sendMessage({ action: "bookmarkIllust", illustId: currentIllustId }, (res) => {
+      setBookmarkBusy(false);
+      if (chrome.runtime.lastError) {
+        showToast(translate("bookmarkFailed"), "error");
+        return;
+      }
+      if (res && res.success) {
+        currentBookmarkedIllustId = currentIllustId;
+        updateActionButtons();
+        showToast(translate("bookmarked"), "success");
+        return;
+      }
+      showToast(localizeRuntimeMessage(res?.error) || translate("bookmarkFailed"), "error");
     });
   }
 
