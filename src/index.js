@@ -1059,6 +1059,32 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     return div.innerHTML;
   }
 
+  function sendRuntimeMessageWithTimeout(message, timeoutMs = 15000) {
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const timeoutId = setTimeout(() => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        reject(new Error(`Message timeout after ${timeoutMs}ms`));
+      }, timeoutMs);
+
+      chrome.runtime.sendMessage(message, (response) => {
+        if (settled) {
+          return;
+        }
+        clearTimeout(timeoutId);
+        settled = true;
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        resolve(response);
+      });
+    });
+  }
+
   const sendRefreshMessage = (() => {
     let isRequestInProgress = false;
     let pendingRefreshRequested = false;
@@ -1093,13 +1119,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       pendingRefreshRequested = false;
       const requestId = ++latestRefreshRequestId;
       debugLog("sendRefreshMessage:start", { requestId, force, mode: runtimeConfig?.mode, randomImageEnabled: runtimeConfig?.randomImageEnabled });
-      chrome.runtime.sendMessage({ action: "fetchImage" }, (res) => {
-        if (chrome.runtime.lastError) {
-          console.warn("Context invalidated, message could not be processed:", chrome.runtime.lastError.message);
-          isRequestInProgress = false;
-          flushPendingRefresh();
-          return;
-        }
+      sendRuntimeMessageWithTimeout({ action: "fetchImage" }, 15000).then((res) => {
         debugLog("sendRefreshMessage:response", { requestId, response: res });
         if (requestId !== latestRefreshRequestId || (runtimeConfig && runtimeConfig.randomImageEnabled === false)) {
           debugLog("sendRefreshMessage:stale-response", { requestId, latestRefreshRequestId });
@@ -1113,6 +1133,11 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
           isRequestInProgress = false;
           flushPendingRefresh();
         });
+      }).catch((error) => {
+        console.warn("sendRefreshMessage failed:", error.message);
+        debugLog("sendRefreshMessage:error", { requestId, error: error.message });
+        isRequestInProgress = false;
+        flushPendingRefresh();
       });
     };
   })();

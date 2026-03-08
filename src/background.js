@@ -74,6 +74,19 @@ function debugLog(...args) {
   console.log("[bg]", ...args);
 }
 
+async function fetchWithTimeout(url, init = {}, timeoutMs = 12000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
+
 function getRandomInt(min, max) {
   min = Math.ceil(min);
   max = Math.floor(max);
@@ -121,7 +134,7 @@ class Queue {
 async function fetchPixivJson(url) {
   try {
     debugLog("fetchPixivJson:start", url);
-    let res = await fetch(url);
+    let res = await fetchWithTimeout(url, {}, 12000);
     if (!res.ok) {
       console.error(`Fetch pixiv json failed: ${res.status} ${res.statusText}`);
       return { __error: true, message: `HTTP ${res.status} ${res.statusText}` };
@@ -166,7 +179,7 @@ async function fetchImage(url, label = "image") {
   for (const attempt of attempts) {
     try {
       debugLog("fetchImage:start", { label, attempt: attempt.name, url });
-      const res = await fetch(url, attempt.init);
+      const res = await fetchWithTimeout(url, attempt.init, 10000);
       if (!res.ok) {
         console.warn(`Fetch ${label} failed with status`, attempt.name, res.status, url);
         continue;
