@@ -166,6 +166,10 @@ async function fetchImage(url, label = "image") {
     debugLog("fetchImage:skip-empty", label);
     return null;
   }
+  const xhrBlob = await fetchImageViaXhr(url, label);
+  if (xhrBlob) {
+    return xhrBlob;
+  }
   const attempts = [
     {
       name: "pixiv-referrer",
@@ -201,6 +205,55 @@ async function fetchImage(url, label = "image") {
   }
   debugLog("fetchImage:all-failed", { label, url });
   return null;
+}
+
+function fetchImageViaXhr(url, label = "image", timeoutMs = 10000) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const xhr = new XMLHttpRequest();
+    xhr.open("GET", url, true);
+    xhr.responseType = "blob";
+    xhr.timeout = timeoutMs;
+    xhr.onload = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      if (xhr.status >= 200 && xhr.status < 300 && xhr.response) {
+        debugLog("fetchImage:xhr-ok", { label, url, status: xhr.status });
+        resolve(xhr.response);
+        return;
+      }
+      console.warn(`Fetch ${label} xhr failed with status`, xhr.status, url);
+      resolve(null);
+    };
+    xhr.onerror = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      console.error(`Fetch ${label} xhr error ${url}`);
+      resolve(null);
+    };
+    xhr.ontimeout = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      console.error(`Fetch ${label} xhr timeout ${url}`);
+      resolve(null);
+    };
+    xhr.onabort = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      console.error(`Fetch ${label} xhr abort ${url}`);
+      resolve(null);
+    };
+    debugLog("fetchImage:xhr-start", { label, url });
+    xhr.send();
+  });
 }
 
 async function fetchFirstAvailableImage(urls, label = "image") {
@@ -632,13 +685,12 @@ class SearchSource {
           };
         });
 
-        const resolvedImageUrl = [
+        const imageCandidates = [
           illustInfo.body.urls.regular,
           illustInfo.body.urls.small,
           picked.url,
-        ]
-          .map((url) => String(url || "").trim())
-          .find(Boolean);
+        ].map((url) => String(url || "").trim()).filter(Boolean);
+        const resolvedImageUrl = imageCandidates.find(Boolean);
         debugLog("getRandomIllust:image-candidates", {
           illustId: res.illustId,
           regular: illustInfo.body.urls.regular,
@@ -646,10 +698,20 @@ class SearchSource {
           pickedUrl: picked.url,
           resolvedImageUrl,
         });
+        const { blob: illustBlob, url: loadedImageUrl } = await fetchFirstAvailableImage(imageCandidates, "illust");
         const profileBlob = await fetchImage(res.profileImageUrl, "profile");
 
         if (!resolvedImageUrl) continue;
-        res.imageObjectUrl = resolvedImageUrl;
+        if (illustBlob) {
+          try {
+            res.imageObjectUrl = await blobToDataUrl(illustBlob);
+          } catch (e) {
+            console.error("Failed to convert illust blob to data URL:", e);
+            res.imageObjectUrl = loadedImageUrl || resolvedImageUrl;
+          }
+        } else {
+          res.imageObjectUrl = resolvedImageUrl;
+        }
 
         if (profileBlob) {
           try {
@@ -670,6 +732,7 @@ class SearchSource {
           userId: res.userId,
           title: res.title,
           imageObjectUrl: res.imageObjectUrl,
+          imageLoadedAsBlob: !!illustBlob,
           profileLoaded: !!profileBlob,
         });
         return res;
