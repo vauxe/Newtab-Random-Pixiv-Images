@@ -244,7 +244,8 @@
             color: #888;
         }
 
-        .blocklist-row input {
+        .blocklist-row input,
+        .blocklist-row textarea {
             background: #252540;
             color: #e0e0e0;
             border: 1px solid rgba(255, 255, 255, 0.1);
@@ -252,6 +253,13 @@
             padding: 6px 10px;
             font-size: 13px;
             outline: none;
+        }
+
+        .blocklist-row textarea {
+            min-height: 110px;
+            resize: vertical;
+            font-family: inherit;
+            line-height: 1.5;
         }
 
         .blocklist-tip {
@@ -965,6 +973,29 @@
                         <input type="text" id="globalMinusKeywords" placeholder="tag1 tag2 tag3" />
                     </div>
                     <div class="blocklist-tip">Blocklist applies to all presets.</div>
+                </div>
+            </div>
+
+            <div class="blocklist-card collapsed" id="randomTagPoolCard">
+                <div class="blocklist-header">
+                    <h3 id="randomTagPoolTitle">🎲 Random Tag Pool</h3>
+                    <button class="blocklist-toggle" id="randomTagPoolToggle">Show</button>
+                </div>
+                <div class="blocklist-body">
+                    <label class="toggle-row" for="randomTagPoolEnabled">
+                        <span id="randomTagPoolEnabledLabel">Enable random tag pool</span>
+                        <input type="checkbox" id="randomTagPoolEnabled" />
+                    </label>
+                    <div class="blocklist-row">
+                        <label id="randomTagPoolPickCountLabel" for="randomTagPoolPickCount">Tags to pick per request</label>
+                        <input type="number" id="randomTagPoolPickCount" min="0" step="1" value="0" />
+                    </div>
+                    <div class="blocklist-row">
+                        <label id="randomTagPoolInputLabel" for="randomTagPoolInput">Random tag pool</label>
+                        <textarea id="randomTagPoolInput" data-i18n-placeholder="randomTagPoolInputPlaceholder"
+                            placeholder="tag-a&#10;tag-b&#10;tag-c"></textarea>
+                    </div>
+                    <div class="blocklist-tip" id="randomTagPoolHelp">Each request uses the fixed query plus a random subset from this pool.</div>
                 </div>
             </div>
 

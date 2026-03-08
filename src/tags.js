@@ -19,6 +19,9 @@ let defaultImageUrl = "";
 let defaultImagePreviewUrl = "";
 let defaultImageSourceType = "url";
 let defaultImageUploadName = "";
+let randomTagPoolEnabled = false;
+let randomTagPool = [];
+let randomTagPoolPickCount = 0;
 let isRandomImageToggleBusy = false;
 const MAX_DEFAULT_IMAGE_FILE_SIZE = 20 * 1024 * 1024;
 
@@ -39,6 +42,11 @@ const defaultImageUploadBtn = document.getElementById("defaultImageUploadBtn");
 const defaultImageClearBtn = document.getElementById("defaultImageClearBtn");
 const defaultImageFileInput = document.getElementById("defaultImageFileInput");
 const defaultImageSourceHint = document.getElementById("defaultImageSourceHint");
+const randomTagPoolCard = document.getElementById("randomTagPoolCard");
+const randomTagPoolToggle = document.getElementById("randomTagPoolToggle");
+const randomTagPoolEnabledInput = document.getElementById("randomTagPoolEnabled");
+const randomTagPoolPickCountInput = document.getElementById("randomTagPoolPickCount");
+const randomTagPoolInput = document.getElementById("randomTagPoolInput");
 
 // ── Tree Manipulation ──
 
@@ -305,6 +313,9 @@ function savePresetsToStorage() {
     activePresetIndex: activePresetIndex,
     globalMinusKeywords: globalMinusKeywords,
     randomImageEnabled: randomImageEnabled,
+    randomTagPoolEnabled: randomTagPoolEnabled,
+    randomTagPool: JSON.parse(JSON.stringify(randomTagPool)),
+    randomTagPoolPickCount: randomTagPoolPickCount,
     defaultImageUrl: defaultImageSourceType === "url" ? defaultImageUrl : "",
     defaultImageSourceType: defaultImageSourceType,
     defaultImageUploadName: defaultImageUploadName,
@@ -366,6 +377,25 @@ function syncRandomImageToggleControl() {
   if (!randomImageEnabledInput) return;
   randomImageEnabledInput.checked = randomImageEnabled;
   randomImageEnabledInput.disabled = isRandomImageToggleBusy;
+}
+
+function parseRandomTagPoolInput(value) {
+  return String(value || "")
+    .split(/[\n,，、\s]+/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function syncRandomTagPoolControls() {
+  if (randomTagPoolEnabledInput) {
+    randomTagPoolEnabledInput.checked = randomTagPoolEnabled;
+  }
+  if (randomTagPoolPickCountInput) {
+    randomTagPoolPickCountInput.value = String(randomTagPoolPickCount);
+  }
+  if (randomTagPoolInput) {
+    randomTagPoolInput.value = randomTagPool.join("\n");
+  }
 }
 
 async function resetDefaultImage() {
@@ -477,6 +507,9 @@ function loadTags() {
     activePresetIndex: 0,
     globalMinusKeywords: "",
     randomImageEnabled: true,
+    randomTagPoolEnabled: false,
+    randomTagPool: [],
+    randomTagPoolPickCount: 0,
     defaultImageUrl: "",
     defaultImageSourceType: "url",
     defaultImageUploadName: "",
@@ -499,6 +532,13 @@ function loadTags() {
     globalMinusKeywords = items.globalMinusKeywords || "";
     if (globalMinusInput) globalMinusInput.value = globalMinusKeywords;
     randomImageEnabled = items.randomImageEnabled !== false;
+    randomTagPoolEnabled = items.randomTagPoolEnabled === true;
+    randomTagPool = Array.isArray(items.randomTagPool)
+      ? items.randomTagPool.map((item) => String(item || "").trim()).filter(Boolean)
+      : [];
+    randomTagPoolPickCount = Number.isInteger(items.randomTagPoolPickCount) && items.randomTagPoolPickCount >= 0
+      ? items.randomTagPoolPickCount
+      : 0;
     defaultImageUrl = items.defaultImageSourceType === "url"
       ? (items.defaultImageUrl || "").trim()
       : "";
@@ -510,6 +550,7 @@ function loadTags() {
       }),
     });
     syncRandomImageToggleControl();
+    syncRandomTagPoolControls();
     syncDefaultImageControls();
 
     renderPresetSelect();
@@ -527,6 +568,18 @@ async function saveTags() {
   }
   if (randomImageEnabledInput) {
     randomImageEnabled = !!randomImageEnabledInput.checked;
+  }
+  if (randomTagPoolEnabledInput) {
+    randomTagPoolEnabled = !!randomTagPoolEnabledInput.checked;
+  }
+  if (randomTagPoolPickCountInput) {
+    const parsedPickCount = parseInt(randomTagPoolPickCountInput.value, 10);
+    randomTagPoolPickCount = Number.isInteger(parsedPickCount) && parsedPickCount >= 0
+      ? parsedPickCount
+      : 0;
+  }
+  if (randomTagPoolInput) {
+    randomTagPool = parseRandomTagPoolInput(randomTagPoolInput.value);
   }
   if (defaultImageUrlInput) {
     if (defaultImageSourceType === "url") {
@@ -552,6 +605,9 @@ async function saveTags() {
     orKeywords: null,
     globalMinusKeywords: globalMinusKeywords,
     randomImageEnabled: randomImageEnabled,
+    randomTagPoolEnabled: randomTagPoolEnabled,
+    randomTagPool: JSON.parse(JSON.stringify(randomTagPool)),
+    randomTagPoolPickCount: randomTagPoolPickCount,
     defaultImageUrl: defaultImageUrl,
     defaultImageSourceType: defaultImageSourceType,
     defaultImageUploadName: defaultImageUploadName,
@@ -636,6 +692,13 @@ function importFromJsonFile(file) {
 
       globalMinusKeywords = data.globalMinusKeywords || "";
       randomImageEnabled = data.randomImageEnabled !== false;
+      randomTagPoolEnabled = data.randomTagPoolEnabled === true;
+      randomTagPool = Array.isArray(data.randomTagPool)
+        ? data.randomTagPool.map((item) => String(item || "").trim()).filter(Boolean)
+        : [];
+      randomTagPoolPickCount = Number.isInteger(data.randomTagPoolPickCount) && data.randomTagPoolPickCount >= 0
+        ? data.randomTagPoolPickCount
+        : 0;
       defaultImageSourceType = data.defaultImageSourceType || "url";
       defaultImageUploadName = data.defaultImageUploadName || "";
       defaultImageUrl = defaultImageSourceType === "url"
@@ -661,6 +724,7 @@ function importFromJsonFile(file) {
       }
       if (globalMinusInput) globalMinusInput.value = globalMinusKeywords;
       if (randomImageEnabledInput) randomImageEnabledInput.checked = randomImageEnabled;
+      syncRandomTagPoolControls();
       syncDefaultImageControls();
 
       renderAll();
@@ -690,6 +754,9 @@ function exportToJsonFile() {
     activePresetIndex: activePresetIndex,
     globalMinusKeywords: globalMinusKeywords,
     randomImageEnabled: randomImageEnabled,
+    randomTagPoolEnabled: randomTagPoolEnabled,
+    randomTagPool: JSON.parse(JSON.stringify(randomTagPool)),
+    randomTagPoolPickCount: randomTagPoolPickCount,
     defaultImageUrl: defaultImageSourceType === "url" ? defaultImageUrl : "",
     defaultImageSourceType: defaultImageSourceType,
     defaultImageUploadName: defaultImageUploadName,
@@ -764,6 +831,7 @@ function loadTranslations(lang) {
           el.placeholder = data[key].message;
         }
       });
+      syncRandomTagPoolControls();
       syncDefaultImageControls();
       renderAll();
     })
@@ -868,6 +936,13 @@ if (displaySettingsToggle && displaySettingsCard) {
   });
 }
 
+if (randomTagPoolToggle && randomTagPoolCard) {
+  randomTagPoolToggle.addEventListener("click", () => {
+    const isCollapsed = randomTagPoolCard.classList.toggle("collapsed");
+    randomTagPoolToggle.textContent = isCollapsed ? "Show" : "Hide";
+  });
+}
+
 if (globalMinusInput) {
   globalMinusInput.addEventListener("input", () => {
     globalMinusKeywords = globalMinusInput.value.trim();
@@ -941,6 +1016,27 @@ if (defaultImageClearBtn) {
       console.error("Failed to clear default image:", error);
       showToast("Failed to save default image settings", "error");
     }
+  });
+}
+
+if (randomTagPoolEnabledInput) {
+  randomTagPoolEnabledInput.addEventListener("change", () => {
+    randomTagPoolEnabled = !!randomTagPoolEnabledInput.checked;
+  });
+}
+
+if (randomTagPoolPickCountInput) {
+  randomTagPoolPickCountInput.addEventListener("input", () => {
+    const parsedPickCount = parseInt(randomTagPoolPickCountInput.value, 10);
+    randomTagPoolPickCount = Number.isInteger(parsedPickCount) && parsedPickCount >= 0
+      ? parsedPickCount
+      : 0;
+  });
+}
+
+if (randomTagPoolInput) {
+  randomTagPoolInput.addEventListener("input", () => {
+    randomTagPool = parseRandomTagPoolInput(randomTagPoolInput.value);
   });
 }
 

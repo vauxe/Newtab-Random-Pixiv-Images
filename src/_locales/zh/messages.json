@@ -121,5 +121,23 @@
   },
   "defaultImageUploadError": {
     "message": "读取本地图片失败"
+  },
+  "randomTagPoolTitle": {
+    "message": "🎲 随机 Tag 池"
+  },
+  "randomTagPoolEnabledLabel": {
+    "message": "启用随机 Tag 池"
+  },
+  "randomTagPoolPickCountLabel": {
+    "message": "每次请求抽取数量"
+  },
+  "randomTagPoolInputLabel": {
+    "message": "随机 Tag 池"
+  },
+  "randomTagPoolInputPlaceholder": {
+    "message": "tag-a\ntag-b\ntag-c"
+  },
+  "randomTagPoolHelp": {
+    "message": "每次请求会在固定查询条件之外，从这个池子里随机抽取一部分 tag。"
   }
 }

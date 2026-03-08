@@ -1,4 +1,4 @@
-import { defaultConfig, buildQuery, migrateConfig } from "./config.js";
+import { defaultConfig, buildQuery, buildQueryWithRandomTagPool, migrateConfig } from "./config.js";
 import { resolveDefaultImageUrl } from "./default-image-store.js";
 
 chrome.runtime.onInstalled.addListener((details) => {
@@ -149,6 +149,7 @@ class SearchSource {
     this.candidateQueueTargetSize = 24;
     this.enqueuedIds = new Set();
     this.seenMap = new Map();
+    this.activeQueryWord = buildQuery(config);
     this.lastErrorMessage = null;
   }
 
@@ -159,6 +160,7 @@ class SearchSource {
     this.candidateQueue = [];
     this.enqueuedIds.clear();
     this.seenMap.clear();
+    this.activeQueryWord = buildQuery(config);
     this.lastErrorMessage = null;
   }
 
@@ -180,10 +182,10 @@ class SearchSource {
     return fn;
   })();
 
-  generateSearchUrl(p = 1) {
+  generateSearchUrl(p = 1, queryWord = this.activeQueryWord) {
     let sp = this.searchParam;
     let runtimeParam = { ...sp, p };
-    let word = buildQuery(sp);
+    let word = (queryWord || buildQuery(sp)).trim();
     let firstPart = encodeURIComponent(word);
     let secondPartArray = [];
     secondPartArray.push("?word=" + this.replaceSpecialCharacter(word));
@@ -196,8 +198,8 @@ class SearchSource {
     return firstPart + secondPart;
   }
 
-  async searchIllustPage(p) {
-    let paramUrl = this.generateSearchUrl(p);
+  async searchIllustPage(p, queryWord = this.activeQueryWord) {
+    let paramUrl = this.generateSearchUrl(p, queryWord);
     let jsonResult = await fetchPixivJson(baseUrl + searchUrl + paramUrl);
     if (jsonResult && jsonResult.__error) {
       this.lastErrorMessage = jsonResult.message;
@@ -259,30 +261,31 @@ class SearchSource {
     this.seenMap.set(illustId, Date.now());
   }
 
-  cachePage(pageNumber, pageObj) {
+  cachePage(cacheKey, pageObj) {
     if (!pageObj) {
       return;
     }
-    if (this.pageCache.has(pageNumber)) {
-      this.pageCache.delete(pageNumber);
+    if (this.pageCache.has(cacheKey)) {
+      this.pageCache.delete(cacheKey);
     }
-    this.pageCache.set(pageNumber, pageObj);
+    this.pageCache.set(cacheKey, pageObj);
     while (this.pageCache.size > this.pageCacheLimit) {
-      const oldestPageNumber = this.pageCache.keys().next().value;
-      this.pageCache.delete(oldestPageNumber);
+      const oldestCacheKey = this.pageCache.keys().next().value;
+      this.pageCache.delete(oldestCacheKey);
     }
   }
 
-  async getPage(pageNumber) {
-    if (this.pageCache.has(pageNumber)) {
-      const cached = this.pageCache.get(pageNumber);
-      this.pageCache.delete(pageNumber);
-      this.pageCache.set(pageNumber, cached);
+  async getPage(pageNumber, queryWord = this.activeQueryWord) {
+    const cacheKey = `${queryWord}::${pageNumber}`;
+    if (this.pageCache.has(cacheKey)) {
+      const cached = this.pageCache.get(cacheKey);
+      this.pageCache.delete(cacheKey);
+      this.pageCache.set(cacheKey, cached);
       return cached;
     }
-    const pageObj = await this.searchIllustPage(pageNumber);
+    const pageObj = await this.searchIllustPage(pageNumber, queryWord);
     if (pageObj && pageObj.body) {
-      this.cachePage(pageNumber, pageObj);
+      this.cachePage(cacheKey, pageObj);
       const total = pageObj.body.illust.total;
       const nextTotalPage = Math.ceil(total / this.itemsPerPage);
       if (nextTotalPage > this.totalPage) {
@@ -333,11 +336,11 @@ class SearchSource {
     return null;
   }
 
-  async ensureTotalPages() {
+  async ensureTotalPages(queryWord = this.activeQueryWord) {
     if (this.totalPage > 0) {
       return this.totalPage;
     }
-    let firstPage = await this.getPage(1);
+    let firstPage = await this.getPage(1, queryWord);
     if (!firstPage || !firstPage.body) {
       return 0;
     }
@@ -361,7 +364,14 @@ class SearchSource {
     if (this.candidateQueue.length >= this.candidateQueueTargetSize) {
       return;
     }
-    const totalPage = await this.ensureTotalPages();
+    const queryWord = buildQueryWithRandomTagPool(this.searchParam).trim() || buildQuery(this.searchParam).trim();
+    if (queryWord !== this.activeQueryWord) {
+      this.activeQueryWord = queryWord;
+      this.pageCache.clear();
+      this.totalPage = 0;
+    }
+
+    const totalPage = await this.ensureTotalPages(queryWord);
     if (totalPage === 0) {
       return;
     }
@@ -369,7 +379,7 @@ class SearchSource {
     const maxPagesToSample = Math.min(4, totalPage);
     const pageNumbers = this.pickSamplePages(maxPagesToSample);
     for (const pageNumber of pageNumbers) {
-      const pageObj = await this.getPage(pageNumber);
+      const pageObj = await this.getPage(pageNumber, queryWord);
       if (!pageObj || !pageObj.body || !pageObj.body.illust) {
         continue;
       }

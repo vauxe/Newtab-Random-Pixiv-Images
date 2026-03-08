@@ -206,6 +206,54 @@ export function buildQuery(config) {
   return getKeywords(config.andKeywords || "", config.orGroups || [], config.minusKeywords || "");
 }
 
+export function normalizeRandomTagPool(pool) {
+  if (!Array.isArray(pool)) {
+    return [];
+  }
+  return pool
+    .map((entry) => {
+      if (typeof entry === "string") {
+        return entry.trim();
+      }
+      if (entry && typeof entry.value === "string") {
+        return entry.value.trim();
+      }
+      return "";
+    })
+    .filter(Boolean);
+}
+
+export function sampleRandomTagPool(config) {
+  if (!config || config.randomTagPoolEnabled !== true) {
+    return [];
+  }
+  const pool = normalizeRandomTagPool(config.randomTagPool);
+  if (pool.length === 0) {
+    return [];
+  }
+  const pickCount = Number.isInteger(config.randomTagPoolPickCount)
+    ? Math.max(0, config.randomTagPoolPickCount)
+    : 0;
+  if (pickCount === 0) {
+    return [];
+  }
+  const shuffled = pool.slice();
+  for (let i = shuffled.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+  }
+  return shuffled.slice(0, Math.min(pickCount, shuffled.length));
+}
+
+export function buildQueryWithRandomTagPool(config) {
+  const baseQuery = buildQuery(config).trim();
+  const sampledTags = sampleRandomTagPool(config);
+  if (sampledTags.length === 0) {
+    return baseQuery;
+  }
+  return [baseQuery, ...sampledTags].filter(Boolean).join(" ").trim();
+}
+
 // Migrate old formats to tree
 export function migrateConfig(config) {
   if (typeof config.randomImageEnabled !== "boolean") {

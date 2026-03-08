@@ -121,5 +121,23 @@
   },
   "defaultImageUploadError": {
     "message": "ローカル画像の読み込みに失敗しました"
+  },
+  "randomTagPoolTitle": {
+    "message": "🎲 ランダム Tag プール"
+  },
+  "randomTagPoolEnabledLabel": {
+    "message": "ランダム Tag プールを有効化"
+  },
+  "randomTagPoolPickCountLabel": {
+    "message": "1回のリクエストで抽出する数"
+  },
+  "randomTagPoolInputLabel": {
+    "message": "ランダム Tag プール"
+  },
+  "randomTagPoolInputPlaceholder": {
+    "message": "tag-a\ntag-b\ntag-c"
+  },
+  "randomTagPoolHelp": {
+    "message": "各リクエストで固定条件に加えて、このプールから一部の tag をランダムに追加します。"
   }
 }

@@ -121,5 +121,23 @@
   },
   "defaultImageUploadError": {
     "message": "Failed to read local image"
+  },
+  "randomTagPoolTitle": {
+    "message": "🎲 Random Tag Pool"
+  },
+  "randomTagPoolEnabledLabel": {
+    "message": "Enable random tag pool"
+  },
+  "randomTagPoolPickCountLabel": {
+    "message": "Tags to pick per request"
+  },
+  "randomTagPoolInputLabel": {
+    "message": "Random tag pool"
+  },
+  "randomTagPoolInputPlaceholder": {
+    "message": "tag-a\ntag-b\ntag-c"
+  },
+  "randomTagPoolHelp": {
+    "message": "Each request uses the fixed query plus a random subset from this pool."
   }
 }
