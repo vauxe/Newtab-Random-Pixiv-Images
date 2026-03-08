@@ -206,6 +206,13 @@ body {
   transform: scale(1.15);
 }
 
+#likeButton.disabled,
+#dislikeButton.disabled {
+  opacity: 0.35;
+  cursor: default;
+  pointer-events: none;
+}
+
 #likeButton.liked svg {
   fill: #ff4081;
 }

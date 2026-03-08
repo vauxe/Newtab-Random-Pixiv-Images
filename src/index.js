@@ -123,6 +123,45 @@
     });
   }
 
+  function updateActionButtons() {
+    const likeBtn = document.getElementById("likeButton");
+    const dislikeBtn = document.getElementById("dislikeButton");
+    likeBtn.classList.toggle("disabled", !currentIllustId);
+    dislikeBtn.classList.toggle("disabled", !currentTags || currentTags.length === 0);
+  }
+
+  function createDefaultDisplayObject(config, options = {}) {
+    const defaultImageUrl = (config && config.defaultImageUrl ? config.defaultImageUrl : "").trim();
+    if (!defaultImageUrl) {
+      return null;
+    }
+    return {
+      mode: "default",
+      title: options.title || "Default background",
+      userName: options.userName || "Configured default image",
+      userId: null,
+      illustId: null,
+      userIdUrl: "",
+      illustIdUrl: "",
+      profileImageUrl: "",
+      imageObjectUrl: defaultImageUrl,
+      tags: [],
+      fallback: !!options.fallback,
+      message: options.message || null,
+    };
+  }
+
+  function loadStartupConfig() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get({
+        randomImageEnabled: true,
+        defaultImageUrl: "",
+      }, (items) => {
+        resolve(items || { randomImageEnabled: true, defaultImageUrl: "" });
+      });
+    });
+  }
+
   async function changeElement(illustObject) {
     if (!illustObject) { return; }
     if (illustObject.error) {
@@ -154,17 +193,35 @@
         }
       }
     }
+    updateActionButtons();
     binding.containerElement.classList.toggle("notReady", false);
     clearTimeout(binding.illustInfoFadeOutTimeoutId);
     binding.illustInfoFadeOutTimeoutId = setTimeout(() => {
       binding.illustInfoElement.className = "unfocused";
     }, 10000);
+    if (illustObject.fallback && illustObject.message) {
+      showToast(illustObject.message, "error");
+    }
   }
 
   // ── Like (bookmark) ──
   function handleLike() {
-    if (!currentIllustUrl) return;
-    window.open(currentIllustUrl, "_blank");
+    if (!currentIllustId) return;
+    chrome.runtime.sendMessage(
+      { action: "bookmarkIllust", illustId: currentIllustId },
+      (res) => {
+        if (chrome.runtime.lastError) {
+          showToast("Bookmark failed", "error");
+          return;
+        }
+        if (res && res.success) {
+          document.getElementById("likeButton").classList.add("liked");
+          showToast("Bookmarked!", "success");
+        } else {
+          showToast(res?.error || "Bookmark failed", "error");
+        }
+      }
+    );
   }
 
   // ── Dislike (show tag popup) ──
@@ -265,7 +322,28 @@
     };
   })();
 
-  initApplication();
-  sendRefreshMessage();
-  console.log("content script loaded");
+  async function bootstrap() {
+    initApplication();
+    updateActionButtons();
+    const startupConfig = await loadStartupConfig();
+
+    const defaultDisplay = createDefaultDisplayObject(startupConfig, {
+      title: startupConfig.randomImageEnabled === false ? "Default background" : "Loading...",
+      userName: startupConfig.randomImageEnabled === false ? "Configured default image" : "Waiting for Pixiv image",
+    });
+
+    if (defaultDisplay) {
+      await changeElement(defaultDisplay);
+    } else if (startupConfig.randomImageEnabled === false) {
+      binding.containerElement.classList.toggle("notReady", false);
+      showToast("Random images are disabled and no default image is configured.", "error");
+    }
+
+    if (startupConfig.randomImageEnabled !== false) {
+      sendRefreshMessage();
+    }
+    console.log("content script loaded");
+  }
+
+  bootstrap();
 })();

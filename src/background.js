@@ -301,6 +301,39 @@ function blobToDataUrl(blob) {
 
 let searchSource;
 
+function normalizeRuntimeConfig(config) {
+  migrateConfig(config);
+  applyActivePreset(config);
+  config.minusKeywords = computeEffectiveMinus(config);
+  return config;
+}
+
+async function getStoredConfig() {
+  let config = await chrome.storage.local.get(defaultConfig);
+  return normalizeRuntimeConfig(config);
+}
+
+function buildDefaultImageResponse(config, options = {}) {
+  const defaultImageUrl = (config.defaultImageUrl || "").trim();
+  if (!defaultImageUrl) {
+    return null;
+  }
+  return {
+    mode: "default",
+    title: options.title || "Default background",
+    userName: options.userName || "Configured default image",
+    userId: null,
+    illustId: null,
+    userIdUrl: "",
+    illustIdUrl: "",
+    profileImageUrl: "",
+    imageObjectUrl: defaultImageUrl,
+    tags: [],
+    fallback: !!options.fallback,
+    message: options.message || null,
+  };
+}
+
 function applyActivePreset(config) {
   if (config.queryPresets && Array.isArray(config.queryPresets) && config.queryPresets.length > 0) {
     let idx = Math.min(config.activePresetIndex || 0, config.queryPresets.length - 1);
@@ -317,12 +350,9 @@ function computeEffectiveMinus(config) {
 }
 
 async function start() {
-  let config = await chrome.storage.local.get(defaultConfig);
-  migrateConfig(config);
+  let config = await getStoredConfig();
   // Persist migrated config if orKeywords was converted
   chrome.storage.local.set({ orGroups: config.orGroups, orKeywords: null });
-  applyActivePreset(config);
-  config.minusKeywords = computeEffectiveMinus(config);
   console.log("Current search query:", buildQuery(config));
   searchSource = new SearchSource(config);
   console.log("background script loaded");
@@ -359,29 +389,61 @@ chrome.runtime.onMessage.addListener(function (
       }
       if (message.action === "fetchImage") {
         try {
+          const currentConfig = searchSource.searchParam || await getStoredConfig();
+          if (currentConfig.randomImageEnabled === false) {
+            const defaultRes = buildDefaultImageResponse(currentConfig, {
+              message: "Random images are disabled."
+            });
+            if (defaultRes) {
+              sendResponse(defaultRes);
+            } else {
+              sendResponse({
+                error: "DEFAULT_IMAGE_MISSING",
+                message: "Random images are disabled and no default image is configured."
+              });
+            }
+            return;
+          }
+
           let res = await searchSource.getRandomIllust();
           if (res) {
+            res.mode = "random";
+            res.fallback = false;
             sendResponse(res);
             let { profileImageUrl, imageObjectUrl, ...filteredRes } = res;
             console.log(filteredRes);
           } else {
-            sendResponse({
-              error: "NO_RESULT",
-              message: searchSource.lastErrorMessage || "No image found. Please check your tags or Pixiv availability."
+            const fallbackRes = buildDefaultImageResponse(currentConfig, {
+              fallback: true,
+              message: searchSource.lastErrorMessage || "Failed to load a Pixiv image. Showing the default image instead."
             });
+            if (fallbackRes) {
+              sendResponse(fallbackRes);
+            } else {
+              sendResponse({
+                error: "NO_RESULT",
+                message: searchSource.lastErrorMessage || "No image found. Please check your tags or Pixiv availability."
+              });
+            }
           }
         } catch (e) {
           console.error("fetchImage handler error:", e);
-          sendResponse({
-            error: "FETCH_FAILED",
-            message: "Failed to fetch image. Please try again."
+          const currentConfig = searchSource.searchParam || await getStoredConfig();
+          const fallbackRes = buildDefaultImageResponse(currentConfig, {
+            fallback: true,
+            message: "Failed to fetch image. Showing the default image instead."
           });
+          if (fallbackRes) {
+            sendResponse(fallbackRes);
+          } else {
+            sendResponse({
+              error: "FETCH_FAILED",
+              message: "Failed to fetch image. Please try again."
+            });
+          }
         }
       } else if (message.action === "updateConfig") {
-        let config = await chrome.storage.local.get(defaultConfig);
-        migrateConfig(config);
-        applyActivePreset(config);
-        config.minusKeywords = computeEffectiveMinus(config);
+        let config = await getStoredConfig();
         console.log("Updated search query:", buildQuery(config));
         searchSource.updateConfig(config);
       } else if (message.action === "bookmarkIllust") {
@@ -532,12 +594,7 @@ chrome.runtime.onMessage.addListener(function (
         }
       } else if (message.action === "excludeTag") {
         try {
-          let config = await chrome.storage.local.get({
-            ...defaultConfig,
-            queryPresets: null,
-            activePresetIndex: 0,
-          });
-          migrateConfig(config);
+          let config = await getStoredConfig();
           let tag = String(message.tag || "").trim();
           if (!tag) {
             sendResponse({ success: false, error: "Invalid tag" });

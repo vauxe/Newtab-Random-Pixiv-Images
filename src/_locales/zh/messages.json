@@ -76,5 +76,23 @@
   },
   "presetCreated": {
     "message": "已创建预设"
+  },
+  "displaySettingsTitle": {
+    "message": "🖼 显示设置"
+  },
+  "randomImageEnabledLabel": {
+    "message": "启用 Pixiv 随机图片"
+  },
+  "defaultImageUrlLabel": {
+    "message": "默认图片 URL"
+  },
+  "defaultImageUrlPlaceholder": {
+    "message": "https://example.com/background.jpg"
+  },
+  "defaultImageHelp": {
+    "message": "首屏、请求失败或关闭随机图片时显示该默认图。"
+  },
+  "defaultImagePreviewEmpty": {
+    "message": "尚未配置默认图片"
   }
 }

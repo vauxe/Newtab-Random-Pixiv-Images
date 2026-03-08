@@ -9,6 +9,8 @@ let queryTree = { type: "group", connector: "AND", children: [] };
 let presets = []; // Array of { name: string, tree: queryTree }
 let activePresetIndex = 0;
 let globalMinusKeywords = "";
+let randomImageEnabled = true;
+let defaultImageUrl = "";
 
 // ── DOM refs ──
 const flowContainer = document.getElementById("flowContainer");
@@ -18,6 +20,9 @@ const presetRenameInput = document.getElementById("presetRenameInput");
 const globalMinusInput = document.getElementById("globalMinusKeywords");
 const blocklistCard = document.getElementById("blocklistCard");
 const blocklistToggle = document.getElementById("blocklistToggle");
+const randomImageEnabledInput = document.getElementById("randomImageEnabled");
+const defaultImageUrlInput = document.getElementById("defaultImageUrl");
+const defaultImagePreview = document.getElementById("defaultImagePreview");
 
 // ── Tree Manipulation ──
 
@@ -283,6 +288,8 @@ function savePresetsToStorage() {
     queryPresets: JSON.parse(JSON.stringify(presets)),
     activePresetIndex: activePresetIndex,
     globalMinusKeywords: globalMinusKeywords,
+    randomImageEnabled: randomImageEnabled,
+    defaultImageUrl: defaultImageUrl,
     presetMinusKeywords: [],
   });
 }
@@ -291,6 +298,22 @@ function savePresetsToStorage() {
 
 function updatePreview() {
   // Preview removed
+}
+
+function updateDefaultImagePreview(url) {
+  if (!defaultImagePreview) return;
+  const safeUrl = (url || "").trim();
+  if (safeUrl) {
+    defaultImagePreview.style.backgroundImage = `url(${safeUrl})`;
+    defaultImagePreview.textContent = "";
+    defaultImagePreview.classList.add("has-image");
+  } else {
+    defaultImagePreview.style.backgroundImage = "";
+    defaultImagePreview.textContent = _translations["defaultImagePreviewEmpty"]
+      ? _translations["defaultImagePreviewEmpty"].message
+      : "No default image configured";
+    defaultImagePreview.classList.remove("has-image");
+  }
 }
 
 // ── Storage ──
@@ -311,6 +334,8 @@ function loadTags() {
     queryPresets: null,
     activePresetIndex: 0,
     globalMinusKeywords: "",
+    randomImageEnabled: true,
+    defaultImageUrl: "",
     presetMinusKeywords: [],
   }, (items) => {
     migrateConfig(items);
@@ -329,6 +354,11 @@ function loadTags() {
 
     globalMinusKeywords = items.globalMinusKeywords || "";
     if (globalMinusInput) globalMinusInput.value = globalMinusKeywords;
+    randomImageEnabled = items.randomImageEnabled !== false;
+    defaultImageUrl = items.defaultImageUrl || "";
+    if (randomImageEnabledInput) randomImageEnabledInput.checked = randomImageEnabled;
+    if (defaultImageUrlInput) defaultImageUrlInput.value = defaultImageUrl;
+    updateDefaultImagePreview(defaultImageUrl);
 
     renderPresetSelect();
     renderAll();
@@ -343,6 +373,12 @@ function saveTags() {
   if (globalMinusInput) {
     globalMinusKeywords = globalMinusInput.value.trim();
   }
+  if (randomImageEnabledInput) {
+    randomImageEnabled = !!randomImageEnabledInput.checked;
+  }
+  if (defaultImageUrlInput) {
+    defaultImageUrl = defaultImageUrlInput.value.trim();
+  }
 
   // Derive legacy fields from active preset
   const legacy = treeToLegacy(queryTree);
@@ -356,6 +392,8 @@ function saveTags() {
     minusKeywords: legacy.minusKeywords,
     orKeywords: null,
     globalMinusKeywords: globalMinusKeywords,
+    randomImageEnabled: randomImageEnabled,
+    defaultImageUrl: defaultImageUrl,
     presetMinusKeywords: [],
   };
 
@@ -440,6 +478,8 @@ function importFromJsonFile(file) {
       }
 
       globalMinusKeywords = data.globalMinusKeywords || "";
+      randomImageEnabled = data.randomImageEnabled !== false;
+      defaultImageUrl = (data.defaultImageUrl || "").trim();
       if (Array.isArray(data.presetMinusKeywords) && data.presetMinusKeywords.length > 0) {
         const extra = data.presetMinusKeywords.map(s => (s || "").trim()).filter(Boolean).join(" ");
         if (extra) {
@@ -447,6 +487,9 @@ function importFromJsonFile(file) {
         }
       }
       if (globalMinusInput) globalMinusInput.value = globalMinusKeywords;
+      if (randomImageEnabledInput) randomImageEnabledInput.checked = randomImageEnabled;
+      if (defaultImageUrlInput) defaultImageUrlInput.value = defaultImageUrl;
+      updateDefaultImagePreview(defaultImageUrl);
 
       renderAll();
       showToast(
@@ -474,6 +517,8 @@ function exportToJsonFile() {
     queryPresets: JSON.parse(JSON.stringify(presets)),
     activePresetIndex: activePresetIndex,
     globalMinusKeywords: globalMinusKeywords,
+    randomImageEnabled: randomImageEnabled,
+    defaultImageUrl: defaultImageUrl,
     presetMinusKeywords: [],
     ...treeToLegacy(queryTree),
   };
@@ -545,6 +590,7 @@ function loadTranslations(lang) {
           el.placeholder = data[key].message;
         }
       });
+      updateDefaultImagePreview(defaultImageUrl);
       renderAll();
     })
     .catch((error) => console.error("Error loading translations:", error));
@@ -645,6 +691,19 @@ if (globalMinusInput) {
   globalMinusInput.addEventListener("input", () => {
     globalMinusKeywords = globalMinusInput.value.trim();
     updatePreview();
+  });
+}
+
+if (randomImageEnabledInput) {
+  randomImageEnabledInput.addEventListener("change", () => {
+    randomImageEnabled = !!randomImageEnabledInput.checked;
+  });
+}
+
+if (defaultImageUrlInput) {
+  defaultImageUrlInput.addEventListener("input", () => {
+    defaultImageUrl = defaultImageUrlInput.value.trim();
+    updateDefaultImagePreview(defaultImageUrl);
   });
 }
 

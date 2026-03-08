@@ -76,5 +76,23 @@
   },
   "presetCreated": {
     "message": "Preset created"
+  },
+  "displaySettingsTitle": {
+    "message": "🖼 Display Settings"
+  },
+  "randomImageEnabledLabel": {
+    "message": "Enable random Pixiv images"
+  },
+  "defaultImageUrlLabel": {
+    "message": "Default image URL"
+  },
+  "defaultImageUrlPlaceholder": {
+    "message": "https://example.com/background.jpg"
+  },
+  "defaultImageHelp": {
+    "message": "Shown on first paint, on request failure, and when random images are disabled."
+  },
+  "defaultImagePreviewEmpty": {
+    "message": "No default image configured"
   }
 }

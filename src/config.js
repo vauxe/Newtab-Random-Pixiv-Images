@@ -32,6 +32,10 @@ export const TimeOption = Object.freeze({
 });
 
 export const defaultConfig = {
+  randomImageEnabled: true,
+  defaultImageUrl: "",
+  defaultImageFit: "cover",
+  defaultImageSourceType: "url",
   order: Order.date_d, // sort order
   mode: Mode.safe, // search mode
   timeOption: TimeOption.unlimited,
@@ -54,6 +58,14 @@ export const defaultConfig = {
   orKeywords: null, // legacy field, kept for migration detection
   globalMinusKeywords: "", // global minus tags (space separated)
   presetMinusKeywords: [], // deprecated: merged into globalMinusKeywords
+  likedUserIds: [],
+  dislikedUserIds: [],
+  randomTagPoolEnabled: false,
+  randomTagPool: [],
+  randomTagPoolPickCount: 0,
+  randomSeedStrategy: "page_pool",
+  seenHistoryLimit: 300,
+  seenHistoryTtlMs: 21600000,
 }
 
 // ── Tree Data Model ──
@@ -195,6 +207,45 @@ export function buildQuery(config) {
 
 // Migrate old formats to tree
 export function migrateConfig(config) {
+  if (typeof config.randomImageEnabled !== "boolean") {
+    config.randomImageEnabled = true;
+  }
+  if (typeof config.defaultImageUrl !== "string") {
+    config.defaultImageUrl = "";
+  } else {
+    config.defaultImageUrl = config.defaultImageUrl.trim();
+  }
+  if (!config.defaultImageFit) {
+    config.defaultImageFit = "cover";
+  }
+  if (!config.defaultImageSourceType) {
+    config.defaultImageSourceType = "url";
+  }
+  if (!Array.isArray(config.likedUserIds)) {
+    config.likedUserIds = [];
+  }
+  if (!Array.isArray(config.dislikedUserIds)) {
+    config.dislikedUserIds = [];
+  }
+  if (typeof config.randomTagPoolEnabled !== "boolean") {
+    config.randomTagPoolEnabled = false;
+  }
+  if (!Array.isArray(config.randomTagPool)) {
+    config.randomTagPool = [];
+  }
+  if (!Number.isInteger(config.randomTagPoolPickCount) || config.randomTagPoolPickCount < 0) {
+    config.randomTagPoolPickCount = 0;
+  }
+  if (!config.randomSeedStrategy) {
+    config.randomSeedStrategy = "page_pool";
+  }
+  if (!Number.isInteger(config.seenHistoryLimit) || config.seenHistoryLimit <= 0) {
+    config.seenHistoryLimit = 300;
+  }
+  if (!Number.isInteger(config.seenHistoryTtlMs) || config.seenHistoryTtlMs <= 0) {
+    config.seenHistoryTtlMs = 21600000;
+  }
+
   // Step 1: migrate orKeywords string → orGroups array (oldest format)
   if (config.orKeywords && (!config.orGroups || !Array.isArray(config.orGroups))) {
     const tags = config.orKeywords.trim().split(/\s+/).filter(Boolean);

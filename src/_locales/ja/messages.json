@@ -76,5 +76,23 @@
   },
   "presetCreated": {
     "message": "プリセットを作成しました"
+  },
+  "displaySettingsTitle": {
+    "message": "🖼 表示設定"
+  },
+  "randomImageEnabledLabel": {
+    "message": "Pixiv ランダム画像を有効化"
+  },
+  "defaultImageUrlLabel": {
+    "message": "デフォルト画像 URL"
+  },
+  "defaultImageUrlPlaceholder": {
+    "message": "https://example.com/background.jpg"
+  },
+  "defaultImageHelp": {
+    "message": "初回表示時、取得失敗時、またはランダム画像が無効なときに表示されます。"
+  },
+  "defaultImagePreviewEmpty": {
+    "message": "デフォルト画像は未設定です"
   }
 }

@@ -259,6 +259,60 @@
             color: #666;
         }
 
+        .settings-card {
+            background: rgba(255, 255, 255, 0.03);
+            border: 1px solid rgba(255, 255, 255, 0.06);
+            border-radius: 12px;
+            padding: 12px 14px;
+            margin-bottom: 12px;
+        }
+
+        .settings-card h3 {
+            font-size: 13px;
+            color: #cfcfe8;
+            margin-bottom: 10px;
+        }
+
+        .toggle-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            margin-bottom: 10px;
+            font-size: 13px;
+            color: #e0e0e0;
+        }
+
+        .toggle-row input[type="checkbox"] {
+            width: 16px;
+            height: 16px;
+            accent-color: #6c63ff;
+            cursor: pointer;
+            flex: 0 0 auto;
+        }
+
+        .default-image-preview {
+            width: 100%;
+            height: 140px;
+            margin-top: 8px;
+            border-radius: 10px;
+            background: linear-gradient(135deg, rgba(108, 99, 255, 0.18), rgba(224, 64, 251, 0.14));
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            background-size: cover;
+            background-position: center;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: #a6a6c8;
+            font-size: 12px;
+            text-align: center;
+            padding: 12px;
+        }
+
+        .default-image-preview.has-image {
+            color: transparent;
+        }
+
         .blocklist-toggle {
             padding: 4px 10px;
             border-radius: 999px;
@@ -819,6 +873,21 @@
         <p class="subtitle" id="pageSubtitle">Build your Pixiv search query visually</p>
 
         <div class="scroll-area">
+            <div class="settings-card">
+                <h3 id="displaySettingsTitle">🖼 Display Settings</h3>
+                <label class="toggle-row" for="randomImageEnabled">
+                    <span id="randomImageEnabledLabel">Enable random Pixiv images</span>
+                    <input type="checkbox" id="randomImageEnabled" checked />
+                </label>
+                <div class="blocklist-row">
+                    <label id="defaultImageUrlLabel" for="defaultImageUrl">Default image URL</label>
+                    <input type="text" id="defaultImageUrl" data-i18n-placeholder="defaultImageUrlPlaceholder"
+                        placeholder="https://example.com/background.jpg" />
+                </div>
+                <div class="blocklist-tip" id="defaultImageHelp">Shown on first paint, on request failure, and when random images are disabled.</div>
+                <div class="default-image-preview" id="defaultImagePreview">No default image configured</div>
+            </div>
+
             <!-- Preset Selector -->
             <div class="preset-bar">
                 <label id="presetLabel">📋 Preset:</label>
