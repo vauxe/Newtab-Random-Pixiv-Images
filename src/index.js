@@ -587,6 +587,33 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     return true;
   }
 
+  function notifyRuntimeConfigUpdated() {
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const timeoutId = setTimeout(() => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        debugLog("notifyRuntimeConfigUpdated:timeout");
+        resolve();
+      }, 1500);
+
+      chrome.runtime.sendMessage({ action: "updateConfig" }, () => {
+        if (settled) {
+          return;
+        }
+        clearTimeout(timeoutId);
+        settled = true;
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        resolve();
+      });
+    });
+  }
+
   function persistRandomImageEnabled(enabled) {
     return new Promise((resolve, reject) => {
       chrome.storage.local.set({ randomImageEnabled: enabled }, () => {
@@ -594,13 +621,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
           reject(new Error(chrome.runtime.lastError.message));
           return;
         }
-        chrome.runtime.sendMessage({ action: "updateConfig" }, () => {
-          if (chrome.runtime.lastError) {
-            reject(new Error(chrome.runtime.lastError.message));
-            return;
-          }
-          resolve();
-        });
+        notifyRuntimeConfigUpdated().then(resolve).catch(reject);
       });
     });
   }
@@ -613,13 +634,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
           reject(new Error(chrome.runtime.lastError.message));
           return;
         }
-        chrome.runtime.sendMessage({ action: "updateConfig" }, () => {
-          if (chrome.runtime.lastError) {
-            reject(new Error(chrome.runtime.lastError.message));
-            return;
-          }
-          resolve();
-        });
+        notifyRuntimeConfigUpdated().then(resolve).catch(reject);
       });
     });
   }
