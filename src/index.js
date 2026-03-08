@@ -203,6 +203,28 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     });
   }
 
+  function handleStoredRandomImageEnabledChange(enabled) {
+    if (!runtimeConfig) {
+      return;
+    }
+    const previousEnabled = runtimeConfig.randomImageEnabled !== false;
+    runtimeConfig.randomImageEnabled = enabled;
+    setRandomToggleState(enabled);
+    if (isRandomToggleBusy || previousEnabled === enabled) {
+      return;
+    }
+    if (enabled) {
+      sendRefreshMessage();
+      return;
+    }
+    latestRefreshRequestId += 1;
+    showConfiguredDefaultImage().then((hasDefaultImage) => {
+      if (!hasDefaultImage) {
+        showToast("Random images are disabled and no default image is configured.", "error");
+      }
+    });
+  }
+
   async function showConfiguredDefaultImage(options = {}) {
     const defaultDisplay = createDefaultDisplayObject(runtimeConfig, options);
     if (!defaultDisplay) {
@@ -468,6 +490,13 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     }
     console.log("content script loaded");
   }
+
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== "local" || !changes.randomImageEnabled) {
+      return;
+    }
+    handleStoredRandomImageEnabledChange(changes.randomImageEnabled.newValue !== false);
+  });
 
   bootstrap();
 })();

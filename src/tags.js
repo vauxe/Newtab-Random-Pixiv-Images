@@ -19,6 +19,7 @@ let defaultImageUrl = "";
 let defaultImagePreviewUrl = "";
 let defaultImageSourceType = "url";
 let defaultImageUploadName = "";
+let isRandomImageToggleBusy = false;
 const MAX_DEFAULT_IMAGE_FILE_SIZE = 20 * 1024 * 1024;
 
 // ── DOM refs ──
@@ -361,6 +362,12 @@ function syncDefaultImageControls() {
   updateDefaultImageSourceHint();
 }
 
+function syncRandomImageToggleControl() {
+  if (!randomImageEnabledInput) return;
+  randomImageEnabledInput.checked = randomImageEnabled;
+  randomImageEnabledInput.disabled = isRandomImageToggleBusy;
+}
+
 async function resetDefaultImage() {
   defaultImageUrl = "";
   defaultImagePreviewUrl = "";
@@ -379,6 +386,32 @@ function readFileAsDataUrl(file) {
     reader.onload = () => resolve(reader.result);
     reader.onerror = () => reject(reader.error || new Error("Failed to read file"));
     reader.readAsDataURL(file);
+  });
+}
+
+function persistRandomImageEnabledSetting(enabled) {
+  return new Promise((resolve, reject) => {
+    if (!ext || !ext.storage || !ext.storage.local) {
+      reject(new Error("Chrome storage unavailable."));
+      return;
+    }
+    ext.storage.local.set({ randomImageEnabled: enabled }, () => {
+      if (ext.runtime && ext.runtime.lastError) {
+        reject(new Error(ext.runtime.lastError.message));
+        return;
+      }
+      if (ext && ext.runtime && ext.runtime.sendMessage) {
+        ext.runtime.sendMessage({ action: "updateConfig" }, () => {
+          if (ext.runtime.lastError) {
+            reject(new Error(ext.runtime.lastError.message));
+            return;
+          }
+          resolve();
+        });
+        return;
+      }
+      resolve();
+    });
   });
 }
 
@@ -433,7 +466,7 @@ function loadTags() {
         ext.storage.local.set(patch, patchResolve);
       }),
     });
-    if (randomImageEnabledInput) randomImageEnabledInput.checked = randomImageEnabled;
+    syncRandomImageToggleControl();
     syncDefaultImageControls();
 
     renderPresetSelect();
@@ -804,8 +837,30 @@ if (globalMinusInput) {
 }
 
 if (randomImageEnabledInput) {
-  randomImageEnabledInput.addEventListener("change", () => {
-    randomImageEnabled = !!randomImageEnabledInput.checked;
+  randomImageEnabledInput.addEventListener("change", async () => {
+    if (isRandomImageToggleBusy) {
+      syncRandomImageToggleControl();
+      return;
+    }
+    const previousEnabled = randomImageEnabled;
+    const nextEnabled = !!randomImageEnabledInput.checked;
+    if (nextEnabled === previousEnabled) {
+      return;
+    }
+    isRandomImageToggleBusy = true;
+    randomImageEnabled = nextEnabled;
+    syncRandomImageToggleControl();
+    try {
+      await persistRandomImageEnabledSetting(nextEnabled);
+    } catch (error) {
+      console.error("Failed to update random image setting:", error);
+      randomImageEnabled = previousEnabled;
+      syncRandomImageToggleControl();
+      showToast("Failed to update random image setting", "error");
+    } finally {
+      isRandomImageToggleBusy = false;
+      syncRandomImageToggleControl();
+    }
   });
 }
 
@@ -896,4 +951,14 @@ langSelect.addEventListener("change", (e) => {
 });
 
 // Init
+if (ext && ext.storage && ext.storage.onChanged) {
+  ext.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== "local" || !changes.randomImageEnabled) {
+      return;
+    }
+    randomImageEnabled = changes.randomImageEnabled.newValue !== false;
+    syncRandomImageToggleControl();
+  });
+}
+
 loadTags();
