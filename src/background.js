@@ -454,6 +454,7 @@ chrome.runtime.onMessage.addListener(function (
         let config = await getStoredConfig();
         console.log("Updated search query:", buildQuery(config));
         searchSource.updateConfig(config);
+        sendResponse({ success: true });
       } else if (message.action === "bookmarkIllust") {
         try {
           const illustIdStr = String(message.illustId || "");
@@ -625,6 +626,8 @@ chrome.runtime.onMessage.addListener(function (
           console.error("Exclude tag error:", e);
           sendResponse({ success: false, error: e.message });
         }
+      } else {
+        sendResponse({ success: false, error: "Unknown action" });
       }
     }
   )();
