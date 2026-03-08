@@ -329,7 +329,9 @@ body {
   position: fixed;
   bottom: 96px;
   right: 8px;
-  width: 320px;
+  width: min(420px, calc(100vw - 16px));
+  min-width: 320px;
+  min-height: 180px;
   max-height: 300px;
   background: rgba(20, 20, 30, 0.95);
   backdrop-filter: blur(12px);
@@ -381,6 +383,14 @@ body {
   align-content: flex-start;
 }
 
+@media (max-width: 520px) {
+  .tag-popup {
+    min-width: 0;
+    width: calc(100vw - 16px);
+    min-height: 160px;
+  }
+}
+
 .tag-chip {
   display: inline-flex;
   align-items: center;
@@ -412,28 +422,6 @@ body {
 .tag-chip .tag-translation {
   color: #888;
   font-size: 10px;
-}
-
-.tag-popup-footer {
-  padding: 8px 10px;
-  border-top: 1px solid rgba(255, 255, 255, 0.06);
-  text-align: right;
-}
-
-.tag-popup-btn {
-  padding: 4px 14px;
-  border-radius: 6px;
-  font-size: 12px;
-  background: rgba(255, 255, 255, 0.06);
-  border: 1px solid rgba(255, 255, 255, 0.1);
-  color: #ccc;
-  cursor: pointer;
-  transition: all 0.2s;
-}
-
-.tag-popup-btn:hover {
-  background: rgba(255, 255, 255, 0.12);
-  color: #fff;
 }
 
 /* Toast */

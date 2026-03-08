@@ -258,8 +258,6 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   var binding = null;
   function initApplication() {
     binding = new Binding();
-    // Tag popup close
-    document.getElementById("tagPopupClose").addEventListener("click", closeTagPopup);
     // Close popup on clicking outside
     document.addEventListener("click", (e) => {
       const popup = document.getElementById("tagPopup");
@@ -488,7 +486,6 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   }
 
   function addTagToRandomPool(tag) {
-    closeTagPopup();
     chrome.runtime.sendMessage(
       { action: "addRandomTag", tag },
       (res) => {
@@ -562,7 +559,6 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   }
 
   function excludeTag(tag) {
-    closeTagPopup();
     chrome.runtime.sendMessage(
       { action: "excludeTag", tag: tag, scope: "global" },
       (res) => {
