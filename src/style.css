@@ -459,7 +459,7 @@ body {
   position: fixed;
   top: 72px;
   right: 20px;
-  width: min(360px, calc(100vw - 32px));
+  width: min(420px, calc(100vw - 32px));
   padding: 12px 14px;
   border-radius: 14px;
   background: rgba(20, 20, 30, 0.92);
