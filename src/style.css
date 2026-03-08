@@ -407,6 +407,11 @@ body {
   white-space: nowrap;
 }
 
+.tag-chip.pending {
+  opacity: 0.65;
+  pointer-events: none;
+}
+
 .tag-chip:hover {
   background: rgba(244, 67, 54, 0.2);
   border-color: rgba(244, 67, 54, 0.5);
@@ -417,6 +422,24 @@ body {
   background: rgba(76, 175, 80, 0.18);
   border-color: rgba(76, 175, 80, 0.45);
   color: #b8f5be;
+}
+
+.tag-popup.mode-random .tag-chip.selected-like {
+  background: rgba(76, 175, 80, 0.1);
+  border-color: rgba(121, 255, 130, 0.9);
+  box-shadow: 0 0 0 2px rgba(121, 255, 130, 0.18);
+  color: #d4ffd8;
+}
+
+.tag-popup.mode-exclude .tag-chip.selected-dislike {
+  background: rgba(148, 148, 160, 0.12);
+  border-color: rgba(148, 148, 160, 0.28);
+  color: rgba(214, 214, 224, 0.55);
+}
+
+.tag-popup .tag-chip.selected-like:hover,
+.tag-popup .tag-chip.selected-dislike:hover {
+  transform: none;
 }
 
 .tag-chip .tag-translation {

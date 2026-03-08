@@ -11,6 +11,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   let latestRefreshRequestId = 0;
   let activeTagPopupHandler = null;
   let activeTagPopupTrigger = null;
+  let activeTagPopupPendingTags = new Set();
   const UI_STRINGS = {
     en: {
       randomLabel: "Random Pixiv",
@@ -486,17 +487,26 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   }
 
   function addTagToRandomPool(tag) {
+    if (activeTagPopupPendingTags.has(tag) || getTagChipState(tag) === "selected-like") {
+      return;
+    }
+    activeTagPopupPendingTags.add(tag);
+    setTagChipPending(tag, true);
     chrome.runtime.sendMessage(
       { action: "addRandomTag", tag },
       (res) => {
+        activeTagPopupPendingTags.delete(tag);
+        setTagChipPending(tag, false);
         if (chrome.runtime.lastError) {
           showToast(translate("addRandomTagFailed"), "error");
           return;
         }
         if (res && res.success && res.added !== false) {
           document.getElementById("likeButton").classList.add("liked");
+          markTagChipState(tag, "selected-like");
           showToast(translate("addedRandomTag", { tag }), "success");
         } else if (res && res.success && res.exists) {
+          markTagChipState(tag, "selected-like");
           showToast(translate("randomTagExists", { tag }), "success");
         } else {
           showToast(res?.error || translate("addRandomTagFailed"), "error");
@@ -523,6 +533,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     const popup = document.getElementById("tagPopup");
     const popupHeader = popup.querySelector(".tag-popup-header");
     const tagList = document.getElementById("tagList");
+    activeTagPopupPendingTags = new Set();
     popupHeader.textContent = options.title || translate("excludeTagTitle");
     tagList.innerHTML = "";
     activeTagPopupHandler = typeof options.onSelect === "function" ? options.onSelect : null;
@@ -534,6 +545,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     tags.forEach((t) => {
       const chip = document.createElement("div");
       chip.className = "tag-chip";
+      chip.dataset.tag = t.tag;
       let html = `<span class="tag-name">${escapeHtml(t.tag)}</span>`;
       if (t.translation) {
         html += ` <span class="tag-translation">(${escapeHtml(t.translation)})</span>`;
@@ -556,25 +568,74 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     popup.classList.remove("expanded", "mode-random", "mode-exclude");
     activeTagPopupHandler = null;
     activeTagPopupTrigger = null;
+    activeTagPopupPendingTags = new Set();
   }
 
   function excludeTag(tag) {
+    if (activeTagPopupPendingTags.has(tag) || getTagChipState(tag) === "selected-dislike") {
+      return;
+    }
+    activeTagPopupPendingTags.add(tag);
+    setTagChipPending(tag, true);
     chrome.runtime.sendMessage(
       { action: "excludeTag", tag: tag, scope: "global" },
       (res) => {
+        activeTagPopupPendingTags.delete(tag);
+        setTagChipPending(tag, false);
         if (chrome.runtime.lastError) {
           showToast(translate("excludeFailed"), "error");
           return;
         }
         if (res && res.success) {
+          markTagChipState(tag, "selected-dislike");
           showToast(translate("excludedTag", { tag }), "success");
-          // Auto refresh to next image
-          sendRefreshMessage();
+          setTimeout(() => {
+            if (!document.getElementById("tagPopup").classList.contains("hidden")) {
+              sendRefreshMessage();
+            }
+          }, 140);
         } else {
           showToast(res?.error || translate("excludeFailed"), "error");
         }
       }
     );
+  }
+
+  function getTagChipByTag(tag) {
+    return document.querySelector(`.tag-chip[data-tag="${CSS.escape(tag)}"]`);
+  }
+
+  function getTagChipState(tag) {
+    const chip = getTagChipByTag(tag);
+    if (!chip) {
+      return "";
+    }
+    if (chip.classList.contains("selected-like")) {
+      return "selected-like";
+    }
+    if (chip.classList.contains("selected-dislike")) {
+      return "selected-dislike";
+    }
+    return "";
+  }
+
+  function markTagChipState(tag, state) {
+    const chip = getTagChipByTag(tag);
+    if (!chip) {
+      return;
+    }
+    chip.classList.remove("selected-like", "selected-dislike");
+    if (state) {
+      chip.classList.add(state);
+    }
+  }
+
+  function setTagChipPending(tag, pending) {
+    const chip = getTagChipByTag(tag);
+    if (!chip) {
+      return;
+    }
+    chip.classList.toggle("pending", !!pending);
   }
 
   // ── Toast ──
