@@ -410,6 +410,15 @@
             box-shadow: 0 3px 10px rgba(0, 0, 0, 0.3);
         }
 
+        .capsule-readonly {
+            cursor: default;
+        }
+
+        .capsule-readonly:hover {
+            transform: none;
+            box-shadow: none;
+        }
+
         .capsule-normal {
             background: rgba(76, 175, 80, 0.12);
             border: 1px solid rgba(76, 175, 80, 0.35);
@@ -1049,6 +1058,15 @@
                         </div>
                     </div>
                     <div class="blocklist-tip" id="randomTagPoolHelp">Each request uses the fixed query plus a random subset from this pool.</div>
+                    <div class="blocklist-row">
+                        <label id="randomTagPoolLastResolvedLabel">Last matched random tags</label>
+                        <div class="flow-builder">
+                            <div class="flow-container" id="randomTagPoolLastResolvedContainer">
+                                <div class="empty-state" id="randomTagPoolLastResolvedEmptyState">No successful random tag hit yet</div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="blocklist-tip" id="randomTagPoolLastResolvedHelp">Updates after a successful random-image request. If this round fell back to the base query, no random tags will be shown.</div>
                 </div>
             </div>
 

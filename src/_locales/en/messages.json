@@ -163,5 +163,17 @@
   },
   "randomTagPoolModalDesc": {
     "message": "Paste tags for the random pool (separated by spaces, commas, or newlines)"
+  },
+  "randomTagPoolLastResolvedLabel": {
+    "message": "Actual random tags matched this round"
+  },
+  "randomTagPoolLastResolvedEmptyState": {
+    "message": "No successful random-tag hit yet"
+  },
+  "randomTagPoolLastResolvedBaseOnly": {
+    "message": "This round fell back to the base query only"
+  },
+  "randomTagPoolLastResolvedHelp": {
+    "message": "Updates only after a successful random-image hit. If this round fell back to the base query, no random tags are shown here."
   }
 }

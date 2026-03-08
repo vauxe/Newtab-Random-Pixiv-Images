@@ -151,6 +151,8 @@ class SearchSource {
     this.seenMap = new Map();
     this.activeQueryWord = buildQuery(config);
     this.lastErrorMessage = null;
+    this.lastResolvedRandomTags = [];
+    this.lastResolvedRandomTagsAt = 0;
   }
 
   updateConfig(config) {
@@ -162,6 +164,12 @@ class SearchSource {
     this.seenMap.clear();
     this.activeQueryWord = buildQuery(config);
     this.lastErrorMessage = null;
+    this.lastResolvedRandomTags = [];
+    this.lastResolvedRandomTagsAt = 0;
+    chrome.storage.local.set({
+      randomTagPoolLastResolvedTags: [],
+      randomTagPoolLastResolvedAt: 0,
+    });
   }
 
   replaceSpecialCharacter = (function () {
@@ -370,16 +378,34 @@ class SearchSource {
         .filter(Boolean)
         .join(" ")
         .trim();
-      if (queryWord && !attempts.includes(queryWord)) {
-        attempts.push(queryWord);
+      if (queryWord && !attempts.some((attempt) => attempt.queryWord === queryWord)) {
+        attempts.push({
+          queryWord,
+          randomTags: sampledTags.slice(0, count),
+        });
       }
     }
 
     if (attempts.length === 0 && baseQuery) {
-      attempts.push(baseQuery);
+      attempts.push({
+        queryWord: baseQuery,
+        randomTags: [],
+      });
     }
 
     return attempts;
+  }
+
+  async publishResolvedRandomTags(randomTags) {
+    const normalizedTags = Array.isArray(randomTags)
+      ? randomTags.map((tag) => String(tag || "").trim()).filter(Boolean)
+      : [];
+    this.lastResolvedRandomTags = normalizedTags;
+    this.lastResolvedRandomTagsAt = Date.now();
+    await chrome.storage.local.set({
+      randomTagPoolLastResolvedTags: normalizedTags,
+      randomTagPoolLastResolvedAt: this.lastResolvedRandomTagsAt,
+    });
   }
 
   async fillCandidateQueue() {
@@ -388,7 +414,8 @@ class SearchSource {
     }
     const queryAttempts = this.buildQueryAttempts();
 
-    for (const queryWord of queryAttempts) {
+    for (const attempt of queryAttempts) {
+      const queryWord = attempt.queryWord;
       if (queryWord !== this.activeQueryWord) {
         this.activeQueryWord = queryWord;
         this.totalPage = 0;
@@ -414,6 +441,7 @@ class SearchSource {
       }
 
       if (this.candidateQueue.length > 0) {
+        await this.publishResolvedRandomTags(attempt.randomTags);
         return;
       }
     }

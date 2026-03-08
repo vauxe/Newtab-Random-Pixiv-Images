@@ -163,5 +163,17 @@
   },
   "randomTagPoolModalDesc": {
     "message": "ランダムプール用の Tag を貼り付けてください（空白、カンマ、改行区切り対応）"
+  },
+  "randomTagPoolLastResolvedLabel": {
+    "message": "このラウンドで実際にヒットしたランダム Tags"
+  },
+  "randomTagPoolLastResolvedEmptyState": {
+    "message": "まだ成功したランダム Tag ヒットはありません"
+  },
+  "randomTagPoolLastResolvedBaseOnly": {
+    "message": "このラウンドはベースクエリまで後退し、ランダム Tags は使われませんでした"
+  },
+  "randomTagPoolLastResolvedHelp": {
+    "message": "ランダム画像が正常にヒットした後のみ更新されます。このラウンドがベースクエリまで後退した場合、ここにはランダム Tags は表示されません。"
   }
 }

@@ -163,5 +163,17 @@
   },
   "randomTagPoolModalDesc": {
     "message": "在下方粘贴随机池 Tag（支持空格、逗号或换行分隔）"
+  },
+  "randomTagPoolLastResolvedLabel": {
+    "message": "本轮实际命中的随机 Tags"
+  },
+  "randomTagPoolLastResolvedEmptyState": {
+    "message": "还没有成功命中的随机 Tag 记录"
+  },
+  "randomTagPoolLastResolvedBaseOnly": {
+    "message": "这一轮退回到了基础查询，没有使用随机 Tags"
+  },
+  "randomTagPoolLastResolvedHelp": {
+    "message": "仅在随机图片成功命中后更新；如果这一轮退回基础查询，这里不会显示随机 Tags。"
   }
 }

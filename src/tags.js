@@ -22,6 +22,8 @@ let defaultImageUploadName = "";
 let randomTagPoolEnabled = false;
 let randomTagPool = [];
 let randomTagPoolPickCount = 0;
+let randomTagPoolLastResolvedTags = [];
+let randomTagPoolLastResolvedAt = 0;
 let isRandomImageToggleBusy = false;
 const MAX_DEFAULT_IMAGE_FILE_SIZE = 20 * 1024 * 1024;
 
@@ -48,6 +50,8 @@ const randomTagPoolEnabledInput = document.getElementById("randomTagPoolEnabled"
 const randomTagPoolPickCountInput = document.getElementById("randomTagPoolPickCount");
 const randomTagPoolContainer = document.getElementById("randomTagPoolContainer");
 const randomTagPoolEmptyState = document.getElementById("randomTagPoolEmptyState");
+const randomTagPoolLastResolvedContainer = document.getElementById("randomTagPoolLastResolvedContainer");
+const randomTagPoolLastResolvedEmptyState = document.getElementById("randomTagPoolLastResolvedEmptyState");
 const randomTagPoolAddBtn = document.getElementById("randomTagPoolAddBtn");
 const randomTagPoolImportBtn = document.getElementById("randomTagPoolImportBtn");
 const randomTagPoolMenu = document.getElementById("randomTagPoolMenu");
@@ -181,6 +185,18 @@ function createPoolCapsule(tag, index) {
     closeRandomTagPoolMenu();
     renderRandomTagPool();
   });
+  return el;
+}
+
+function createReadonlyPoolCapsule(tag) {
+  const el = document.createElement("span");
+  el.className = "capsule capsule-normal capsule-readonly";
+
+  const textSpan = document.createElement("span");
+  textSpan.className = "capsule-text";
+  textSpan.textContent = tag;
+
+  el.appendChild(textSpan);
   return el;
 }
 
@@ -327,6 +343,7 @@ function renderAll() {
   }
 
   renderRandomTagPool();
+  renderLastResolvedRandomTags();
   updatePreview();
 }
 
@@ -347,6 +364,36 @@ function renderRandomTagPool() {
   randomTagPoolEmptyState.style.display = "none";
   randomTagPool.forEach((tag, index) => {
     randomTagPoolContainer.appendChild(createPoolCapsule(tag, index));
+  });
+}
+
+function renderLastResolvedRandomTags() {
+  if (!randomTagPoolLastResolvedContainer || !randomTagPoolLastResolvedEmptyState) {
+    return;
+  }
+
+  randomTagPoolLastResolvedContainer.innerHTML = "";
+  if (randomTagPoolLastResolvedAt <= 0) {
+    randomTagPoolLastResolvedEmptyState.textContent = _translations["randomTagPoolLastResolvedEmptyState"]
+      ? _translations["randomTagPoolLastResolvedEmptyState"].message
+      : "No successful random tag hit yet";
+    randomTagPoolLastResolvedEmptyState.style.display = "";
+    randomTagPoolLastResolvedContainer.appendChild(randomTagPoolLastResolvedEmptyState);
+    return;
+  }
+
+  if (randomTagPoolLastResolvedTags.length === 0) {
+    randomTagPoolLastResolvedEmptyState.textContent = _translations["randomTagPoolLastResolvedBaseOnly"]
+      ? _translations["randomTagPoolLastResolvedBaseOnly"].message
+      : "This round fell back to the base query only";
+    randomTagPoolLastResolvedEmptyState.style.display = "";
+    randomTagPoolLastResolvedContainer.appendChild(randomTagPoolLastResolvedEmptyState);
+    return;
+  }
+
+  randomTagPoolLastResolvedEmptyState.style.display = "none";
+  randomTagPoolLastResolvedTags.forEach((tag) => {
+    randomTagPoolLastResolvedContainer.appendChild(createReadonlyPoolCapsule(tag));
   });
 }
 
@@ -680,6 +727,8 @@ function loadTags() {
     randomTagPoolEnabled: false,
     randomTagPool: [],
     randomTagPoolPickCount: 0,
+    randomTagPoolLastResolvedTags: [],
+    randomTagPoolLastResolvedAt: 0,
     defaultImageUrl: "",
     defaultImageSourceType: "url",
     defaultImageUploadName: "",
@@ -709,6 +758,12 @@ function loadTags() {
     randomTagPoolPickCount = Number.isInteger(items.randomTagPoolPickCount) && items.randomTagPoolPickCount >= 0
       ? items.randomTagPoolPickCount
       : 0;
+    randomTagPoolLastResolvedTags = Array.isArray(items.randomTagPoolLastResolvedTags)
+      ? items.randomTagPoolLastResolvedTags.map((item) => String(item || "").trim()).filter(Boolean)
+      : [];
+    randomTagPoolLastResolvedAt = Number.isFinite(items.randomTagPoolLastResolvedAt)
+      ? Number(items.randomTagPoolLastResolvedAt)
+      : 0;
     defaultImageUrl = items.defaultImageSourceType === "url"
       ? (items.defaultImageUrl || "").trim()
       : "";
@@ -722,6 +777,7 @@ function loadTags() {
     syncRandomImageToggleControl();
     syncRandomTagPoolControls();
     syncDefaultImageControls();
+    renderLastResolvedRandomTags();
 
     renderPresetSelect();
     renderAll();
@@ -1340,11 +1396,30 @@ langSelect.addEventListener("change", (e) => {
 // Init
 if (ext && ext.storage && ext.storage.onChanged) {
   ext.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName !== "local" || !changes.randomImageEnabled) {
+    if (areaName !== "local") {
       return;
     }
-    randomImageEnabled = changes.randomImageEnabled.newValue !== false;
-    syncRandomImageToggleControl();
+
+    if (changes.randomImageEnabled) {
+      randomImageEnabled = changes.randomImageEnabled.newValue !== false;
+      syncRandomImageToggleControl();
+    }
+
+    if (changes.randomTagPoolLastResolvedTags) {
+      randomTagPoolLastResolvedTags = Array.isArray(changes.randomTagPoolLastResolvedTags.newValue)
+        ? changes.randomTagPoolLastResolvedTags.newValue.map((item) => String(item || "").trim()).filter(Boolean)
+        : [];
+    }
+
+    if (changes.randomTagPoolLastResolvedAt) {
+      randomTagPoolLastResolvedAt = Number.isFinite(changes.randomTagPoolLastResolvedAt.newValue)
+        ? Number(changes.randomTagPoolLastResolvedAt.newValue)
+        : 0;
+    }
+
+    if (changes.randomTagPoolLastResolvedTags || changes.randomTagPoolLastResolvedAt) {
+      renderLastResolvedRandomTags();
+    }
   });
 }
 
