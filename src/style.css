@@ -90,7 +90,13 @@ body {
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.28);
 }
 
-#randomToggleControl {
+#pageToggleGroup {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.page-toggle-control {
   display: inline-flex;
   align-items: center;
   justify-content: flex-start;
@@ -120,9 +126,9 @@ body {
   transform: translateY(-1px);
 }
 
-#randomToggleControl {
+.page-toggle-control {
   gap: 10px;
-  min-width: 138px;
+  min-width: 122px;
   padding: 2px 0;
   color: #fff;
   font-family: HiraginoSans-W3, Hiragino Kaku Gothic Pro, Meiryo, Verdana,
@@ -131,16 +137,17 @@ body {
   user-select: none;
 }
 
-#randomToggleControl:hover .random-toggle-slider {
+.page-toggle-control:hover .random-toggle-slider {
   background: rgba(255, 255, 255, 0.34);
 }
 
-#randomToggleControl.disabled {
+.page-toggle-control.disabled {
   opacity: 0.6;
   cursor: default;
 }
 
-#randomToggleInput {
+#randomToggleInput,
+#r18ToggleInput {
   position: absolute;
   opacity: 0;
   pointer-events: none;
@@ -169,15 +176,18 @@ body {
   box-shadow: 0 3px 8px rgba(0, 0, 0, 0.22);
 }
 
-#randomToggleInput:checked + .random-toggle-slider {
+#randomToggleInput:checked + .random-toggle-slider,
+#r18ToggleInput:checked + .random-toggle-slider {
   background: linear-gradient(135deg, rgba(66, 188, 255, 0.95), rgba(89, 132, 255, 0.9));
 }
 
-#randomToggleInput:checked + .random-toggle-slider::after {
+#randomToggleInput:checked + .random-toggle-slider::after,
+#r18ToggleInput:checked + .random-toggle-slider::after {
   transform: translateX(18px);
 }
 
-#randomToggleText {
+#randomToggleText,
+#r18ToggleText {
   display: flex;
   flex-direction: column;
   gap: 1px;
@@ -185,12 +195,14 @@ body {
   letter-spacing: 0.02em;
 }
 
-#randomToggleText strong {
+#randomToggleText strong,
+#r18ToggleText strong {
   font-size: 13px;
   font-weight: 600;
 }
 
-#randomToggleText small {
+#randomToggleText small,
+#r18ToggleText small {
   font-size: 10px;
   color: rgba(255, 255, 255, 0.7);
 }

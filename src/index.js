@@ -13,6 +13,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   let isBookmarkBusy = false;
   let isCreatorPreferenceBusy = false;
   let isRandomToggleBusy = false;
+  let isR18ToggleBusy = false;
   let latestRefreshRequestId = 0;
   let activeTagPopupHandler = null;
   let activeTagPopupTrigger = null;
@@ -29,6 +30,11 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       randomOff: "Off",
       randomEnabledTitle: "Random Pixiv image requests are enabled",
       randomDisabledTitle: "Random Pixiv image requests are disabled",
+      r18Label: "R18 Only",
+      r18On: "On",
+      r18Off: "Off",
+      r18EnabledTitle: "Only show R18 content",
+      r18DisabledTitle: "Only show safe content",
       settingsTitle: "Tag Manager",
       refreshTitle: "Refresh image",
       bookmarkTitle: "Bookmark artwork",
@@ -57,6 +63,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       excludeFailed: "Failed to exclude tag",
       excludedTag: "Excluded: -{tag}",
       randomSettingFailed: "Failed to update random image setting",
+      r18SettingFailed: "Failed to update R18 setting",
       fallbackDefaultImage: "Failed to load a Pixiv image. Showing the default image instead.",
       fetchFailedDefaultImage: "Failed to fetch image. Showing the default image instead.",
       noResult: "No image found. Please check your tags or Pixiv availability.",
@@ -67,6 +74,11 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       randomOff: "关闭",
       randomEnabledTitle: "当前会请求随机 Pixiv 图片",
       randomDisabledTitle: "当前不会请求随机 Pixiv 图片",
+      r18Label: "仅看 R18",
+      r18On: "开启",
+      r18Off: "关闭",
+      r18EnabledTitle: "当前仅显示 R18 内容",
+      r18DisabledTitle: "当前仅显示安全内容",
       settingsTitle: "标签管理",
       refreshTitle: "刷新图片",
       bookmarkTitle: "收藏作品",
@@ -95,6 +107,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       excludeFailed: "排除标签失败",
       excludedTag: "已排除：-{tag}",
       randomSettingFailed: "切换随机图片开关失败",
+      r18SettingFailed: "切换 R18 设置失败",
       fallbackDefaultImage: "Pixiv 图片加载失败，已改为显示默认图片。",
       fetchFailedDefaultImage: "图片请求失败，已改为显示默认图片。",
       noResult: "没有找到图片，请检查标签配置或 Pixiv 可用性。",
@@ -105,6 +118,11 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       randomOff: "Off",
       randomEnabledTitle: "Pixiv のランダム画像取得が有効です",
       randomDisabledTitle: "Pixiv のランダム画像取得が無効です",
+      r18Label: "R18 のみ",
+      r18On: "On",
+      r18Off: "Off",
+      r18EnabledTitle: "R18 のみ表示します",
+      r18DisabledTitle: "安全な内容のみ表示します",
       settingsTitle: "タグ管理",
       refreshTitle: "画像を更新",
       bookmarkTitle: "作品をブックマーク",
@@ -133,6 +151,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       excludeFailed: "タグの除外に失敗しました",
       excludedTag: "除外済み: -{tag}",
       randomSettingFailed: "ランダム画像設定の更新に失敗しました",
+      r18SettingFailed: "R18 設定の更新に失敗しました",
       fallbackDefaultImage: "Pixiv 画像の読み込みに失敗したため、デフォルト画像を表示しています。",
       fetchFailedDefaultImage: "画像取得に失敗したため、デフォルト画像を表示しています。",
       noResult: "画像が見つかりません。タグ設定や Pixiv の状態を確認してください。",
@@ -172,6 +191,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
 
   function applyUiText() {
     const randomToggleText = document.getElementById("randomToggleText");
+    const r18ToggleText = document.getElementById("r18ToggleText");
     const refreshButton = document.getElementById("refreshButton");
     const settingsButton = document.getElementById("settingsButton");
     const bookmarkButton = document.getElementById("bookmarkButton");
@@ -180,6 +200,10 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     if (randomToggleText) {
       const enabled = runtimeConfig ? runtimeConfig.randomImageEnabled !== false : true;
       randomToggleText.innerHTML = `<strong>${translate("randomLabel")}</strong><small>${enabled ? translate("randomOn") : translate("randomOff")}</small>`;
+    }
+    if (r18ToggleText) {
+      const enabled = runtimeConfig ? runtimeConfig.mode === "r18" : false;
+      r18ToggleText.innerHTML = `<strong>${translate("r18Label")}</strong><small>${enabled ? translate("r18On") : translate("r18Off")}</small>`;
     }
     if (refreshButton) {
       refreshButton.title = translate("refreshTitle");
@@ -216,6 +240,8 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       const settingsElement = document.body.querySelector("#settingsButton");
       const randomToggleInput = document.body.querySelector("#randomToggleInput");
       const randomToggleControl = document.body.querySelector("#randomToggleControl");
+      const r18ToggleInput = document.body.querySelector("#r18ToggleInput");
+      const r18ToggleControl = document.body.querySelector("#r18ToggleControl");
       const likeElement = document.body.querySelector("#likeButton");
       const bookmarkElement = document.body.querySelector("#bookmarkButton");
       const dislikeElement = document.body.querySelector("#dislikeButton");
@@ -228,6 +254,8 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       this.illustInfoElement = illustInfoElement;
       this.randomToggleInput = randomToggleInput;
       this.randomToggleControl = randomToggleControl;
+      this.r18ToggleInput = r18ToggleInput;
+      this.r18ToggleControl = r18ToggleControl;
 
       const userNameBinding = (v) => {
         avatarImageElement.title = v;
@@ -291,6 +319,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
         }
       });
       randomToggleInput.addEventListener("change", handleRandomToggleChange);
+      r18ToggleInput.addEventListener("change", handleR18ToggleChange);
 
       // Like button
       likeElement.addEventListener("click", handleLike);
@@ -377,6 +406,22 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     binding.randomToggleControl.classList.toggle("disabled", isBusy);
   }
 
+  function setR18ToggleState(enabled) {
+    if (!binding || !binding.r18ToggleInput) return;
+    binding.r18ToggleInput.checked = !!enabled;
+    binding.r18ToggleControl.title = enabled
+      ? translate("r18EnabledTitle")
+      : translate("r18DisabledTitle");
+    applyUiText();
+  }
+
+  function setR18ToggleBusy(isBusy) {
+    isR18ToggleBusy = isBusy;
+    if (!binding || !binding.r18ToggleInput) return;
+    binding.r18ToggleInput.disabled = isBusy;
+    binding.r18ToggleControl.classList.toggle("disabled", isBusy);
+  }
+
   function createDefaultDisplayObject(config, options = {}) {
     const defaultImageUrl = (config && config.resolvedDefaultImageUrl ? config.resolvedDefaultImageUrl : "").trim();
     if (!defaultImageUrl) {
@@ -402,6 +447,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     return new Promise((resolve) => {
       chrome.storage.local.get({
         randomImageEnabled: true,
+        mode: "safe",
         defaultImageUrl: "",
         defaultImageSourceType: "url",
         defaultImageUploadName: "",
@@ -410,6 +456,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       }, async (items) => {
         const config = items || {
           randomImageEnabled: true,
+          mode: "safe",
           defaultImageUrl: "",
           defaultImageSourceType: "url",
           defaultImageUploadName: "",
@@ -455,6 +502,22 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
         showToast("Random images are disabled and no default image is configured.", "error");
       }
     });
+  }
+
+  function handleStoredModeChange(mode) {
+    if (!runtimeConfig) {
+      return;
+    }
+    const normalizedMode = mode === "r18" ? "r18" : "safe";
+    const previousMode = runtimeConfig.mode === "r18" ? "r18" : "safe";
+    runtimeConfig.mode = normalizedMode;
+    setR18ToggleState(normalizedMode === "r18");
+    if (isR18ToggleBusy || previousMode === normalizedMode) {
+      return;
+    }
+    if (runtimeConfig.randomImageEnabled !== false) {
+      sendRefreshMessage();
+    }
   }
 
   async function refreshRuntimeDefaultImageConfig(changes) {
@@ -523,6 +586,25 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   function persistRandomImageEnabled(enabled) {
     return new Promise((resolve, reject) => {
       chrome.storage.local.set({ randomImageEnabled: enabled }, () => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        chrome.runtime.sendMessage({ action: "updateConfig" }, () => {
+          if (chrome.runtime.lastError) {
+            reject(new Error(chrome.runtime.lastError.message));
+            return;
+          }
+          resolve();
+        });
+      });
+    });
+  }
+
+  function persistR18Mode(enabled) {
+    const nextMode = enabled ? "r18" : "safe";
+    return new Promise((resolve, reject) => {
+      chrome.storage.local.set({ mode: nextMode }, () => {
         if (chrome.runtime.lastError) {
           reject(new Error(chrome.runtime.lastError.message));
           return;
@@ -1033,12 +1115,46 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     }
   }
 
+  async function handleR18ToggleChange(event) {
+    if (!runtimeConfig || isR18ToggleBusy) {
+      if (binding && binding.r18ToggleInput) {
+        binding.r18ToggleInput.checked = runtimeConfig ? runtimeConfig.mode === "r18" : false;
+      }
+      return;
+    }
+
+    const nextEnabled = !!event.target.checked;
+    const previousEnabled = runtimeConfig.mode === "r18";
+
+    if (nextEnabled === previousEnabled) {
+      return;
+    }
+
+    setR18ToggleBusy(true);
+    try {
+      await persistR18Mode(nextEnabled);
+      runtimeConfig.mode = nextEnabled ? "r18" : "safe";
+      setR18ToggleState(nextEnabled);
+      if (runtimeConfig.randomImageEnabled !== false) {
+        sendRefreshMessage();
+      }
+    } catch (error) {
+      console.error("Failed to update R18 setting:", error);
+      runtimeConfig.mode = previousEnabled ? "r18" : "safe";
+      setR18ToggleState(previousEnabled);
+      showToast(translate("r18SettingFailed"), "error");
+    } finally {
+      setR18ToggleBusy(false);
+    }
+  }
+
   async function bootstrap() {
     initApplication();
     updateActionButtons();
     runtimeConfig = await loadStartupConfig();
     applyUiText();
     setRandomToggleState(runtimeConfig.randomImageEnabled !== false);
+    setR18ToggleState(runtimeConfig.mode === "r18");
 
     const hasDefaultImage = await showConfiguredDefaultImage({
       title: translate("defaultBackgroundTitle"),
@@ -1062,6 +1178,9 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     }
     if (changes.randomImageEnabled) {
       handleStoredRandomImageEnabledChange(changes.randomImageEnabled.newValue !== false);
+    }
+    if (changes.mode) {
+      handleStoredModeChange(changes.mode.newValue);
     }
     if (changes.defaultImageUrl || changes.defaultImageSourceType || changes.defaultImageUploadName) {
       refreshRuntimeDefaultImageConfig(changes).catch((error) => {

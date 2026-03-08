@@ -14,11 +14,18 @@
       <div id="foregroundImage" class="fgImage"></div>
     </div>
     <div id="pageControls">
-      <label id="randomToggleControl" title="Start requesting random Pixiv images">
-        <input type="checkbox" id="randomToggleInput" checked />
-        <span class="random-toggle-slider" aria-hidden="true"></span>
-        <span id="randomToggleText">Random</span>
-      </label>
+      <div id="pageToggleGroup">
+        <label id="randomToggleControl" class="page-toggle-control" title="Start requesting random Pixiv images">
+          <input type="checkbox" id="randomToggleInput" checked />
+          <span class="random-toggle-slider" aria-hidden="true"></span>
+          <span id="randomToggleText">Random</span>
+        </label>
+        <label id="r18ToggleControl" class="page-toggle-control" title="Only show R18 content">
+          <input type="checkbox" id="r18ToggleInput" />
+          <span class="random-toggle-slider" aria-hidden="true"></span>
+          <span id="r18ToggleText">R18</span>
+        </label>
+      </div>
       <div id="pageActionButtons">
         <div id="refreshButton" title="Refresh image">
           <svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" focusable="false" style="
