@@ -261,6 +261,21 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       this.r18ToggleInput = r18ToggleInput;
       this.r18ToggleControl = r18ToggleControl;
 
+      bgElement.referrerPolicy = "no-referrer";
+      fgImageElement.referrerPolicy = "no-referrer";
+
+      const handleWallpaperLoadState = (layer, state) => (event) => {
+        const target = event.currentTarget;
+        debugLog(`wallpaper:${state}`, {
+          layer,
+          src: target && target.currentSrc ? target.currentSrc : target?.src || "",
+        });
+      };
+      bgElement.addEventListener("load", handleWallpaperLoadState("background", "load"));
+      bgElement.addEventListener("error", handleWallpaperLoadState("background", "error"));
+      fgImageElement.addEventListener("load", handleWallpaperLoadState("foreground", "load"));
+      fgImageElement.addEventListener("error", handleWallpaperLoadState("foreground", "error"));
+
       const userNameBinding = (v) => {
         avatarImageElement.title = v;
         let e = illustNameElement.querySelector("a");
@@ -294,10 +309,10 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
         avatarImageElement.style["background-image"] = v ? `url(${v})` : "none";
       };
       const bgImageBinding = (v) => {
-        bgElement.style["background-image"] = `url(${v})`;
+        bgElement.src = v || "";
       };
       const fgElementBinding = (v) => {
-        fgImageElement.style["background-image"] = `url(${v})`;
+        fgImageElement.src = v || "";
       };
       this.ref = {
         userName: [userNameBinding],

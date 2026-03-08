@@ -41,23 +41,24 @@ body {
   position: fixed;
   width: 100%;
   height: 100%;
-  background-size: cover;
-  background-repeat: no-repeat;
-  background-position: center center;
+  object-fit: cover;
+  object-position: center center;
   z-index: inherit;
-  transition: background 0.3s;
+  transition: opacity 0.3s ease;
+  display: block;
+  pointer-events: none;
 }
 
 #foregroundImage {
   position: fixed;
   width: 100%;
   height: 100%;
-  background-size: contain;
-  background-repeat: no-repeat;
-  background-position: center center;
-  backdrop-filter: blur(5px);
+  object-fit: contain;
+  object-position: center center;
   z-index: inherit;
-  transition: background 0.3s;
+  transition: opacity 0.3s ease;
+  display: block;
+  pointer-events: none;
 }
 
 #refreshButton,
