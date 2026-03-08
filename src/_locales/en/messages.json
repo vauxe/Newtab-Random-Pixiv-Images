@@ -86,6 +86,12 @@
   "defaultImageUrlLabel": {
     "message": "Default image URL"
   },
+  "defaultImageUploadBtn": {
+    "message": "Upload Local Image"
+  },
+  "defaultImageClearBtn": {
+    "message": "Clear Default Image"
+  },
   "defaultImageUrlPlaceholder": {
     "message": "https://example.com/background.jpg"
   },
@@ -94,5 +100,26 @@
   },
   "defaultImagePreviewEmpty": {
     "message": "No default image configured"
+  },
+  "defaultImageSourceNone": {
+    "message": "Current source: none"
+  },
+  "defaultImageSourceUrl": {
+    "message": "Current source: URL"
+  },
+  "defaultImageSourceUpload": {
+    "message": "Current source: local upload ({name})"
+  },
+  "defaultImageInvalidType": {
+    "message": "Please choose an image file"
+  },
+  "defaultImageTooLarge": {
+    "message": "Image is too large. Please keep it under {size} MB."
+  },
+  "defaultImageUploadSuccess": {
+    "message": "Default image loaded from local file"
+  },
+  "defaultImageUploadError": {
+    "message": "Failed to read local image"
   }
 }

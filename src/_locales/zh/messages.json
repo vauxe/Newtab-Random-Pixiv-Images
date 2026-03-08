@@ -86,6 +86,12 @@
   "defaultImageUrlLabel": {
     "message": "默认图片 URL"
   },
+  "defaultImageUploadBtn": {
+    "message": "上传本地图片"
+  },
+  "defaultImageClearBtn": {
+    "message": "清空默认图片"
+  },
   "defaultImageUrlPlaceholder": {
     "message": "https://example.com/background.jpg"
   },
@@ -94,5 +100,26 @@
   },
   "defaultImagePreviewEmpty": {
     "message": "尚未配置默认图片"
+  },
+  "defaultImageSourceNone": {
+    "message": "当前来源：未设置"
+  },
+  "defaultImageSourceUrl": {
+    "message": "当前来源：URL"
+  },
+  "defaultImageSourceUpload": {
+    "message": "当前来源：本地上传（{name}）"
+  },
+  "defaultImageInvalidType": {
+    "message": "请选择图片文件"
+  },
+  "defaultImageTooLarge": {
+    "message": "图片太大，请控制在 {size} MB 以内。"
+  },
+  "defaultImageUploadSuccess": {
+    "message": "已加载本地默认图片"
+  },
+  "defaultImageUploadError": {
+    "message": "读取本地图片失败"
   }
 }

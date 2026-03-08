@@ -11,6 +11,9 @@ let activePresetIndex = 0;
 let globalMinusKeywords = "";
 let randomImageEnabled = true;
 let defaultImageUrl = "";
+let defaultImageSourceType = "url";
+let defaultImageUploadName = "";
+const MAX_DEFAULT_IMAGE_FILE_SIZE = 2 * 1024 * 1024;
 
 // ── DOM refs ──
 const flowContainer = document.getElementById("flowContainer");
@@ -23,6 +26,10 @@ const blocklistToggle = document.getElementById("blocklistToggle");
 const randomImageEnabledInput = document.getElementById("randomImageEnabled");
 const defaultImageUrlInput = document.getElementById("defaultImageUrl");
 const defaultImagePreview = document.getElementById("defaultImagePreview");
+const defaultImageUploadBtn = document.getElementById("defaultImageUploadBtn");
+const defaultImageClearBtn = document.getElementById("defaultImageClearBtn");
+const defaultImageFileInput = document.getElementById("defaultImageFileInput");
+const defaultImageSourceHint = document.getElementById("defaultImageSourceHint");
 
 // ── Tree Manipulation ──
 
@@ -290,6 +297,8 @@ function savePresetsToStorage() {
     globalMinusKeywords: globalMinusKeywords,
     randomImageEnabled: randomImageEnabled,
     defaultImageUrl: defaultImageUrl,
+    defaultImageSourceType: defaultImageSourceType,
+    defaultImageUploadName: defaultImageUploadName,
     presetMinusKeywords: [],
   });
 }
@@ -316,6 +325,53 @@ function updateDefaultImagePreview(url) {
   }
 }
 
+function updateDefaultImageSourceHint() {
+  if (!defaultImageSourceHint) return;
+  if (!defaultImageUrl) {
+    defaultImageSourceHint.textContent = _translations["defaultImageSourceNone"]
+      ? _translations["defaultImageSourceNone"].message
+      : "Current source: none";
+    return;
+  }
+  if (defaultImageSourceType === "upload") {
+    const template = _translations["defaultImageSourceUpload"]
+      ? _translations["defaultImageSourceUpload"].message
+      : "Current source: local upload ({name})";
+    defaultImageSourceHint.textContent = template.replace("{name}", defaultImageUploadName || "image");
+    return;
+  }
+  defaultImageSourceHint.textContent = _translations["defaultImageSourceUrl"]
+    ? _translations["defaultImageSourceUrl"].message
+    : "Current source: URL";
+}
+
+function syncDefaultImageControls() {
+  if (defaultImageUrlInput) {
+    defaultImageUrlInput.value = defaultImageSourceType === "url" ? defaultImageUrl : "";
+  }
+  updateDefaultImagePreview(defaultImageUrl);
+  updateDefaultImageSourceHint();
+}
+
+function resetDefaultImage() {
+  defaultImageUrl = "";
+  defaultImageSourceType = "url";
+  defaultImageUploadName = "";
+  if (defaultImageFileInput) {
+    defaultImageFileInput.value = "";
+  }
+  syncDefaultImageControls();
+}
+
+function readFileAsDataUrl(file) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onload = () => resolve(reader.result);
+    reader.onerror = () => reject(reader.error || new Error("Failed to read file"));
+    reader.readAsDataURL(file);
+  });
+}
+
 // ── Storage ──
 
 function loadTags() {
@@ -336,6 +392,8 @@ function loadTags() {
     globalMinusKeywords: "",
     randomImageEnabled: true,
     defaultImageUrl: "",
+    defaultImageSourceType: "url",
+    defaultImageUploadName: "",
     presetMinusKeywords: [],
   }, (items) => {
     migrateConfig(items);
@@ -356,9 +414,10 @@ function loadTags() {
     if (globalMinusInput) globalMinusInput.value = globalMinusKeywords;
     randomImageEnabled = items.randomImageEnabled !== false;
     defaultImageUrl = items.defaultImageUrl || "";
+    defaultImageSourceType = items.defaultImageSourceType || "url";
+    defaultImageUploadName = items.defaultImageUploadName || "";
     if (randomImageEnabledInput) randomImageEnabledInput.checked = randomImageEnabled;
-    if (defaultImageUrlInput) defaultImageUrlInput.value = defaultImageUrl;
-    updateDefaultImagePreview(defaultImageUrl);
+    syncDefaultImageControls();
 
     renderPresetSelect();
     renderAll();
@@ -377,7 +436,10 @@ function saveTags() {
     randomImageEnabled = !!randomImageEnabledInput.checked;
   }
   if (defaultImageUrlInput) {
-    defaultImageUrl = defaultImageUrlInput.value.trim();
+    if (defaultImageSourceType === "url") {
+      defaultImageUrl = defaultImageUrlInput.value.trim();
+      defaultImageUploadName = "";
+    }
   }
 
   // Derive legacy fields from active preset
@@ -394,6 +456,8 @@ function saveTags() {
     globalMinusKeywords: globalMinusKeywords,
     randomImageEnabled: randomImageEnabled,
     defaultImageUrl: defaultImageUrl,
+    defaultImageSourceType: defaultImageSourceType,
+    defaultImageUploadName: defaultImageUploadName,
     presetMinusKeywords: [],
   };
 
@@ -480,6 +544,8 @@ function importFromJsonFile(file) {
       globalMinusKeywords = data.globalMinusKeywords || "";
       randomImageEnabled = data.randomImageEnabled !== false;
       defaultImageUrl = (data.defaultImageUrl || "").trim();
+      defaultImageSourceType = data.defaultImageSourceType || "url";
+      defaultImageUploadName = data.defaultImageUploadName || "";
       if (Array.isArray(data.presetMinusKeywords) && data.presetMinusKeywords.length > 0) {
         const extra = data.presetMinusKeywords.map(s => (s || "").trim()).filter(Boolean).join(" ");
         if (extra) {
@@ -488,8 +554,7 @@ function importFromJsonFile(file) {
       }
       if (globalMinusInput) globalMinusInput.value = globalMinusKeywords;
       if (randomImageEnabledInput) randomImageEnabledInput.checked = randomImageEnabled;
-      if (defaultImageUrlInput) defaultImageUrlInput.value = defaultImageUrl;
-      updateDefaultImagePreview(defaultImageUrl);
+      syncDefaultImageControls();
 
       renderAll();
       showToast(
@@ -519,6 +584,8 @@ function exportToJsonFile() {
     globalMinusKeywords: globalMinusKeywords,
     randomImageEnabled: randomImageEnabled,
     defaultImageUrl: defaultImageUrl,
+    defaultImageSourceType: defaultImageSourceType,
+    defaultImageUploadName: defaultImageUploadName,
     presetMinusKeywords: [],
     ...treeToLegacy(queryTree),
   };
@@ -590,7 +657,7 @@ function loadTranslations(lang) {
           el.placeholder = data[key].message;
         }
       });
-      updateDefaultImagePreview(defaultImageUrl);
+      syncDefaultImageControls();
       renderAll();
     })
     .catch((error) => console.error("Error loading translations:", error));
@@ -702,8 +769,72 @@ if (randomImageEnabledInput) {
 
 if (defaultImageUrlInput) {
   defaultImageUrlInput.addEventListener("input", () => {
+    defaultImageSourceType = "url";
+    defaultImageUploadName = "";
     defaultImageUrl = defaultImageUrlInput.value.trim();
-    updateDefaultImagePreview(defaultImageUrl);
+    syncDefaultImageControls();
+  });
+}
+
+if (defaultImageUploadBtn && defaultImageFileInput) {
+  defaultImageUploadBtn.addEventListener("click", () => {
+    defaultImageFileInput.click();
+  });
+}
+
+if (defaultImageClearBtn) {
+  defaultImageClearBtn.addEventListener("click", () => {
+    resetDefaultImage();
+  });
+}
+
+if (defaultImageFileInput) {
+  defaultImageFileInput.addEventListener("change", async (e) => {
+    const file = e.target.files && e.target.files[0];
+    if (!file) return;
+    if (!file.type.startsWith("image/")) {
+      showToast(
+        _translations["defaultImageInvalidType"]
+          ? _translations["defaultImageInvalidType"].message
+          : "Please choose an image file",
+        "error"
+      );
+      e.target.value = "";
+      return;
+    }
+    if (file.size > MAX_DEFAULT_IMAGE_FILE_SIZE) {
+      showToast(
+        (_translations["defaultImageTooLarge"]
+          ? _translations["defaultImageTooLarge"].message
+          : "Image is too large. Please keep it under {size} MB."
+        ).replace("{size}", String(MAX_DEFAULT_IMAGE_FILE_SIZE / 1024 / 1024)),
+        "error"
+      );
+      e.target.value = "";
+      return;
+    }
+    try {
+      defaultImageUrl = await readFileAsDataUrl(file);
+      defaultImageSourceType = "upload";
+      defaultImageUploadName = file.name || "";
+      syncDefaultImageControls();
+      showToast(
+        _translations["defaultImageUploadSuccess"]
+          ? _translations["defaultImageUploadSuccess"].message
+          : "Default image loaded from local file",
+        "success"
+      );
+    } catch (err) {
+      console.error("Default image upload error:", err);
+      showToast(
+        _translations["defaultImageUploadError"]
+          ? _translations["defaultImageUploadError"].message
+          : "Failed to read local image",
+        "error"
+      );
+    } finally {
+      e.target.value = "";
+    }
   });
 }
 

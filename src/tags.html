@@ -313,6 +313,42 @@
             color: transparent;
         }
 
+        .default-image-actions {
+            display: flex;
+            gap: 8px;
+            margin-top: 10px;
+            flex-wrap: wrap;
+        }
+
+        .btn-inline {
+            padding: 6px 10px;
+            border-radius: 8px;
+            font-size: 12px;
+            font-weight: 600;
+            border: 1px solid rgba(255, 255, 255, 0.1);
+            background: #252540;
+            color: #ddd;
+            cursor: pointer;
+            transition: all 0.2s;
+        }
+
+        .btn-inline:hover {
+            background: #2f2f50;
+            border-color: rgba(108, 99, 255, 0.4);
+            color: #fff;
+        }
+
+        .btn-inline-danger:hover {
+            border-color: rgba(244, 67, 54, 0.4);
+            background: rgba(244, 67, 54, 0.16);
+        }
+
+        .settings-meta {
+            margin-top: 8px;
+            font-size: 11px;
+            color: #8f8faa;
+        }
+
         .blocklist-toggle {
             padding: 4px 10px;
             border-radius: 999px;
@@ -884,7 +920,13 @@
                     <input type="text" id="defaultImageUrl" data-i18n-placeholder="defaultImageUrlPlaceholder"
                         placeholder="https://example.com/background.jpg" />
                 </div>
+                <div class="default-image-actions">
+                    <button type="button" class="btn-inline" id="defaultImageUploadBtn">Upload Local Image</button>
+                    <button type="button" class="btn-inline btn-inline-danger" id="defaultImageClearBtn">Clear Default Image</button>
+                    <input type="file" id="defaultImageFileInput" accept="image/*" hidden />
+                </div>
                 <div class="blocklist-tip" id="defaultImageHelp">Shown on first paint, on request failure, and when random images are disabled.</div>
+                <div class="settings-meta" id="defaultImageSourceHint">Current source: URL</div>
                 <div class="default-image-preview" id="defaultImagePreview">No default image configured</div>
             </div>
 

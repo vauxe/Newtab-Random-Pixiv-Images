@@ -36,6 +36,7 @@ export const defaultConfig = {
   defaultImageUrl: "",
   defaultImageFit: "cover",
   defaultImageSourceType: "url",
+  defaultImageUploadName: "",
   order: Order.date_d, // sort order
   mode: Mode.safe, // search mode
   timeOption: TimeOption.unlimited,
@@ -220,6 +221,9 @@ export function migrateConfig(config) {
   }
   if (!config.defaultImageSourceType) {
     config.defaultImageSourceType = "url";
+  }
+  if (typeof config.defaultImageUploadName !== "string") {
+    config.defaultImageUploadName = "";
   }
   if (!Array.isArray(config.likedUserIds)) {
     config.likedUserIds = [];

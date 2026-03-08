@@ -86,6 +86,12 @@
   "defaultImageUrlLabel": {
     "message": "デフォルト画像 URL"
   },
+  "defaultImageUploadBtn": {
+    "message": "ローカル画像をアップロード"
+  },
+  "defaultImageClearBtn": {
+    "message": "デフォルト画像をクリア"
+  },
   "defaultImageUrlPlaceholder": {
     "message": "https://example.com/background.jpg"
   },
@@ -94,5 +100,26 @@
   },
   "defaultImagePreviewEmpty": {
     "message": "デフォルト画像は未設定です"
+  },
+  "defaultImageSourceNone": {
+    "message": "現在のソース: 未設定"
+  },
+  "defaultImageSourceUrl": {
+    "message": "現在のソース: URL"
+  },
+  "defaultImageSourceUpload": {
+    "message": "現在のソース: ローカルアップロード ({name})"
+  },
+  "defaultImageInvalidType": {
+    "message": "画像ファイルを選択してください"
+  },
+  "defaultImageTooLarge": {
+    "message": "画像サイズが大きすぎます。{size} MB 未満にしてください。"
+  },
+  "defaultImageUploadSuccess": {
+    "message": "ローカル画像をデフォルト背景として読み込みました"
+  },
+  "defaultImageUploadError": {
+    "message": "ローカル画像の読み込みに失敗しました"
   }
 }
