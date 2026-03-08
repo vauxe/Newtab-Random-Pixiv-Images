@@ -143,6 +143,15 @@
   "randomTagPoolImportLabel": {
     "message": "Import Text"
   },
+  "randomTagPoolMoveToGlobalBtn": {
+    "message": "Add to Global"
+  },
+  "randomTagPoolDeleteBtn": {
+    "message": "Delete"
+  },
+  "randomTagPoolCapsuleTitle": {
+    "message": "Click for actions, drag to reorder"
+  },
   "randomTagPoolInputPlaceholder": {
     "message": "tag-a\ntag-b\ntag-c"
   },

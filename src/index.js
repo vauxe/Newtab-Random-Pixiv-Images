@@ -9,6 +9,8 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   let currentImageVisible = false;
   let isRandomToggleBusy = false;
   let latestRefreshRequestId = 0;
+  let activeTagPopupHandler = null;
+  let activeTagPopupTrigger = null;
   const UI_STRINGS = {
     en: {
       randomLabel: "Random Pixiv",
@@ -24,6 +26,11 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       failedLoadImage: "Failed to load image",
       bookmarkFailed: "Bookmark failed",
       bookmarked: "Bookmarked!",
+      addRandomTagTitle: "Select tags to add to random pool",
+      addRandomTagFailed: "Failed to add tag to random pool",
+      addedRandomTag: "Added to random pool: {tag}",
+      randomTagExists: "Tag already exists in random pool: {tag}",
+      excludeTagTitle: "Select a tag to exclude",
       noTagsAvailable: "No tags available",
       excludeFailed: "Failed to exclude tag",
       excludedTag: "Excluded: -{tag}",
@@ -46,6 +53,11 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       failedLoadImage: "图片加载失败",
       bookmarkFailed: "收藏失败",
       bookmarked: "已收藏",
+      addRandomTagTitle: "选择要加入随机池的标签",
+      addRandomTagFailed: "加入随机池失败",
+      addedRandomTag: "已加入随机池：{tag}",
+      randomTagExists: "随机池中已存在：{tag}",
+      excludeTagTitle: "选择要排除的标签",
       noTagsAvailable: "当前图片没有可排除的标签",
       excludeFailed: "排除标签失败",
       excludedTag: "已排除：-{tag}",
@@ -68,6 +80,11 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       failedLoadImage: "画像の読み込みに失敗しました",
       bookmarkFailed: "ブックマークに失敗しました",
       bookmarked: "ブックマークしました",
+      addRandomTagTitle: "ランダムプールに追加する tag を選択",
+      addRandomTagFailed: "ランダムプールへの追加に失敗しました",
+      addedRandomTag: "ランダムプールに追加しました: {tag}",
+      randomTagExists: "ランダムプールに既に存在します: {tag}",
+      excludeTagTitle: "除外する tag を選択",
       noTagsAvailable: "除外できるタグがありません",
       excludeFailed: "タグの除外に失敗しました",
       excludedTag: "除外済み: -{tag}",
@@ -246,10 +263,10 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     // Close popup on clicking outside
     document.addEventListener("click", (e) => {
       const popup = document.getElementById("tagPopup");
-      const dislikeBtn = document.getElementById("dislikeButton");
+      const triggerElement = activeTagPopupTrigger;
       if (!popup.classList.contains("hidden") &&
         !popup.contains(e.target) &&
-        !dislikeBtn.contains(e.target)) {
+        !(triggerElement && triggerElement.contains(e.target))) {
         closeTagPopup();
       }
     });
@@ -258,7 +275,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   function updateActionButtons() {
     const likeBtn = document.getElementById("likeButton");
     const dislikeBtn = document.getElementById("dislikeButton");
-    likeBtn.classList.toggle("disabled", !currentIllustId);
+    likeBtn.classList.toggle("disabled", !currentTags || currentTags.length === 0);
     dislikeBtn.classList.toggle("disabled", !currentTags || currentTags.length === 0);
   }
 
@@ -455,21 +472,37 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     }
   }
 
-  // ── Like (bookmark) ──
+  // ── Like (add to random tag pool) ──
   function handleLike() {
-    if (!currentIllustId) return;
+    if (!currentTags || currentTags.length === 0) {
+      showToast(translate("noTagsAvailable"), "error");
+      return;
+    }
+    openTagPopup(currentTags, {
+      title: translate("addRandomTagTitle"),
+      mode: "random",
+      expanded: true,
+      triggerElement: document.getElementById("likeButton"),
+      onSelect: addTagToRandomPool,
+    });
+  }
+
+  function addTagToRandomPool(tag) {
+    closeTagPopup();
     chrome.runtime.sendMessage(
-      { action: "bookmarkIllust", illustId: currentIllustId },
+      { action: "addRandomTag", tag },
       (res) => {
         if (chrome.runtime.lastError) {
-          showToast(translate("bookmarkFailed"), "error");
+          showToast(translate("addRandomTagFailed"), "error");
           return;
         }
-        if (res && res.success) {
+        if (res && res.success && res.added !== false) {
           document.getElementById("likeButton").classList.add("liked");
-          showToast(translate("bookmarked"), "success");
+          showToast(translate("addedRandomTag", { tag }), "success");
+        } else if (res && res.success && res.exists) {
+          showToast(translate("randomTagExists", { tag }), "success");
         } else {
-          showToast(res?.error || translate("bookmarkFailed"), "error");
+          showToast(res?.error || translate("addRandomTagFailed"), "error");
         }
       }
     );
@@ -481,13 +514,25 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       showToast(translate("noTagsAvailable"), "error");
       return;
     }
-    openTagPopup(currentTags);
+    openTagPopup(currentTags, {
+      title: translate("excludeTagTitle"),
+      mode: "exclude",
+      triggerElement: document.getElementById("dislikeButton"),
+      onSelect: excludeTag,
+    });
   }
 
-  function openTagPopup(tags) {
+  function openTagPopup(tags, options = {}) {
     const popup = document.getElementById("tagPopup");
+    const popupHeader = popup.querySelector(".tag-popup-header");
     const tagList = document.getElementById("tagList");
+    popupHeader.textContent = options.title || translate("excludeTagTitle");
     tagList.innerHTML = "";
+    activeTagPopupHandler = typeof options.onSelect === "function" ? options.onSelect : null;
+    activeTagPopupTrigger = options.triggerElement || null;
+    popup.classList.toggle("expanded", !!options.expanded);
+    popup.classList.toggle("mode-random", options.mode === "random");
+    popup.classList.toggle("mode-exclude", options.mode !== "random");
 
     tags.forEach((t) => {
       const chip = document.createElement("div");
@@ -498,7 +543,9 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       }
       chip.innerHTML = html;
       chip.addEventListener("click", () => {
-        excludeTag(t.tag);
+        if (activeTagPopupHandler) {
+          activeTagPopupHandler(t.tag);
+        }
       });
       tagList.appendChild(chip);
     });
@@ -507,7 +554,11 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   }
 
   function closeTagPopup() {
-    document.getElementById("tagPopup").classList.add("hidden");
+    const popup = document.getElementById("tagPopup");
+    popup.classList.add("hidden");
+    popup.classList.remove("expanded", "mode-random", "mode-exclude");
+    activeTagPopupHandler = null;
+    activeTagPopupTrigger = null;
   }
 
   function excludeTag(tag) {

@@ -143,6 +143,15 @@
   "randomTagPoolImportLabel": {
     "message": "导入文本"
   },
+  "randomTagPoolMoveToGlobalBtn": {
+    "message": "加入全局"
+  },
+  "randomTagPoolDeleteBtn": {
+    "message": "删除"
+  },
+  "randomTagPoolCapsuleTitle": {
+    "message": "点击可操作，拖动可排序"
+  },
   "randomTagPoolInputPlaceholder": {
     "message": "tag-a\ntag-b\ntag-c"
   },

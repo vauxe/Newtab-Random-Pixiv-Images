@@ -50,8 +50,13 @@ const randomTagPoolContainer = document.getElementById("randomTagPoolContainer")
 const randomTagPoolEmptyState = document.getElementById("randomTagPoolEmptyState");
 const randomTagPoolAddBtn = document.getElementById("randomTagPoolAddBtn");
 const randomTagPoolImportBtn = document.getElementById("randomTagPoolImportBtn");
+const randomTagPoolMenu = document.getElementById("randomTagPoolMenu");
+const randomTagPoolMoveToGlobalBtn = document.getElementById("randomTagPoolMoveToGlobalBtn");
+const randomTagPoolDeleteBtn = document.getElementById("randomTagPoolDeleteBtn");
 
 let currentImportTarget = "queryTree";
+let activeRandomTagPoolIndex = null;
+let draggedRandomTagPoolIndex = null;
 
 // ── Tree Manipulation ──
 
@@ -129,22 +134,53 @@ function createConnector(group, childIndex) {
 function createPoolCapsule(tag, index) {
   const el = document.createElement("span");
   el.className = "capsule capsule-normal";
+  el.draggable = true;
+  el.dataset.index = String(index);
+  el.title = _translations["randomTagPoolCapsuleTitle"]
+    ? _translations["randomTagPoolCapsuleTitle"].message
+    : "Click for actions, drag to reorder";
 
   const textSpan = document.createElement("span");
   textSpan.className = "capsule-text";
   textSpan.textContent = tag;
 
-  const removeBtn = document.createElement("button");
-  removeBtn.className = "remove-btn";
-  removeBtn.textContent = "×";
-  removeBtn.addEventListener("click", (e) => {
-    e.stopPropagation();
-    randomTagPool.splice(index, 1);
-    renderRandomTagPool();
-  });
+  const dragHandle = document.createElement("span");
+  dragHandle.className = "capsule-text";
+  dragHandle.textContent = "↕";
+  dragHandle.style.opacity = "0.55";
 
   el.appendChild(textSpan);
-  el.appendChild(removeBtn);
+  el.appendChild(dragHandle);
+
+  el.addEventListener("click", (e) => {
+    e.stopPropagation();
+    openRandomTagPoolMenu(index, el);
+  });
+  el.addEventListener("dragstart", (e) => {
+    draggedRandomTagPoolIndex = index;
+    e.dataTransfer.effectAllowed = "move";
+    e.dataTransfer.setData("text/plain", String(index));
+    el.style.opacity = "0.5";
+  });
+  el.addEventListener("dragend", () => {
+    draggedRandomTagPoolIndex = null;
+    el.style.opacity = "";
+  });
+  el.addEventListener("dragover", (e) => {
+    e.preventDefault();
+    e.dataTransfer.dropEffect = "move";
+  });
+  el.addEventListener("drop", (e) => {
+    e.preventDefault();
+    if (draggedRandomTagPoolIndex === null || draggedRandomTagPoolIndex === index) {
+      return;
+    }
+    const [movedTag] = randomTagPool.splice(draggedRandomTagPoolIndex, 1);
+    randomTagPool.splice(index, 0, movedTag);
+    draggedRandomTagPoolIndex = null;
+    closeRandomTagPoolMenu();
+    renderRandomTagPool();
+  });
   return el;
 }
 
@@ -298,6 +334,7 @@ function renderRandomTagPool() {
   if (!randomTagPoolContainer || !randomTagPoolEmptyState) {
     return;
   }
+  closeRandomTagPoolMenu();
   randomTagPoolContainer.innerHTML = "";
   if (randomTagPool.length === 0) {
     randomTagPoolEmptyState.textContent = _translations["randomTagPoolEmptyState"]
@@ -311,6 +348,58 @@ function renderRandomTagPool() {
   randomTagPool.forEach((tag, index) => {
     randomTagPoolContainer.appendChild(createPoolCapsule(tag, index));
   });
+}
+
+function closeRandomTagPoolMenu() {
+  activeRandomTagPoolIndex = null;
+  if (randomTagPoolMenu) {
+    randomTagPoolMenu.classList.add("hidden");
+  }
+}
+
+function openRandomTagPoolMenu(index, targetElement) {
+  if (!randomTagPoolMenu || !targetElement) {
+    return;
+  }
+  activeRandomTagPoolIndex = index;
+  const rect = targetElement.getBoundingClientRect();
+  const menuWidth = 152;
+  const left = Math.min(window.innerWidth - menuWidth - 12, Math.max(12, rect.left));
+  const top = Math.min(window.innerHeight - 96, rect.bottom + 8);
+  randomTagPoolMenu.style.left = `${left}px`;
+  randomTagPoolMenu.style.top = `${top}px`;
+  randomTagPoolMenu.classList.remove("hidden");
+}
+
+function moveRandomTagPoolItemToGlobal() {
+  if (activeRandomTagPoolIndex === null) {
+    return;
+  }
+  const tag = randomTagPool[activeRandomTagPoolIndex];
+  if (!tag) {
+    closeRandomTagPoolMenu();
+    return;
+  }
+  const exists = queryTree.children.some((child) =>
+    child.type === "tag" &&
+    child.negated !== true &&
+    child.value === tag
+  );
+  if (!exists) {
+    queryTree.children.push({ type: "tag", value: tag, negated: false });
+  }
+  randomTagPool.splice(activeRandomTagPoolIndex, 1);
+  closeRandomTagPoolMenu();
+  renderAll();
+}
+
+function deleteRandomTagPoolItem() {
+  if (activeRandomTagPoolIndex === null) {
+    return;
+  }
+  randomTagPool.splice(activeRandomTagPoolIndex, 1);
+  closeRandomTagPoolMenu();
+  renderRandomTagPool();
 }
 
 // ── Preset Management ──
@@ -979,6 +1068,20 @@ if (randomTagPoolImportBtn) {
   });
 }
 
+if (randomTagPoolMoveToGlobalBtn) {
+  randomTagPoolMoveToGlobalBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    moveRandomTagPoolItemToGlobal();
+  });
+}
+
+if (randomTagPoolDeleteBtn) {
+  randomTagPoolDeleteBtn.addEventListener("click", (e) => {
+    e.stopPropagation();
+    deleteRandomTagPoolItem();
+  });
+}
+
 // Preset controls
 presetSelect.addEventListener("change", (e) => {
   switchPreset(parseInt(e.target.value, 10));
@@ -1047,6 +1150,14 @@ document.getElementById("exportBtn").addEventListener("click", exportToJsonFile)
 
 document.getElementById("importModal").addEventListener("click", (e) => {
   if (e.target === e.currentTarget) closeImportModal();
+});
+
+document.addEventListener("click", (e) => {
+  if (randomTagPoolMenu && !randomTagPoolMenu.classList.contains("hidden")) {
+    if (!randomTagPoolMenu.contains(e.target) && !(e.target.closest && e.target.closest("#randomTagPoolContainer"))) {
+      closeRandomTagPoolMenu();
+    }
+  }
 });
 
 if (blocklistToggle && blocklistCard) {

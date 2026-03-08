@@ -143,6 +143,15 @@
   "randomTagPoolImportLabel": {
     "message": "テキスト取込"
   },
+  "randomTagPoolMoveToGlobalBtn": {
+    "message": "グローバルに追加"
+  },
+  "randomTagPoolDeleteBtn": {
+    "message": "削除"
+  },
+  "randomTagPoolCapsuleTitle": {
+    "message": "クリックで操作、ドラッグで並び替え"
+  },
   "randomTagPoolInputPlaceholder": {
     "message": "tag-a\ntag-b\ntag-c"
   },

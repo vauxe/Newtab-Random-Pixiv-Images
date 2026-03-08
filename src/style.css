@@ -343,6 +343,10 @@ body {
   animation: popupIn 0.2s ease;
 }
 
+.tag-popup.expanded {
+  max-height: calc(100vh - 140px);
+}
+
 .tag-popup.hidden {
   display: none;
 }
@@ -397,6 +401,12 @@ body {
   background: rgba(244, 67, 54, 0.2);
   border-color: rgba(244, 67, 54, 0.5);
   color: #ef9a9a;
+}
+
+.tag-popup.mode-random .tag-chip:hover {
+  background: rgba(76, 175, 80, 0.18);
+  border-color: rgba(76, 175, 80, 0.45);
+  color: #b8f5be;
 }
 
 .tag-chip .tag-translation {

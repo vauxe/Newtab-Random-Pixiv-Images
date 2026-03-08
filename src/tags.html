@@ -839,6 +839,48 @@
             box-shadow: 0 4px 12px rgba(108, 99, 255, 0.4);
         }
 
+        .pool-action-menu {
+            position: fixed;
+            z-index: 1200;
+            display: flex;
+            flex-direction: column;
+            gap: 6px;
+            min-width: 132px;
+            padding: 8px;
+            border-radius: 10px;
+            background: rgba(18, 20, 30, 0.96);
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            box-shadow: 0 10px 28px rgba(0, 0, 0, 0.32);
+            backdrop-filter: blur(10px);
+        }
+
+        .pool-action-menu.hidden {
+            display: none;
+        }
+
+        .pool-action-btn {
+            background: rgba(255, 255, 255, 0.04);
+            color: #e4e4ef;
+            border: 1px solid rgba(255, 255, 255, 0.08);
+            border-radius: 8px;
+            padding: 8px 10px;
+            font-size: 12px;
+            text-align: left;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .pool-action-btn:hover {
+            background: rgba(108, 99, 255, 0.16);
+            border-color: rgba(108, 99, 255, 0.32);
+            color: #fff;
+        }
+
+        .pool-action-btn-danger:hover {
+            background: rgba(244, 67, 54, 0.18);
+            border-color: rgba(244, 67, 54, 0.35);
+        }
+
         /* Empty state */
         .empty-state {
             color: #555;
@@ -1061,6 +1103,10 @@
 
     <!-- Toast -->
     <div class="toast" id="toast"></div>
+    <div class="pool-action-menu hidden" id="randomTagPoolMenu">
+        <button class="pool-action-btn" id="randomTagPoolMoveToGlobalBtn">加入全局</button>
+        <button class="pool-action-btn pool-action-btn-danger" id="randomTagPoolDeleteBtn">删除</button>
+    </div>
 
     <script type="module" src="tags.js"></script>
 </body>
