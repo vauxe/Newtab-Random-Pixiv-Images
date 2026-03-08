@@ -225,6 +225,43 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     });
   }
 
+  async function refreshRuntimeDefaultImageConfig(changes) {
+    if (!runtimeConfig) {
+      return;
+    }
+
+    if (changes.defaultImageUrl) {
+      runtimeConfig.defaultImageUrl = typeof changes.defaultImageUrl.newValue === "string"
+        ? changes.defaultImageUrl.newValue
+        : "";
+    }
+    if (changes.defaultImageSourceType) {
+      runtimeConfig.defaultImageSourceType = changes.defaultImageSourceType.newValue || "url";
+    }
+    if (changes.defaultImageUploadName) {
+      runtimeConfig.defaultImageUploadName = typeof changes.defaultImageUploadName.newValue === "string"
+        ? changes.defaultImageUploadName.newValue
+        : "";
+    }
+
+    runtimeConfig.resolvedDefaultImageUrl = await resolveDefaultImageUrl(runtimeConfig, {
+      onLegacyMigrated: (patch) => new Promise((patchResolve) => {
+        chrome.storage.local.set(patch, patchResolve);
+      }),
+    });
+
+    if (runtimeConfig.defaultImageSourceType === "upload") {
+      runtimeConfig.defaultImageUrl = "";
+    }
+
+    if (runtimeConfig.randomImageEnabled === false) {
+      const hasDefaultImage = await showConfiguredDefaultImage();
+      if (!hasDefaultImage) {
+        showToast("Random images are disabled and no default image is configured.", "error");
+      }
+    }
+  }
+
   async function showConfiguredDefaultImage(options = {}) {
     const defaultDisplay = createDefaultDisplayObject(runtimeConfig, options);
     if (!defaultDisplay) {
@@ -492,10 +529,17 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   }
 
   chrome.storage.onChanged.addListener((changes, areaName) => {
-    if (areaName !== "local" || !changes.randomImageEnabled) {
+    if (areaName !== "local") {
       return;
     }
-    handleStoredRandomImageEnabledChange(changes.randomImageEnabled.newValue !== false);
+    if (changes.randomImageEnabled) {
+      handleStoredRandomImageEnabledChange(changes.randomImageEnabled.newValue !== false);
+    }
+    if (changes.defaultImageUrl || changes.defaultImageSourceType || changes.defaultImageUploadName) {
+      refreshRuntimeDefaultImageConfig(changes).catch((error) => {
+        console.error("Failed to refresh default image config:", error);
+      });
+    }
   });
 
   bootstrap();
