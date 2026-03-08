@@ -64,6 +64,7 @@ export const defaultConfig = {
   randomTagPoolEnabled: false,
   randomTagPool: [],
   randomTagPoolCounts: {},
+  randomTagPoolNextPriorityTag: "",
   randomTagPoolPriorityTags: [],
   randomTagPoolPickCount: 2,
   randomSeedStrategy: "page_pool",
@@ -229,7 +230,9 @@ export function sampleRandomTagPool(config) {
   if (!config || config.randomTagPoolEnabled !== true) {
     return {
       tags: [],
+      consumedNextPriorityTag: "",
       consumedPriorityTag: "",
+      remainingNextPriorityTag: "",
       remainingPriorityTags: [],
     };
   }
@@ -237,7 +240,9 @@ export function sampleRandomTagPool(config) {
   if (pool.length === 0) {
     return {
       tags: [],
+      consumedNextPriorityTag: "",
       consumedPriorityTag: "",
+      remainingNextPriorityTag: "",
       remainingPriorityTags: [],
     };
   }
@@ -250,10 +255,17 @@ export function sampleRandomTagPool(config) {
   const priorityTags = Array.isArray(config.randomTagPoolPriorityTags)
     ? config.randomTagPoolPriorityTags.map((tag) => String(tag || "").trim()).filter((tag) => pool.includes(tag))
     : [];
+  const nextPriorityTag = typeof config.randomTagPoolNextPriorityTag === "string" && pool.includes(config.randomTagPoolNextPriorityTag.trim())
+    ? config.randomTagPoolNextPriorityTag.trim()
+    : "";
+  let consumedNextPriorityTag = "";
   let consumedPriorityTag = "";
   const pickedTags = [];
 
-  if (priorityTags.length > 0) {
+  if (nextPriorityTag) {
+    consumedNextPriorityTag = nextPriorityTag;
+    pickedTags.push(nextPriorityTag);
+  } else if (priorityTags.length > 0) {
     const priorityIndex = Math.floor(Math.random() * priorityTags.length);
     consumedPriorityTag = priorityTags[priorityIndex];
     pickedTags.push(consumedPriorityTag);
@@ -266,7 +278,9 @@ export function sampleRandomTagPool(config) {
 
   return {
     tags: pickedTags,
+    consumedNextPriorityTag,
     consumedPriorityTag,
+    remainingNextPriorityTag: "",
     remainingPriorityTags: consumedPriorityTag
       ? priorityTags.filter((tag) => tag !== consumedPriorityTag)
       : priorityTags,
@@ -325,6 +339,15 @@ export function migrateConfig(config) {
       }
     }
     config.randomTagPoolCounts = normalizedCounts;
+  }
+  if (typeof config.randomTagPoolNextPriorityTag !== "string") {
+    config.randomTagPoolNextPriorityTag = "";
+  } else {
+    const normalizedNextPriorityTag = config.randomTagPoolNextPriorityTag.trim();
+    const knownTags = new Set(config.randomTagPool.map((tag) => String(tag || "").trim()).filter(Boolean));
+    config.randomTagPoolNextPriorityTag = knownTags.has(normalizedNextPriorityTag)
+      ? normalizedNextPriorityTag
+      : "";
   }
   if (!Array.isArray(config.randomTagPoolPriorityTags)) {
     config.randomTagPoolPriorityTags = [];

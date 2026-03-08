@@ -374,8 +374,10 @@ class SearchSource {
     const sampledTags = sampling.tags;
     const attempts = [];
 
+    this.searchParam.randomTagPoolNextPriorityTag = sampling.remainingNextPriorityTag;
     this.searchParam.randomTagPoolPriorityTags = sampling.remainingPriorityTags;
     chrome.storage.local.set({
+      randomTagPoolNextPriorityTag: sampling.remainingNextPriorityTag,
       randomTagPoolPriorityTags: sampling.remainingPriorityTags,
     });
 
@@ -897,6 +899,36 @@ chrome.runtime.onMessage.addListener(function (
           sendResponse({ success: true, added: true, count: counts[tag], prioritized: nextCount >= 2 });
         } catch (e) {
           console.error("Add random tag error:", e);
+          sendResponse({ success: false, error: e.message });
+        }
+      } else if (message.action === "queueNextPriorityRandomTag") {
+        try {
+          let config = await getStoredConfig();
+          let tag = String(message.tag || "").trim();
+          if (!tag) {
+            sendResponse({ success: false, error: "Invalid tag" });
+            return;
+          }
+          const pool = Array.isArray(config.randomTagPool)
+            ? config.randomTagPool.map((item) => String(item || "").trim()).filter(Boolean)
+            : [];
+          if (!pool.includes(tag)) {
+            pool.push(tag);
+          }
+          config.randomTagPool = pool;
+          config.randomTagPoolNextPriorityTag = tag;
+          config.randomTagPoolEnabled = true;
+
+          await chrome.storage.local.set({
+            randomTagPool: config.randomTagPool,
+            randomTagPoolNextPriorityTag: config.randomTagPoolNextPriorityTag,
+            randomTagPoolEnabled: config.randomTagPoolEnabled,
+          });
+
+          searchSource.updateConfig(config);
+          sendResponse({ success: true, queued: true, tag });
+        } catch (e) {
+          console.error("Queue next priority random tag error:", e);
           sendResponse({ success: false, error: e.message });
         }
       } else {

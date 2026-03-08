@@ -431,6 +431,13 @@ body {
   color: #d4ffd8;
 }
 
+.tag-popup.mode-random .tag-chip.queued-next {
+  background: rgba(255, 193, 7, 0.12);
+  border-color: rgba(255, 193, 7, 0.78);
+  box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.14);
+  color: #ffe7a3;
+}
+
 .tag-popup.mode-exclude .tag-chip.selected-dislike {
   background: rgba(148, 148, 160, 0.12);
   border-color: rgba(148, 148, 160, 0.28);
@@ -438,6 +445,7 @@ body {
 }
 
 .tag-popup .tag-chip.selected-like:hover,
+.tag-popup .tag-chip.queued-next:hover,
 .tag-popup .tag-chip.selected-dislike:hover {
   transform: none;
 }

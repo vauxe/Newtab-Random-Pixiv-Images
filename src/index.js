@@ -15,6 +15,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   let activeTagPopupLikeCounts = {};
   let currentLikedTagForImage = "";
   let currentLikedTagCount = 0;
+  let currentQueuedPriorityTagForImage = "";
   let activeTagPopupMode = "exclude";
   let shouldRefreshOnTagPopupClose = false;
   const UI_STRINGS = {
@@ -35,7 +36,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       addRandomTagTitle: "Select tags to add to random pool",
       addRandomTagFailed: "Failed to add tag to random pool",
       addedRandomTag: "Added to random pool: {tag}",
-      oneLikedTagPerImage: "Only one liked tag can be added before the next refresh",
+      queuedNextRandomTag: "Next refresh will prioritize: {tag}",
       randomTagExists: "Tag already exists in random pool: {tag}",
       excludeTagTitle: "Select a tag to exclude",
       noTagsAvailable: "No tags available",
@@ -63,7 +64,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       addRandomTagTitle: "选择要加入随机池的标签",
       addRandomTagFailed: "加入随机池失败",
       addedRandomTag: "已加入随机池：{tag}",
-      oneLikedTagPerImage: "下一次刷新前，每张图只能成功添加一个喜欢标签",
+      queuedNextRandomTag: "下次刷新将优先使用：{tag}",
       randomTagExists: "随机池中已存在：{tag}",
       excludeTagTitle: "选择要排除的标签",
       noTagsAvailable: "当前图片没有可排除的标签",
@@ -91,7 +92,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       addRandomTagTitle: "ランダムプールに追加する tag を選択",
       addRandomTagFailed: "ランダムプールへの追加に失敗しました",
       addedRandomTag: "ランダムプールに追加しました: {tag}",
-      oneLikedTagPerImage: "次回更新まで、1枚の画像につき好きな tag を1つだけ追加できます",
+      queuedNextRandomTag: "次回更新では優先して使用します: {tag}",
       randomTagExists: "ランダムプールに既に存在します: {tag}",
       excludeTagTitle: "除外する tag を選択",
       noTagsAvailable: "除外できるタグがありません",
@@ -450,6 +451,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     currentImageVisible = !!illustObject.imageObjectUrl;
     currentLikedTagForImage = "";
     currentLikedTagCount = 0;
+    currentQueuedPriorityTagForImage = "";
     console.log("Illust tags:", currentTags.map(t => t.tag));
 
     // Reset like state
@@ -501,7 +503,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       return;
     }
     if (currentLikedTagForImage) {
-      showToast(translate("oneLikedTagPerImage"), "error");
+      queueNextPriorityRandomTag(tag);
       return;
     }
     activeTagPopupPendingTags.add(tag);
@@ -528,6 +530,32 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
           currentLikedTagCount = Number.isInteger(res.count) ? res.count : 1;
           updateTagChipLikeCount(tag, currentLikedTagCount);
           showToast(translate("randomTagExists", { tag }), "success");
+        } else {
+          showToast(res?.error || translate("addRandomTagFailed"), "error");
+        }
+      }
+    );
+  }
+
+  function queueNextPriorityRandomTag(tag) {
+    if (activeTagPopupPendingTags.has(tag)) {
+      return;
+    }
+    activeTagPopupPendingTags.add(tag);
+    setTagChipPending(tag, true);
+    chrome.runtime.sendMessage(
+      { action: "queueNextPriorityRandomTag", tag },
+      (res) => {
+        activeTagPopupPendingTags.delete(tag);
+        setTagChipPending(tag, false);
+        if (chrome.runtime.lastError) {
+          showToast(translate("addRandomTagFailed"), "error");
+          return;
+        }
+        if (res && res.success) {
+          currentQueuedPriorityTagForImage = tag;
+          markTagChipState(tag, "queued-next");
+          showToast(translate("queuedNextRandomTag", { tag }), "success");
         } else {
           showToast(res?.error || translate("addRandomTagFailed"), "error");
         }
@@ -583,6 +611,8 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       if (activeTagPopupMode === "random" && currentLikedTagForImage && currentLikedTagForImage === t.tag) {
         markTagChipState(t.tag, "selected-like");
         updateTagChipLikeCount(t.tag, currentLikedTagCount);
+      } else if (activeTagPopupMode === "random" && currentQueuedPriorityTagForImage && currentQueuedPriorityTagForImage === t.tag) {
+        markTagChipState(t.tag, "queued-next");
       }
     });
 
@@ -645,6 +675,9 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     if (chip.classList.contains("selected-like")) {
       return "selected-like";
     }
+    if (chip.classList.contains("queued-next")) {
+      return "queued-next";
+    }
     if (chip.classList.contains("selected-dislike")) {
       return "selected-dislike";
     }
@@ -656,7 +689,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     if (!chip) {
       return;
     }
-    chip.classList.remove("selected-like", "selected-dislike");
+    chip.classList.remove("selected-like", "queued-next", "selected-dislike");
     if (state) {
       chip.classList.add(state);
     }
