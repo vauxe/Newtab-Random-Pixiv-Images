@@ -12,6 +12,8 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   let activeTagPopupHandler = null;
   let activeTagPopupTrigger = null;
   let activeTagPopupPendingTags = new Set();
+  let activeTagPopupMode = "exclude";
+  let shouldRefreshOnTagPopupClose = false;
   const UI_STRINGS = {
     en: {
       randomLabel: "Random Pixiv",
@@ -447,7 +449,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     likeBtn.classList.remove("liked");
 
     // Close tag popup if open
-    closeTagPopup();
+    closeTagPopup({ triggerRefresh: false });
 
     for (let k in binding.ref) {
       if (illustObject.hasOwnProperty(k)) {
@@ -534,6 +536,8 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     const popupHeader = popup.querySelector(".tag-popup-header");
     const tagList = document.getElementById("tagList");
     activeTagPopupPendingTags = new Set();
+    activeTagPopupMode = options.mode === "random" ? "random" : "exclude";
+    shouldRefreshOnTagPopupClose = false;
     popupHeader.textContent = options.title || translate("excludeTagTitle");
     tagList.innerHTML = "";
     activeTagPopupHandler = typeof options.onSelect === "function" ? options.onSelect : null;
@@ -562,13 +566,21 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     popup.classList.remove("hidden");
   }
 
-  function closeTagPopup() {
+  function closeTagPopup(options = {}) {
     const popup = document.getElementById("tagPopup");
+    const shouldTriggerRefresh = options.triggerRefresh !== false
+      && activeTagPopupMode === "exclude"
+      && shouldRefreshOnTagPopupClose;
     popup.classList.add("hidden");
     popup.classList.remove("expanded", "mode-random", "mode-exclude");
     activeTagPopupHandler = null;
     activeTagPopupTrigger = null;
     activeTagPopupPendingTags = new Set();
+    activeTagPopupMode = "exclude";
+    shouldRefreshOnTagPopupClose = false;
+    if (shouldTriggerRefresh) {
+      sendRefreshMessage();
+    }
   }
 
   function excludeTag(tag) {
@@ -588,12 +600,8 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
         }
         if (res && res.success) {
           markTagChipState(tag, "selected-dislike");
+          shouldRefreshOnTagPopupClose = true;
           showToast(translate("excludedTag", { tag }), "success");
-          setTimeout(() => {
-            if (!document.getElementById("tagPopup").classList.contains("hidden")) {
-              sendRefreshMessage();
-            }
-          }, 140);
         } else {
           showToast(res?.error || translate("excludeFailed"), "error");
         }
