@@ -166,9 +166,11 @@ async function fetchImage(url, label = "image") {
     debugLog("fetchImage:skip-empty", label);
     return null;
   }
-  const xhrBlob = await fetchImageViaXhr(url, label);
-  if (xhrBlob) {
-    return xhrBlob;
+  if (typeof XMLHttpRequest !== "undefined") {
+    const xhrBlob = await fetchImageViaXhr(url, label);
+    if (xhrBlob) {
+      return xhrBlob;
+    }
   }
   const attempts = [
     {
@@ -208,6 +210,10 @@ async function fetchImage(url, label = "image") {
 }
 
 function fetchImageViaXhr(url, label = "image", timeoutMs = 10000) {
+  if (typeof XMLHttpRequest === "undefined") {
+    debugLog("fetchImage:xhr-unavailable", { label, url });
+    return Promise.resolve(null);
+  }
   return new Promise((resolve) => {
     let settled = false;
     const xhr = new XMLHttpRequest();
