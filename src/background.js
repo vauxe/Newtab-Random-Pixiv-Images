@@ -1,6 +1,7 @@
-import { defaultConfig, getKeywords } from "./config.js";
+import { defaultConfig, buildQuery, sampleRandomTagPool, migrateConfig } from "./config.js";
+import { resolveDefaultImageUrl } from "./default-image-store.js";
 
-chrome.runtime.onInstalled.addListener((details) => {
+function ensurePixivHeaderRules() {
   const RULE = [
     {
       "id": 1,
@@ -25,7 +26,7 @@ chrome.runtime.onInstalled.addListener((details) => {
     },
     {
       "id": 2,
-      "priority": 1,
+      "priority": 2,
       "action": {
         "type": "modifyHeaders",
         "requestHeaders": [
@@ -34,13 +35,20 @@ chrome.runtime.onInstalled.addListener((details) => {
             "operation": "set",
             "value": "https://www.pixiv.net/"
           }
+        ],
+        "responseHeaders": [
+          {
+            "header": "Access-Control-Allow-Origin",
+            "operation": "set",
+            "value": "*"
+          }
         ]
       },
       "condition": {
-        initiatorDomains: [chrome.runtime.id],
-        "urlFilter": "pximg.net",
+        "requestDomains": ["i.pximg.net", "s.pximg.net"],
         "resourceTypes": [
           "xmlhttprequest",
+          "image",
         ]
       }
     }
@@ -48,13 +56,58 @@ chrome.runtime.onInstalled.addListener((details) => {
   chrome.declarativeNetRequest.updateDynamicRules({
     removeRuleIds: RULE.map(o => o.id),
     addRules: RULE,
+  }, () => {
+    if (chrome.runtime.lastError) {
+      console.error("Failed to update Pixiv header rules:", chrome.runtime.lastError);
+      return;
+    }
+    debugLog("ensurePixivHeaderRules:applied", RULE.map((rule) => ({
+      id: rule.id,
+      requestDomains: rule.condition.requestDomains || null,
+      resourceTypes: rule.condition.resourceTypes,
+    })));
   });
+}
+
+chrome.runtime.onInstalled.addListener(() => {
+  ensurePixivHeaderRules();
 });
+
+chrome.runtime.onStartup.addListener(() => {
+  ensurePixivHeaderRules();
+});
+
+ensurePixivHeaderRules();
+
+function debugLog(...args) {
+  console.log("[bg]", ...args);
+}
+
+async function fetchWithTimeout(url, init = {}, timeoutMs = 12000) {
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, {
+      ...init,
+      signal: controller.signal,
+    });
+  } finally {
+    clearTimeout(timeoutId);
+  }
+}
 
 function getRandomInt(min, max) {
   min = Math.ceil(min);
   max = Math.floor(max);
   return Math.floor(Math.random() * (max - min) + min);
+}
+
+function shuffleArray(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = getRandomInt(0, i + 1);
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
 }
 class Queue {
   constructor(maxsize) {
@@ -89,32 +142,139 @@ class Queue {
 
 async function fetchPixivJson(url) {
   try {
-    let res = await fetch(url);
+    debugLog("fetchPixivJson:start", url);
+    let res = await fetchWithTimeout(url, {}, 12000);
     if (!res.ok) {
       console.error(`Fetch pixiv json failed: ${res.status} ${res.statusText}`);
-      return null;
+      return { __error: true, message: `HTTP ${res.status} ${res.statusText}` };
     }
     let res_json = await res.json();
     if (res_json.error) {
       console.error(`Pixiv API error: ${res_json.message}`);
-      return null;
+      return { __error: true, message: res_json.message || "Pixiv API error" };
     }
+    debugLog("fetchPixivJson:ok", url);
     return res_json;
   } catch (e) {
     console.error(`Fetch pixiv json error:`, e);
-    return null;
+    return { __error: true, message: e && e.message ? e.message : "Network error" };
   }
 }
 
-async function fetchImage(url) {
-  try {
-    let res = await fetch(url);
-    if (!res.ok) return null;
-    return await res.blob();
-  } catch (e) {
-    console.error(`Fetch image error:`, e);
+async function fetchImage(url, label = "image") {
+  if (!url) {
+    debugLog("fetchImage:skip-empty", label);
     return null;
   }
+  if (typeof XMLHttpRequest !== "undefined") {
+    const xhrBlob = await fetchImageViaXhr(url, label);
+    if (xhrBlob) {
+      return xhrBlob;
+    }
+  }
+  const attempts = [
+    {
+      name: "pixiv-referrer",
+      init: {
+        referrer: "https://www.pixiv.net/",
+        referrerPolicy: "strict-origin-when-cross-origin",
+        credentials: "omit",
+        cache: "no-store",
+      }
+    },
+    {
+      name: "plain-fetch",
+      init: {
+        credentials: "omit",
+        cache: "no-store",
+      }
+    }
+  ];
+
+  for (const attempt of attempts) {
+    try {
+      debugLog("fetchImage:start", { label, attempt: attempt.name, url });
+      const res = await fetchWithTimeout(url, attempt.init, 10000);
+      if (!res.ok) {
+        console.warn(`Fetch ${label} failed with status`, attempt.name, res.status, url);
+        continue;
+      }
+      debugLog("fetchImage:ok", { label, attempt: attempt.name, url });
+      return await res.blob();
+    } catch (e) {
+      console.error(`Fetch ${label} error [${attempt.name}] ${url}:`, e);
+    }
+  }
+  debugLog("fetchImage:all-failed", { label, url });
+  return null;
+}
+
+function fetchImageViaXhr(url, label = "image", timeoutMs = 10000) {
+  if (typeof XMLHttpRequest === "undefined") {
+    debugLog("fetchImage:xhr-unavailable", { label, url });
+    return Promise.resolve(null);
+  }
+  return new Promise((resolve) => {
+    let settled = false;
+    const xhr = new XMLHttpRequest();
+    xhr.open("GET", url, true);
+    xhr.responseType = "blob";
+    xhr.timeout = timeoutMs;
+    xhr.onload = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      if (xhr.status >= 200 && xhr.status < 300 && xhr.response) {
+        debugLog("fetchImage:xhr-ok", { label, url, status: xhr.status });
+        resolve(xhr.response);
+        return;
+      }
+      console.warn(`Fetch ${label} xhr failed with status`, xhr.status, url);
+      resolve(null);
+    };
+    xhr.onerror = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      console.error(`Fetch ${label} xhr error ${url}`);
+      resolve(null);
+    };
+    xhr.ontimeout = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      console.error(`Fetch ${label} xhr timeout ${url}`);
+      resolve(null);
+    };
+    xhr.onabort = () => {
+      if (settled) {
+        return;
+      }
+      settled = true;
+      console.error(`Fetch ${label} xhr abort ${url}`);
+      resolve(null);
+    };
+    debugLog("fetchImage:xhr-start", { label, url });
+    xhr.send();
+  });
+}
+
+async function fetchFirstAvailableImage(urls, label = "image") {
+  const candidates = Array.from(new Set(
+    (Array.isArray(urls) ? urls : [])
+      .map((url) => String(url || "").trim())
+      .filter(Boolean)
+  ));
+  for (const url of candidates) {
+    const blob = await fetchImage(url, label);
+    if (blob) {
+      return { blob, url };
+    }
+  }
+  return { blob: null, url: null };
 }
 
 let baseUrl = "https://www.pixiv.net";
@@ -127,13 +287,39 @@ class SearchSource {
     this.params = ["order", "mode", "p", "s_mode", "type", "scd", "ecd", "blt", "bgt"];
     this.totalPage = 0;
     this.itemsPerPage = 60;
-    this.illustInfoPages = {};
+    this.pageCache = new Map();
+    this.pageCacheLimit = 8;
+    this.candidateQueue = [];
+    this.candidateQueueTargetSize = 24;
+    this.enqueuedIds = new Set();
+    this.seenMap = new Map();
+    this.activeQueryWord = buildQuery(config);
+    this.lastErrorMessage = null;
+    this.lastResolvedRandomTags = [];
+    this.lastResolvedRandomTagsAt = 0;
   }
 
   updateConfig(config) {
     this.searchParam = config;
     this.totalPage = 0;
-    this.illustInfoPages = {};
+    this.pageCache.clear();
+    this.candidateQueue = [];
+    this.enqueuedIds.clear();
+    this.seenMap.clear();
+    this.activeQueryWord = buildQuery(config);
+    this.lastErrorMessage = null;
+    this.lastResolvedRandomTags = [];
+    this.lastResolvedRandomTagsAt = 0;
+    chrome.storage.local.set({
+      randomTagPoolLastResolvedTags: [],
+      randomTagPoolLastResolvedAt: 0,
+    });
+    debugLog("searchSource:updateConfig", {
+      mode: config.mode,
+      randomImageEnabled: config.randomImageEnabled,
+      query: this.activeQueryWord,
+      dislikedUsers: Array.isArray(config.dislikedUserIds) ? config.dislikedUserIds.length : 0,
+    });
   }
 
   replaceSpecialCharacter = (function () {
@@ -154,103 +340,414 @@ class SearchSource {
     return fn;
   })();
 
-  generateSearchUrl(p = 1) {
+  generateSearchUrl(p = 1, queryWord = this.activeQueryWord) {
     let sp = this.searchParam;
-    sp.p = p;
-    let word = getKeywords(sp.andKeywords, sp.orKeywords, sp.minusKeywords);
+    let runtimeParam = { ...sp, p };
+    let word = (queryWord || buildQuery(sp)).trim();
     let firstPart = encodeURIComponent(word);
     let secondPartArray = [];
     secondPartArray.push("?word=" + this.replaceSpecialCharacter(word));
     for (let o of this.params) {
-      if (sp.hasOwnProperty(o) && sp[o]) {
-        secondPartArray.push(`${o}=${sp[o]}`);
+      if (runtimeParam.hasOwnProperty(o) && runtimeParam[o]) {
+        secondPartArray.push(`${o}=${runtimeParam[o]}`);
       }
     }
     let secondPart = secondPartArray.join("&");
     return firstPart + secondPart;
   }
 
-  async searchIllustPage(p) {
-    let paramUrl = this.generateSearchUrl(p);
+  async searchIllustPage(p, queryWord = this.activeQueryWord) {
+    let paramUrl = this.generateSearchUrl(p, queryWord);
+    debugLog("searchIllustPage", { page: p, queryWord, url: baseUrl + searchUrl + paramUrl });
     let jsonResult = await fetchPixivJson(baseUrl + searchUrl + paramUrl);
+    if (jsonResult && jsonResult.__error) {
+      this.lastErrorMessage = jsonResult.message;
+      return null;
+    }
     return jsonResult;
   }
 
+  getSeenHistoryLimit() {
+    return Number.isInteger(this.searchParam.seenHistoryLimit) && this.searchParam.seenHistoryLimit > 0
+      ? this.searchParam.seenHistoryLimit
+      : 300;
+  }
+
+  getSeenHistoryTtlMs() {
+    return Number.isInteger(this.searchParam.seenHistoryTtlMs) && this.searchParam.seenHistoryTtlMs > 0
+      ? this.searchParam.seenHistoryTtlMs
+      : 21600000;
+  }
+
+  pruneSeenHistory() {
+    const now = Date.now();
+    const ttl = this.getSeenHistoryTtlMs();
+    for (const [illustId, timestamp] of this.seenMap.entries()) {
+      if (now - timestamp > ttl) {
+        this.seenMap.delete(illustId);
+      }
+    }
+    const limit = this.getSeenHistoryLimit();
+    if (this.seenMap.size <= limit) {
+      return;
+    }
+    const overflow = this.seenMap.size - limit;
+    let trimmed = 0;
+    for (const illustId of this.seenMap.keys()) {
+      this.seenMap.delete(illustId);
+      trimmed += 1;
+      if (trimmed >= overflow) {
+        break;
+      }
+    }
+  }
+
+  hasSeenRecently(illustId) {
+    this.pruneSeenHistory();
+    const seenAt = this.seenMap.get(illustId);
+    if (!seenAt) {
+      return false;
+    }
+    if (Date.now() - seenAt > this.getSeenHistoryTtlMs()) {
+      this.seenMap.delete(illustId);
+      return false;
+    }
+    return true;
+  }
+
+  markSeen(illustId) {
+    this.pruneSeenHistory();
+    this.seenMap.set(illustId, Date.now());
+  }
+
+  cachePage(cacheKey, pageObj) {
+    if (!pageObj) {
+      return;
+    }
+    if (this.pageCache.has(cacheKey)) {
+      this.pageCache.delete(cacheKey);
+    }
+    this.pageCache.set(cacheKey, pageObj);
+    while (this.pageCache.size > this.pageCacheLimit) {
+      const oldestCacheKey = this.pageCache.keys().next().value;
+      this.pageCache.delete(oldestCacheKey);
+    }
+  }
+
+  async getPage(pageNumber, queryWord = this.activeQueryWord) {
+    const cacheKey = `${queryWord}::${pageNumber}`;
+    if (this.pageCache.has(cacheKey)) {
+      const cached = this.pageCache.get(cacheKey);
+      this.pageCache.delete(cacheKey);
+      this.pageCache.set(cacheKey, cached);
+      return cached;
+    }
+    const pageObj = await this.searchIllustPage(pageNumber, queryWord);
+    if (pageObj && pageObj.body) {
+      this.cachePage(cacheKey, pageObj);
+      const total = pageObj.body.illust.total;
+      const nextTotalPage = Math.ceil(total / this.itemsPerPage);
+      if (nextTotalPage > this.totalPage) {
+        this.totalPage = nextTotalPage;
+      }
+    }
+    return pageObj;
+  }
+
+  normalizeUserId(userId) {
+    return String(userId || "").trim();
+  }
+
+  isDislikedUser(userId) {
+    const normalizedUserId = this.normalizeUserId(userId);
+    if (!normalizedUserId) {
+      return false;
+    }
+    const dislikedUserIds = Array.isArray(this.searchParam.dislikedUserIds)
+      ? this.searchParam.dislikedUserIds.map((id) => this.normalizeUserId(id)).filter(Boolean)
+      : [];
+    return dislikedUserIds.includes(normalizedUserId);
+  }
+
+  filterIllustArray(illustArray) {
+    if (!Array.isArray(illustArray)) {
+      return [];
+    }
+    return illustArray.filter((el) => {
+      let condition1 = !this.searchParam.min_sl || el.sl >= this.searchParam.min_sl;
+      let condition2 = !this.searchParam.max_sl || el.sl <= this.searchParam.max_sl;
+      let condition3 = !this.searchParam.aiType || el.aiType == this.searchParam.aiType;
+      let condition4 = !this.isDislikedUser(el.userId);
+      return condition1 && condition2 && condition3 && condition4;
+    });
+  }
+
+  enqueueCandidates(candidates) {
+    const shuffled = shuffleArray(candidates.slice());
+    for (const candidate of shuffled) {
+      if (!candidate || !candidate.id) {
+        continue;
+      }
+      if (this.enqueuedIds.has(candidate.id) || this.hasSeenRecently(candidate.id)) {
+        continue;
+      }
+      this.candidateQueue.push(candidate);
+      this.enqueuedIds.add(candidate.id);
+    }
+  }
+
+  dequeueCandidate() {
+    while (this.candidateQueue.length > 0) {
+      const candidate = this.candidateQueue.shift();
+      if (!candidate || !candidate.id) {
+        continue;
+      }
+      this.enqueuedIds.delete(candidate.id);
+      if (this.hasSeenRecently(candidate.id)) {
+        continue;
+      }
+      return candidate;
+    }
+    return null;
+  }
+
+  async ensureTotalPages(queryWord = this.activeQueryWord) {
+    if (this.totalPage > 0) {
+      return this.totalPage;
+    }
+    let firstPage = await this.getPage(1, queryWord);
+    if (!firstPage || !firstPage.body) {
+      return 0;
+    }
+    let total = firstPage.body.illust.total;
+    this.totalPage = Math.ceil(total / this.itemsPerPage);
+    return this.totalPage;
+  }
+
+  pickSamplePages(maxPagesToSample) {
+    if (this.totalPage <= 0) {
+      return [];
+    }
+    const pickedPages = new Set();
+    while (pickedPages.size < Math.min(maxPagesToSample, this.totalPage)) {
+      pickedPages.add(getRandomInt(1, this.totalPage + 1));
+    }
+    return Array.from(pickedPages);
+  }
+
+  buildQueryAttempts() {
+    const baseQuery = buildQuery(this.searchParam).trim();
+    const sampling = sampleRandomTagPool(this.searchParam);
+    const sampledTags = sampling.tags;
+    const attempts = [];
+
+    this.searchParam.randomTagPoolNextPriorityTag = sampling.remainingNextPriorityTag;
+    chrome.storage.local.set({
+      randomTagPoolNextPriorityTag: sampling.remainingNextPriorityTag,
+    });
+
+    for (let count = sampledTags.length; count >= 0; count--) {
+      const queryWord = [baseQuery, ...sampledTags.slice(0, count)]
+        .filter(Boolean)
+        .join(" ")
+        .trim();
+      if (queryWord && !attempts.some((attempt) => attempt.queryWord === queryWord)) {
+        attempts.push({
+          queryWord,
+          randomTags: sampledTags.slice(0, count),
+        });
+      }
+    }
+
+    if (attempts.length === 0 && baseQuery) {
+      attempts.push({
+        queryWord: baseQuery,
+        randomTags: [],
+      });
+    }
+
+    debugLog("buildQueryAttempts", attempts.map((attempt) => ({
+      queryWord: attempt.queryWord,
+      randomTags: attempt.randomTags,
+    })));
+    return attempts;
+  }
+
+  async publishResolvedRandomTags(randomTags) {
+    const normalizedTags = Array.isArray(randomTags)
+      ? randomTags.map((tag) => String(tag || "").trim()).filter(Boolean)
+      : [];
+    this.lastResolvedRandomTags = normalizedTags;
+    this.lastResolvedRandomTagsAt = Date.now();
+    await chrome.storage.local.set({
+      randomTagPoolLastResolvedTags: normalizedTags,
+      randomTagPoolLastResolvedAt: this.lastResolvedRandomTagsAt,
+    });
+    debugLog("publishResolvedRandomTags", normalizedTags);
+  }
+
+  async fillCandidateQueue() {
+    if (this.candidateQueue.length >= this.candidateQueueTargetSize) {
+      return;
+    }
+    const queryAttempts = this.buildQueryAttempts();
+
+    for (const attempt of queryAttempts) {
+      const queryWord = attempt.queryWord;
+      if (queryWord !== this.activeQueryWord) {
+        this.activeQueryWord = queryWord;
+        this.totalPage = 0;
+      }
+
+      const totalPage = await this.ensureTotalPages(queryWord);
+      if (totalPage === 0) {
+        continue;
+      }
+
+      const maxPagesToSample = Math.min(4, totalPage);
+      const pageNumbers = this.pickSamplePages(maxPagesToSample);
+      debugLog("fillCandidateQueue:sample-pages", { queryWord, totalPage, pageNumbers });
+      for (const pageNumber of pageNumbers) {
+        const pageObj = await this.getPage(pageNumber, queryWord);
+        if (!pageObj || !pageObj.body || !pageObj.body.illust) {
+          continue;
+        }
+        const filtered = this.filterIllustArray(pageObj.body.illust.data);
+        debugLog("fillCandidateQueue:page-result", {
+          queryWord,
+          pageNumber,
+          rawCount: Array.isArray(pageObj.body.illust.data) ? pageObj.body.illust.data.length : 0,
+          filteredCount: filtered.length,
+        });
+        this.enqueueCandidates(filtered);
+        if (this.candidateQueue.length >= this.candidateQueueTargetSize) {
+          break;
+        }
+      }
+
+      if (this.candidateQueue.length > 0) {
+        await this.publishResolvedRandomTags(attempt.randomTags);
+        debugLog("fillCandidateQueue:queue-ready", {
+          queryWord,
+          queueSize: this.candidateQueue.length,
+          randomTags: attempt.randomTags,
+        });
+        return;
+      }
+    }
+    debugLog("fillCandidateQueue:empty");
+  }
+
   async getRandomIllust() {
-    const MAX_RETRIES = 5;
+    const MAX_RETRIES = 12;
+    this.lastErrorMessage = null;
     for (let i = 0; i < MAX_RETRIES; i++) {
       try {
-        if (this.totalPage === 0) {
-          let firstPage = await this.searchIllustPage(1);
-          if (!firstPage || !firstPage.body) continue;
-          let total = firstPage.body.illust.total;
-          this.totalPage = Math.ceil(total / this.itemsPerPage);
-          if (this.totalPage === 0) return null;
+        debugLog("getRandomIllust:attempt", { retry: i + 1, queueSize: this.candidateQueue.length });
+        await this.fillCandidateQueue();
+        let picked = this.dequeueCandidate();
+        if (!picked) {
+          debugLog("getRandomIllust:no-candidate", { retry: i + 1 });
+          continue;
         }
-        
-        let randomPage = getRandomInt(0, this.totalPage) + 1;
-        if (!this.illustInfoPages[randomPage]) {
-          let pageObj = await this.searchIllustPage(randomPage);
-          if (!pageObj || !pageObj.body) continue;
-          
-          let total = pageObj.body.illust.total;
-          let tp = Math.ceil(total / this.itemsPerPage);
-          if (tp > this.totalPage) {
-            this.totalPage = tp;
-          }
-          
-          // filter images
-          pageObj.body.illust.data = pageObj.body.illust.data.filter(
-            (el) => {
-              let condition1 = !this.searchParam.min_sl || el.sl >= this.searchParam.min_sl;
-              let condition2 = !this.searchParam.max_sl || el.sl <= this.searchParam.max_sl;
-              let condition3 = !this.searchParam.aiType || el.aiType == this.searchParam.aiType;
-              return condition1 && condition2 && condition3;
-            }
-          );
-          this.illustInfoPages[randomPage] = pageObj.body.illust.data;
-        }
-        
-        let illustArray = this.illustInfoPages[randomPage];
-        if (!illustArray || illustArray.length === 0) continue;
+        debugLog("getRandomIllust:picked", {
+          retry: i + 1,
+          illustId: picked.id,
+          userId: picked.userId,
+          pickedUrl: picked.url,
+        });
 
-        let randomIndex = getRandomInt(0, illustArray.length);
         let res = {};
-        res.illustId = illustArray[randomIndex].id;
-        res.profileImageUrl = illustArray[randomIndex].profileImageUrl;
-        
+        res.illustId = picked.id;
+        res.profileImageUrl = picked.profileImageUrl;
+
         let illustInfo = await fetchPixivJson(baseUrl + illustInfoUrl + res.illustId);
-        if (!illustInfo || !illustInfo.body) continue;
+        if (!illustInfo || illustInfo.__error || !illustInfo.body) {
+          if (illustInfo && illustInfo.__error) {
+            this.lastErrorMessage = illustInfo.message;
+          }
+          debugLog("getRandomIllust:illustInfo-failed", { illustId: res.illustId, message: this.lastErrorMessage });
+          continue;
+        }
 
         res.userName = illustInfo.body.userName;
         res.userId = illustInfo.body.userId;
+        if (this.isDislikedUser(res.userId)) {
+          this.markSeen(picked.id);
+          debugLog("getRandomIllust:skip-disliked-user", { illustId: picked.id, userId: res.userId });
+          continue;
+        }
         res.illustId = illustInfo.body.illustId;
         res.userIdUrl = baseUrl + "/users/" + illustInfo.body.userId;
         res.illustIdUrl = baseUrl + "/artworks/" + illustInfo.body.illustId;
         res.title = illustInfo.body.title;
-        res.imageObjectUrl = illustInfo.body.urls.regular;
-        
-        let [imgBlob, profileBlob] = await Promise.all([
-          fetchImage(res.imageObjectUrl),
-          fetchImage(res.profileImageUrl)
-        ]);
-        
-        if (!imgBlob) continue;
-        res.imageObjectUrl = await blobToDataUrl(imgBlob);
-        
-        if (profileBlob) {
-             try {
-                res.profileImageUrl = await blobToDataUrl(profileBlob);
-             } catch (e) {
-                // ignore profile image error
-             }
+        res.imageObjectUrl = illustInfo.body.urls.regular || illustInfo.body.urls.small || picked.url;
+        // Extract tags for frontend (prefer zh → zh_tw → en translation)
+        res.tags = (illustInfo.body.tags && illustInfo.body.tags.tags || []).map(t => {
+          let tr = t.translation || {};
+          return {
+            tag: t.tag,
+            translation: tr.zh || tr.zh_tw || tr.en || null,
+          };
+        });
+
+        const imageCandidates = [
+          illustInfo.body.urls.regular,
+          illustInfo.body.urls.small,
+          picked.url,
+        ].map((url) => String(url || "").trim()).filter(Boolean);
+        const resolvedImageUrl = imageCandidates.find(Boolean);
+        debugLog("getRandomIllust:image-candidates", {
+          illustId: res.illustId,
+          regular: illustInfo.body.urls.regular,
+          small: illustInfo.body.urls.small,
+          pickedUrl: picked.url,
+          resolvedImageUrl,
+        });
+        const { blob: illustBlob, url: loadedImageUrl } = await fetchFirstAvailableImage(imageCandidates, "illust");
+        const profileBlob = await fetchImage(res.profileImageUrl, "profile");
+
+        if (!resolvedImageUrl) continue;
+        if (illustBlob) {
+          try {
+            res.imageObjectUrl = await blobToDataUrl(illustBlob);
+          } catch (e) {
+            console.error("Failed to convert illust blob to data URL:", e);
+            res.imageObjectUrl = loadedImageUrl || resolvedImageUrl;
+          }
+        } else {
+          res.imageObjectUrl = resolvedImageUrl;
         }
+
+        if (profileBlob) {
+          try {
+            res.profileImageUrl = await blobToDataUrl(profileBlob);
+          } catch (e) {
+            // ignore profile image error
+          }
+        } else {
+          debugLog("getRandomIllust:profile-fallback-empty", {
+            illustId: res.illustId,
+            profileImageUrl: res.profileImageUrl,
+          });
+          res.profileImageUrl = "";
+        }
+        this.markSeen(picked.id);
+        debugLog("getRandomIllust:success", {
+          illustId: res.illustId,
+          userId: res.userId,
+          title: res.title,
+          imageObjectUrl: res.imageObjectUrl,
+          imageLoadedAsBlob: !!illustBlob,
+          profileLoaded: !!profileBlob,
+        });
         return res;
       } catch (e) {
         console.error("Error in getRandomIllust loop:", e);
         continue;
       }
     }
+    debugLog("getRandomIllust:exhausted", { lastErrorMessage: this.lastErrorMessage });
     return null;
   }
 }
@@ -265,40 +762,75 @@ function blobToDataUrl(blob) {
 }
 
 let searchSource;
-let illust_queue;
-let running = 0;
 
-function fillQueue() {
-  while (running < illust_queue.capacity() - illust_queue.size()) {
-    ++running;
-    setTimeout(async () => {
-      if (illust_queue.full()) { return; }
-      let res = await searchSource.getRandomIllust();
-      if (res) {
-        illust_queue.push(res);
-        chrome.storage.session.set({ illustQueue: illust_queue });
-      }
-      --running;
-    }, 0);
+function normalizeRuntimeConfig(config) {
+  migrateConfig(config);
+  applyActivePreset(config);
+  config.minusKeywords = computeEffectiveMinus(config);
+  return config;
+}
+
+async function getStoredConfig() {
+  let config = await chrome.storage.local.get(defaultConfig);
+  config = normalizeRuntimeConfig(config);
+  config.resolvedDefaultImageUrl = await resolveDefaultImageUrl(config, {
+    onLegacyMigrated: (patch) => chrome.storage.local.set(patch),
+  });
+  if (config.defaultImageSourceType === "upload") {
+    config.defaultImageUrl = "";
   }
+  return config;
+}
+
+function buildDefaultImageResponse(config, options = {}) {
+  const defaultImageUrl = (config.resolvedDefaultImageUrl || "").trim();
+  if (!defaultImageUrl) {
+    return null;
+  }
+  return {
+    mode: "default",
+    title: options.title || "Default background",
+    userName: options.userName || "Configured default image",
+    userId: null,
+    illustId: null,
+    userIdUrl: "",
+    illustIdUrl: "",
+    profileImageUrl: "",
+    imageObjectUrl: defaultImageUrl,
+    tags: [],
+    fallback: !!options.fallback,
+    message: options.message || null,
+  };
+}
+
+function applyActivePreset(config) {
+  if (config.queryPresets && Array.isArray(config.queryPresets) && config.queryPresets.length > 0) {
+    let idx = Math.min(config.activePresetIndex || 0, config.queryPresets.length - 1);
+    if (config.queryPresets[idx] && config.queryPresets[idx].tree) {
+      config.queryTree = config.queryPresets[idx].tree;
+    }
+  }
+  return config;
+}
+
+function computeEffectiveMinus(config) {
+  let globalMinus = (config.globalMinusKeywords || "").trim();
+  return globalMinus.replace(/\s+/g, " ");
 }
 
 async function start() {
-  let config = await chrome.storage.local.get(defaultConfig);
+  let config = await getStoredConfig();
+  // Persist migrated config if orKeywords was converted
+  chrome.storage.local.set({ orGroups: config.orGroups, orKeywords: null });
+  console.log("Current search query:", buildQuery(config));
   searchSource = new SearchSource(config);
-  let queue_cache = await chrome.storage.session.get("illustQueue");
-  
-  if (Object.keys(queue_cache).length === 0) {
-    illust_queue = new Queue(2);
-  } else {
-    illust_queue = Object.setPrototypeOf(queue_cache.illustQueue, Queue.prototype)
-  }
-
-  fillQueue();
   console.log("background script loaded");
 }
 
-let initPromise = start();
+let initPromise = start().catch((e) => {
+  console.error("Background init failed:", e);
+  return null;
+});
 
 chrome.runtime.onMessage.addListener(function (
   message,
@@ -307,26 +839,367 @@ chrome.runtime.onMessage.addListener(function (
 ) {
   (
     async () => {
-      await initPromise;
+      try {
+        await initPromise;
+      } catch (e) {
+        console.error("Init promise error:", e);
+        sendResponse({
+          error: "INIT_FAILED",
+          message: "Background init failed. Please reload the extension."
+        });
+        return;
+      }
+      if (!searchSource) {
+        sendResponse({
+          error: "INIT_FAILED",
+          message: "Background not ready. Please reload the extension."
+        });
+        return;
+      }
       if (message.action === "fetchImage") {
-        let res = illust_queue.pop();
-        if (!res) {
-          res = await searchSource.getRandomIllust();
+        try {
+          const currentConfig = searchSource.searchParam || await getStoredConfig();
+          if (currentConfig.randomImageEnabled === false) {
+            const defaultRes = buildDefaultImageResponse(currentConfig, {
+              message: "Random images are disabled."
+            });
+            if (defaultRes) {
+              sendResponse(defaultRes);
+            } else {
+              sendResponse({
+                error: "DEFAULT_IMAGE_MISSING",
+                message: "Random images are disabled and no default image is configured."
+              });
+            }
+            return;
+          }
+
+          let res = await searchSource.getRandomIllust();
+          if (res) {
+            res.mode = "random";
+            res.fallback = false;
+            res.resolvedRandomTags = Array.isArray(searchSource.lastResolvedRandomTags)
+              ? searchSource.lastResolvedRandomTags.slice()
+              : [];
+            sendResponse(res);
+            let { profileImageUrl, imageObjectUrl, ...filteredRes } = res;
+            console.log(filteredRes);
+          } else {
+            const fallbackRes = buildDefaultImageResponse(currentConfig, {
+              fallback: true,
+              message: searchSource.lastErrorMessage || "Failed to load a Pixiv image. Showing the default image instead."
+            });
+            if (fallbackRes) {
+              sendResponse(fallbackRes);
+            } else {
+              sendResponse({
+                error: "NO_RESULT",
+                message: searchSource.lastErrorMessage || "No image found. Please check your tags or Pixiv availability."
+              });
+            }
+          }
+        } catch (e) {
+          console.error("fetchImage handler error:", e);
+          const currentConfig = searchSource.searchParam || await getStoredConfig();
+          const fallbackRes = buildDefaultImageResponse(currentConfig, {
+            fallback: true,
+            message: "Failed to fetch image. Showing the default image instead."
+          });
+          if (fallbackRes) {
+            sendResponse(fallbackRes);
+          } else {
+            sendResponse({
+              error: "FETCH_FAILED",
+              message: "Failed to fetch image. Please try again."
+            });
+          }
         }
-        if (res) {
-          sendResponse(res);
-          let { profileImageUrl, imageObjectUrl, ...filteredRes } = res;
-          console.log(filteredRes);
-        } else {
-          sendResponse(null);
-        }
-        fillQueue();
       } else if (message.action === "updateConfig") {
-        let config = await chrome.storage.local.get(defaultConfig);
+        let config = await getStoredConfig();
+        console.log("Updated search query:", buildQuery(config));
         searchSource.updateConfig(config);
-        illust_queue = new Queue(2);
-        chrome.storage.session.set({ illustQueue: illust_queue });
-        fillQueue();
+        sendResponse({ success: true });
+      } else if (message.action === "bookmarkIllust") {
+        try {
+          const illustIdStr = String(message.illustId || "");
+          if (!illustIdStr) {
+            sendResponse({ success: false, error: "Invalid illust id" });
+            return;
+          }
+
+          const fetchTokenFromHtml = async (url) => {
+            try {
+              const res = await fetch(url, { credentials: "include" });
+              console.log("[bookmark] HTML fetch", url, "status", res.status);
+              if (!res.ok) return null;
+              const html = await res.text();
+              console.log("[bookmark] HTML length", html.length, "token match", /\"token\"\s*:\s*\"([a-f0-9]{32})\"/.test(html));
+              const m = html.match(/"token"\s*:\s*"([a-f0-9]{32})"/);
+              return m ? m[1] : null;
+            } catch (e) {
+              console.warn("[bookmark] HTML fetch error", url, e);
+              return null;
+            }
+          };
+
+          const fetchTokenFromJson = async (url) => {
+            try {
+              const res = await fetch(url, { credentials: "include" });
+              console.log("[bookmark] JSON fetch", url, "status", res.status);
+              if (!res.ok) return null;
+              const json = await res.json();
+              console.log("[bookmark] JSON error", !!(json && json.error));
+              if (json && json.error) return null;
+              return (json && (json.token || (json.body && json.body.token))) || null;
+            } catch (e) {
+              console.warn("[bookmark] JSON fetch error", url, e);
+              return null;
+            }
+          };
+
+          // 1) Try JSON endpoints (no page navigation)
+          let token =
+            (await fetchTokenFromJson("https://www.pixiv.net/ajax/user/extra")) ||
+            (await fetchTokenFromJson("https://www.pixiv.net/ajax/user/extra?lang=zh"));
+
+          // 2) Try HTML endpoints (no page navigation)
+          if (!token) {
+            token =
+              (await fetchTokenFromHtml(`https://www.pixiv.net/artworks/${illustIdStr}`)) ||
+              (await fetchTokenFromHtml("https://www.pixiv.net/"));
+          }
+
+          // 3) Fallback: if user already has a Pixiv tab, extract token from DOM
+          if (!token) {
+            let tabs = await chrome.tabs.query({ url: "*://*.pixiv.net/*" });
+            if (tabs.length > 0) {
+              let tabId = tabs[0].id;
+              console.log("[bookmark] DOM fallback tab", tabId);
+              let results = await chrome.scripting.executeScript({
+                target: { tabId: tabId },
+                world: "MAIN",
+                func: () => {
+                  let token = null;
+                  let meta = document.querySelector('#meta-global-data')
+                    || document.querySelector('meta[name="global-data"]');
+                  if (meta) {
+                    try { token = JSON.parse(meta.getAttribute('content')).token; } catch (e) { }
+                  }
+                  if (!token && typeof pixiv !== 'undefined' && pixiv.context) {
+                    token = pixiv.context.token;
+                  }
+                  if (!token && typeof globalInitData !== 'undefined') {
+                    token = globalInitData.token;
+                  }
+                  if (!token) {
+                    let nd = document.querySelector('#__NEXT_DATA__');
+                    if (nd) {
+                      try {
+                        let data = JSON.parse(nd.textContent);
+                        token = data?.props?.pageProps?.token;
+                      } catch (e) { }
+                    }
+                  }
+                  if (!token) {
+                    for (let s of document.querySelectorAll('script')) {
+                      let m = s.textContent.match(/"token"\s*:\s*"([a-f0-9]{32})"/);
+                      if (m) { token = m[1]; break; }
+                    }
+                  }
+                  return token;
+                }
+              });
+              token = results && results[0] && results[0].result ? results[0].result : null;
+              console.log("[bookmark] DOM fallback token found", !!token);
+            }
+          }
+
+          if (!token) {
+            sendResponse({
+              success: false,
+              code: "TOKEN_NOT_FOUND",
+              error: "CSRF token not found. Please ensure you are logged in to Pixiv."
+            });
+            return;
+          }
+
+          let r;
+          try {
+            r = await fetch("https://www.pixiv.net/ajax/illusts/bookmarks/add", {
+              method: "POST",
+              headers: {
+                "Content-Type": "application/json; charset=utf-8",
+                "Accept": "application/json",
+                "X-CSRF-Token": token,
+              },
+              body: JSON.stringify({
+                illust_id: illustIdStr,
+                restrict: 0,
+                comment: "",
+                tags: [],
+              }),
+              credentials: "include",
+            });
+          } catch (e) {
+            sendResponse({ success: false, code: "BOOKMARK_FAILED", error: e.message || "Bookmark failed" });
+            return;
+          }
+
+          if (!r.ok) {
+            let msg = `HTTP ${r.status}`;
+            if (r.status === 401 || r.status === 403) {
+              msg = "Not logged in. Please log in to Pixiv.";
+            }
+            sendResponse({ success: false, code: "BOOKMARK_FAILED", error: msg });
+            return;
+          }
+
+          let json = await r.json();
+          if (json && json.error) {
+            sendResponse({ success: false, code: "BOOKMARK_FAILED", error: json.message || "Bookmark failed" });
+            return;
+          }
+
+          sendResponse({ success: true });
+        } catch (e) {
+          console.error("Bookmark error:", e);
+          sendResponse({ success: false, error: e.message });
+        }
+      } else if (message.action === "excludeTag") {
+        try {
+          let config = await getStoredConfig();
+          let tag = String(message.tag || "").trim();
+          if (!tag) {
+            sendResponse({ success: false, error: "Invalid tag" });
+            return;
+          }
+          let list = (config.globalMinusKeywords || "").trim().split(/\s+/).filter(Boolean);
+          if (!list.includes(tag)) list.push(tag);
+          config.globalMinusKeywords = list.join(" ");
+
+          applyActivePreset(config);
+          config.minusKeywords = computeEffectiveMinus(config);
+          await chrome.storage.local.set({
+            globalMinusKeywords: config.globalMinusKeywords,
+            presetMinusKeywords: [],
+          });
+
+          searchSource.updateConfig(config);
+          sendResponse({ success: true });
+        } catch (e) {
+          console.error("Exclude tag error:", e);
+          sendResponse({ success: false, error: e.message });
+        }
+      } else if (message.action === "setCreatorPreference") {
+        try {
+          const userId = String(message.userId || "").trim();
+          const preference = String(message.preference || "").trim();
+          if (!userId) {
+            sendResponse({ success: false, error: "Invalid user id" });
+            return;
+          }
+          if (!["like", "dislike", "neutral"].includes(preference)) {
+            sendResponse({ success: false, error: "Invalid preference" });
+            return;
+          }
+          let config = await getStoredConfig();
+          const likedUserIds = Array.isArray(config.likedUserIds)
+            ? config.likedUserIds.map((id) => String(id || "").trim()).filter(Boolean)
+            : [];
+          const dislikedUserIds = Array.isArray(config.dislikedUserIds)
+            ? config.dislikedUserIds.map((id) => String(id || "").trim()).filter(Boolean)
+            : [];
+          const nextLikedUserIds = likedUserIds.filter((id) => id !== userId);
+          const nextDislikedUserIds = dislikedUserIds.filter((id) => id !== userId);
+
+          if (preference === "like") {
+            nextLikedUserIds.push(userId);
+          } else if (preference === "dislike") {
+            nextDislikedUserIds.push(userId);
+          }
+
+          config.likedUserIds = nextLikedUserIds;
+          config.dislikedUserIds = nextDislikedUserIds;
+
+          await chrome.storage.local.set({
+            likedUserIds: config.likedUserIds,
+            dislikedUserIds: config.dislikedUserIds,
+          });
+
+          searchSource.updateConfig(config);
+          sendResponse({
+            success: true,
+            preference,
+            likedUserIds: config.likedUserIds,
+            dislikedUserIds: config.dislikedUserIds,
+          });
+        } catch (e) {
+          console.error("Set creator preference error:", e);
+          sendResponse({ success: false, error: e.message });
+        }
+      } else if (message.action === "addRandomTag") {
+        try {
+          let config = await getStoredConfig();
+          let tag = String(message.tag || "").trim();
+          if (!tag) {
+            sendResponse({ success: false, error: "Invalid tag" });
+            return;
+          }
+          const pool = Array.isArray(config.randomTagPool)
+            ? config.randomTagPool.map((item) => String(item || "").trim()).filter(Boolean)
+            : [];
+          if (!pool.includes(tag)) {
+            pool.push(tag);
+            await chrome.storage.local.set({
+              randomTagPool: pool,
+              randomTagPoolEnabled: true,
+            });
+          } else {
+            await chrome.storage.local.set({
+              randomTagPoolEnabled: true,
+            });
+          }
+          config.randomTagPool = pool;
+          config.randomTagPoolEnabled = true;
+
+          searchSource.updateConfig(config);
+          sendResponse({ success: true, added: true });
+        } catch (e) {
+          console.error("Add random tag error:", e);
+          sendResponse({ success: false, error: e.message });
+        }
+      } else if (message.action === "queueNextPriorityRandomTag") {
+        try {
+          let config = await getStoredConfig();
+          let tag = String(message.tag || "").trim();
+          if (!tag) {
+            sendResponse({ success: false, error: "Invalid tag" });
+            return;
+          }
+          const pool = Array.isArray(config.randomTagPool)
+            ? config.randomTagPool.map((item) => String(item || "").trim()).filter(Boolean)
+            : [];
+          if (!pool.includes(tag)) {
+            pool.push(tag);
+          }
+          config.randomTagPool = pool;
+          config.randomTagPoolNextPriorityTag = tag;
+          config.randomTagPoolEnabled = true;
+
+          await chrome.storage.local.set({
+            randomTagPool: config.randomTagPool,
+            randomTagPoolNextPriorityTag: config.randomTagPoolNextPriorityTag,
+            randomTagPoolEnabled: config.randomTagPoolEnabled,
+          });
+
+          searchSource.updateConfig(config);
+          sendResponse({ success: true, queued: true, tag });
+        } catch (e) {
+          console.error("Queue next priority random tag error:", e);
+          sendResponse({ success: false, error: e.message });
+        }
+      } else {
+        sendResponse({ success: false, error: "Unknown action" });
       }
     }
   )();

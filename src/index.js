@@ -1,4 +1,237 @@
+import { resolveDefaultImageUrl } from "./default-image-store.js";
+
 (function () {
+  // ── State ──
+  let currentTags = [];
+  let currentIllustId = null;
+  let currentIllustUrl = null;
+  let currentUserId = null;
+  let currentUserName = "";
+  let currentBookmarkedIllustId = null;
+  let runtimeConfig = null;
+  let currentImageVisible = false;
+  let isBookmarkBusy = false;
+  let isCreatorPreferenceBusy = false;
+  let isRandomToggleBusy = false;
+  let isR18ToggleBusy = false;
+  let latestRefreshRequestId = 0;
+  let activeTagPopupHandler = null;
+  let activeTagPopupTrigger = null;
+  let activeTagPopupPendingTags = new Set();
+  let currentLikedTagsForImage = new Set();
+  let currentQueuedPriorityTagForImage = "";
+  let activeTagPopupMode = "exclude";
+  let shouldRefreshOnTagPopupClose = false;
+  let requestTagPopupTimer = null;
+  const UI_STRINGS = {
+    en: {
+      randomLabel: "Random Pixiv",
+      randomOn: "On",
+      randomOff: "Off",
+      randomEnabledTitle: "Random Pixiv image requests are enabled",
+      randomDisabledTitle: "Random Pixiv image requests are disabled",
+      r18Label: "R18 Only",
+      r18On: "On",
+      r18Off: "Off",
+      r18EnabledTitle: "Only show R18 content",
+      r18DisabledTitle: "Only show safe content",
+      settingsTitle: "Tag Manager",
+      refreshTitle: "Refresh image",
+      bookmarkTitle: "Bookmark artwork",
+      creatorLikeTitle: "Like creator",
+      creatorDislikeTitle: "Dislike creator",
+      defaultBackgroundTitle: "Default background",
+      configuredDefaultImage: "Configured default image",
+      randomDisabledNoDefault: "Random images are off and no default image is configured.",
+      failedLoadImage: "Failed to load image",
+      bookmarkFailed: "Bookmark failed",
+      bookmarked: "Bookmarked!",
+      creatorUnavailable: "Creator information is unavailable",
+      creatorPreferenceFailed: "Failed to update creator preference",
+      likedCreator: "Liked creator: {name}",
+      dislikedCreator: "Disliked creator: {name}",
+      clearedCreatorPreference: "Cleared creator preference: {name}",
+      addRandomTagTitle: "Select tags to add to random pool",
+      addRandomTagFailed: "Failed to add tag to random pool",
+      addedRandomTag: "Added to random pool: {tag}",
+      queuedNextRandomTag: "Next refresh will prioritize: {tag}",
+      requestRandomTagsTitle: "Random tags used this request",
+      requestRandomTagsEmpty: "Base query only",
+      randomTagExists: "Tag already exists in random pool: {tag}",
+      excludeTagTitle: "Select a tag to exclude",
+      noTagsAvailable: "No tags available",
+      excludeFailed: "Failed to exclude tag",
+      excludedTag: "Excluded: -{tag}",
+      randomSettingFailed: "Failed to update random image setting",
+      r18SettingFailed: "Failed to update R18 setting",
+      fallbackDefaultImage: "Failed to load a Pixiv image. Showing the default image instead.",
+      fetchFailedDefaultImage: "Failed to fetch image. Showing the default image instead.",
+      noResult: "No image found. Please check your tags or Pixiv availability.",
+    },
+    zh: {
+      randomLabel: "随机 Pixiv",
+      randomOn: "开启",
+      randomOff: "关闭",
+      randomEnabledTitle: "当前会请求随机 Pixiv 图片",
+      randomDisabledTitle: "当前不会请求随机 Pixiv 图片",
+      r18Label: "仅看 R18",
+      r18On: "开启",
+      r18Off: "关闭",
+      r18EnabledTitle: "当前仅显示 R18 内容",
+      r18DisabledTitle: "当前仅显示安全内容",
+      settingsTitle: "标签管理",
+      refreshTitle: "刷新图片",
+      bookmarkTitle: "收藏作品",
+      creatorLikeTitle: "喜欢作者",
+      creatorDislikeTitle: "不喜欢作者",
+      defaultBackgroundTitle: "默认背景",
+      configuredDefaultImage: "已配置的默认图片",
+      randomDisabledNoDefault: "随机图片已关闭，且尚未配置默认图片。",
+      failedLoadImage: "图片加载失败",
+      bookmarkFailed: "收藏失败",
+      bookmarked: "已收藏",
+      creatorUnavailable: "当前没有可操作的作者信息",
+      creatorPreferenceFailed: "更新作者偏好失败",
+      likedCreator: "已喜欢作者：{name}",
+      dislikedCreator: "已屏蔽作者：{name}",
+      clearedCreatorPreference: "已清除作者偏好：{name}",
+      addRandomTagTitle: "选择要加入随机池的标签",
+      addRandomTagFailed: "加入随机池失败",
+      addedRandomTag: "已加入随机池：{tag}",
+      queuedNextRandomTag: "下次刷新将优先使用：{tag}",
+      requestRandomTagsTitle: "本次请求使用的随机标签",
+      requestRandomTagsEmpty: "仅使用基础查询",
+      randomTagExists: "随机池中已存在：{tag}",
+      excludeTagTitle: "选择要排除的标签",
+      noTagsAvailable: "当前图片没有可排除的标签",
+      excludeFailed: "排除标签失败",
+      excludedTag: "已排除：-{tag}",
+      randomSettingFailed: "切换随机图片开关失败",
+      r18SettingFailed: "切换 R18 设置失败",
+      fallbackDefaultImage: "Pixiv 图片加载失败，已改为显示默认图片。",
+      fetchFailedDefaultImage: "图片请求失败，已改为显示默认图片。",
+      noResult: "没有找到图片，请检查标签配置或 Pixiv 可用性。",
+    },
+    ja: {
+      randomLabel: "Pixiv Random",
+      randomOn: "On",
+      randomOff: "Off",
+      randomEnabledTitle: "Pixiv のランダム画像取得が有効です",
+      randomDisabledTitle: "Pixiv のランダム画像取得が無効です",
+      r18Label: "R18 のみ",
+      r18On: "On",
+      r18Off: "Off",
+      r18EnabledTitle: "R18 のみ表示します",
+      r18DisabledTitle: "安全な内容のみ表示します",
+      settingsTitle: "タグ管理",
+      refreshTitle: "画像を更新",
+      bookmarkTitle: "作品をブックマーク",
+      creatorLikeTitle: "作者をお気に入り",
+      creatorDislikeTitle: "作者を非表示",
+      defaultBackgroundTitle: "デフォルト背景",
+      configuredDefaultImage: "設定済みのデフォルト画像",
+      randomDisabledNoDefault: "ランダム画像は無効で、デフォルト画像も未設定です。",
+      failedLoadImage: "画像の読み込みに失敗しました",
+      bookmarkFailed: "ブックマークに失敗しました",
+      bookmarked: "ブックマークしました",
+      creatorUnavailable: "作者情報がありません",
+      creatorPreferenceFailed: "作者設定の更新に失敗しました",
+      likedCreator: "作者をお気に入りに追加しました: {name}",
+      dislikedCreator: "作者を非表示にしました: {name}",
+      clearedCreatorPreference: "作者設定を解除しました: {name}",
+      addRandomTagTitle: "ランダムプールに追加する tag を選択",
+      addRandomTagFailed: "ランダムプールへの追加に失敗しました",
+      addedRandomTag: "ランダムプールに追加しました: {tag}",
+      queuedNextRandomTag: "次回更新では優先して使用します: {tag}",
+      requestRandomTagsTitle: "今回のリクエストで使ったランダム tag",
+      requestRandomTagsEmpty: "ベースクエリのみ",
+      randomTagExists: "ランダムプールに既に存在します: {tag}",
+      excludeTagTitle: "除外する tag を選択",
+      noTagsAvailable: "除外できるタグがありません",
+      excludeFailed: "タグの除外に失敗しました",
+      excludedTag: "除外済み: -{tag}",
+      randomSettingFailed: "ランダム画像設定の更新に失敗しました",
+      r18SettingFailed: "R18 設定の更新に失敗しました",
+      fallbackDefaultImage: "Pixiv 画像の読み込みに失敗したため、デフォルト画像を表示しています。",
+      fetchFailedDefaultImage: "画像取得に失敗したため、デフォルト画像を表示しています。",
+      noResult: "画像が見つかりません。タグ設定や Pixiv の状態を確認してください。",
+    },
+  };
+
+  function getUiLanguage() {
+    const raw = (chrome.i18n && chrome.i18n.getUILanguage ? chrome.i18n.getUILanguage() : navigator.language || "en").toLowerCase();
+    if (raw.startsWith("zh")) return "zh";
+    if (raw.startsWith("ja")) return "ja";
+    return "en";
+  }
+
+  function translate(key, variables = {}) {
+    const language = getUiLanguage();
+    const table = UI_STRINGS[language] || UI_STRINGS.en;
+    let value = table[key] || UI_STRINGS.en[key] || key;
+    for (const [name, replacement] of Object.entries(variables)) {
+      value = value.replace(`{${name}}`, replacement);
+    }
+    return value;
+  }
+
+  function localizeRuntimeMessage(message) {
+    if (!message) {
+      return message;
+    }
+    const mapping = {
+      "Random images are disabled and no default image is configured.": "randomDisabledNoDefault",
+      "Failed to load a Pixiv image. Showing the default image instead.": "fallbackDefaultImage",
+      "Failed to fetch image. Showing the default image instead.": "fetchFailedDefaultImage",
+      "No image found. Please check your tags or Pixiv availability.": "noResult",
+      "Failed to load image": "failedLoadImage",
+    };
+    return mapping[message] ? translate(mapping[message]) : message;
+  }
+
+  function debugLog(...args) {
+    console.log("[newtab]", ...args);
+  }
+
+  function applyUiText() {
+    const randomToggleText = document.getElementById("randomToggleText");
+    const r18ToggleText = document.getElementById("r18ToggleText");
+    const refreshButton = document.getElementById("refreshButton");
+    const settingsButton = document.getElementById("settingsButton");
+    const bookmarkButton = document.getElementById("bookmarkButton");
+    const creatorLikeButton = document.getElementById("creatorLikeButton");
+    const creatorDislikeButton = document.getElementById("creatorDislikeButton");
+    if (randomToggleText) {
+      const enabled = runtimeConfig ? runtimeConfig.randomImageEnabled !== false : true;
+      randomToggleText.innerHTML = `<strong>${translate("randomLabel")}</strong><small>${enabled ? translate("randomOn") : translate("randomOff")}</small>`;
+    }
+    if (r18ToggleText) {
+      const enabled = runtimeConfig ? runtimeConfig.mode === "r18" : false;
+      r18ToggleText.innerHTML = `<strong>${translate("r18Label")}</strong><small>${enabled ? translate("r18On") : translate("r18Off")}</small>`;
+    }
+    if (refreshButton) {
+      refreshButton.title = translate("refreshTitle");
+    }
+    if (settingsButton) {
+      settingsButton.title = translate("settingsTitle");
+    }
+    if (bookmarkButton) {
+      bookmarkButton.title = translate("bookmarkTitle");
+    }
+    if (creatorLikeButton) {
+      creatorLikeButton.title = translate("creatorLikeTitle");
+    }
+    if (creatorDislikeButton) {
+      creatorDislikeButton.title = translate("creatorDislikeTitle");
+    }
+  }
+
+  function warnNoDefaultImageIfNeeded() {
+    if (!currentImageVisible) {
+      showToast(translate("randomDisabledNoDefault"), "error");
+    }
+  }
+
   class Binding {
     constructor() {
       const bgElement = document.body.querySelector("#backgroundImage");
@@ -8,11 +241,40 @@
       const illustTitleElement = document.body.querySelector("#illustTitle");
       const illustNameElement = document.body.querySelector("#illustName");
       const refreshElement = document.body.querySelector("#refreshButton");
+      const settingsElement = document.body.querySelector("#settingsButton");
+      const randomToggleInput = document.body.querySelector("#randomToggleInput");
+      const randomToggleControl = document.body.querySelector("#randomToggleControl");
+      const r18ToggleInput = document.body.querySelector("#r18ToggleInput");
+      const r18ToggleControl = document.body.querySelector("#r18ToggleControl");
+      const likeElement = document.body.querySelector("#likeButton");
+      const bookmarkElement = document.body.querySelector("#bookmarkButton");
+      const dislikeElement = document.body.querySelector("#dislikeButton");
+      const creatorLikeElement = document.body.querySelector("#creatorLikeButton");
+      const creatorDislikeElement = document.body.querySelector("#creatorDislikeButton");
       const containerElement = document.body.querySelector("#container");
       const wallpaperElement = document.body.querySelector("#wallpaper");
       const illustInfoElement = document.body.querySelector("#illustInfo");
       this.containerElement = containerElement;
       this.illustInfoElement = illustInfoElement;
+      this.randomToggleInput = randomToggleInput;
+      this.randomToggleControl = randomToggleControl;
+      this.r18ToggleInput = r18ToggleInput;
+      this.r18ToggleControl = r18ToggleControl;
+
+      bgElement.referrerPolicy = "no-referrer";
+      fgImageElement.referrerPolicy = "no-referrer";
+
+      const handleWallpaperLoadState = (layer, state) => (event) => {
+        const target = event.currentTarget;
+        debugLog(`wallpaper:${state}`, {
+          layer,
+          src: target && target.currentSrc ? target.currentSrc : target?.src || "",
+        });
+      };
+      bgElement.addEventListener("load", handleWallpaperLoadState("background", "load"));
+      bgElement.addEventListener("error", handleWallpaperLoadState("background", "error"));
+      fgImageElement.addEventListener("load", handleWallpaperLoadState("foreground", "load"));
+      fgImageElement.addEventListener("error", handleWallpaperLoadState("foreground", "error"));
 
       const userNameBinding = (v) => {
         avatarImageElement.title = v;
@@ -44,13 +306,13 @@
         avatarElement.href = v;
       };
       const avatarImageBinding = (v) => {
-        avatarImageElement.style["background-image"] = `url(${v})`;
+        avatarImageElement.style["background-image"] = v ? `url(${v})` : "none";
       };
       const bgImageBinding = (v) => {
-        bgElement.style["background-image"] = `url(${v})`;
+        bgElement.src = v || "";
       };
       const fgElementBinding = (v) => {
-        fgImageElement.style["background-image"] = `url(${v})`;
+        fgImageElement.src = v || "";
       };
       this.ref = {
         userName: [userNameBinding],
@@ -67,7 +329,30 @@
       refreshElement.addEventListener("mouseup", () => {
         refreshElement.className = "unpressed";
       });
-      refreshElement.addEventListener("click", sendRefreshMessage);
+      refreshElement.addEventListener("click", refreshCurrentPageImage);
+      settingsElement.addEventListener("click", () => {
+        if (chrome && chrome.tabs && chrome.tabs.create) {
+          chrome.tabs.create({ url: chrome.runtime.getURL("tags.html") });
+        } else {
+          window.open(chrome.runtime.getURL("tags.html"), "_blank");
+        }
+      });
+      randomToggleInput.addEventListener("change", handleRandomToggleChange);
+      r18ToggleInput.addEventListener("change", handleR18ToggleChange);
+
+      // Like button
+      likeElement.addEventListener("click", handleLike);
+
+      // Bookmark button
+      bookmarkElement.addEventListener("click", handleBookmark);
+
+      // Dislike button
+      dislikeElement.addEventListener("click", handleDislike);
+
+      // Creator preference buttons
+      creatorLikeElement.addEventListener("click", handleCreatorLike);
+      creatorDislikeElement.addEventListener("click", handleCreatorDislike);
+
       this.illustInfoFadeOutTimeoutId = null;
       illustInfoElement.addEventListener("mouseleave", () => {
         this.illustInfoFadeOutTimeoutId = setTimeout(() => {
@@ -87,10 +372,325 @@
   var binding = null;
   function initApplication() {
     binding = new Binding();
+    // Close popup on clicking outside
+    document.addEventListener("click", (e) => {
+      const popup = document.getElementById("tagPopup");
+      const triggerElement = activeTagPopupTrigger;
+      if (!popup.classList.contains("hidden") &&
+        !popup.contains(e.target) &&
+        !(triggerElement && triggerElement.contains(e.target))) {
+        closeTagPopup();
+      }
+    });
+  }
+
+  function updateActionButtons() {
+    const likeBtn = document.getElementById("likeButton");
+    const bookmarkBtn = document.getElementById("bookmarkButton");
+    const dislikeBtn = document.getElementById("dislikeButton");
+    const creatorLikeBtn = document.getElementById("creatorLikeButton");
+    const creatorDislikeBtn = document.getElementById("creatorDislikeButton");
+    likeBtn.classList.toggle("disabled", !currentTags || currentTags.length === 0);
+    bookmarkBtn.classList.toggle("disabled", !currentIllustId || isBookmarkBusy);
+    bookmarkBtn.classList.toggle("loading", !!currentIllustId && isBookmarkBusy);
+    bookmarkBtn.classList.toggle("bookmarked", !!currentIllustId && currentBookmarkedIllustId === currentIllustId);
+    dislikeBtn.classList.toggle("disabled", !currentTags || currentTags.length === 0);
+    const hasCreator = !!currentUserId;
+    const likedUserIds = Array.isArray(runtimeConfig?.likedUserIds) ? runtimeConfig.likedUserIds : [];
+    const dislikedUserIds = Array.isArray(runtimeConfig?.dislikedUserIds) ? runtimeConfig.dislikedUserIds : [];
+    creatorLikeBtn.classList.toggle("disabled", !hasCreator || isCreatorPreferenceBusy);
+    creatorLikeBtn.classList.toggle("active", hasCreator && likedUserIds.includes(currentUserId));
+    creatorDislikeBtn.classList.toggle("disabled", !hasCreator || isCreatorPreferenceBusy);
+    creatorDislikeBtn.classList.toggle("active", hasCreator && dislikedUserIds.includes(currentUserId));
+  }
+
+  function setBookmarkBusy(isBusy) {
+    isBookmarkBusy = isBusy;
+    updateActionButtons();
+  }
+
+  function setRandomToggleState(enabled) {
+    if (!binding || !binding.randomToggleInput) return;
+    binding.randomToggleInput.checked = !!enabled;
+    binding.randomToggleControl.title = enabled
+      ? translate("randomEnabledTitle")
+      : translate("randomDisabledTitle");
+    applyUiText();
+  }
+
+  function setRandomToggleBusy(isBusy) {
+    isRandomToggleBusy = isBusy;
+    if (!binding || !binding.randomToggleInput) return;
+    binding.randomToggleInput.disabled = isBusy;
+    binding.randomToggleControl.classList.toggle("disabled", isBusy);
+  }
+
+  function setR18ToggleState(enabled) {
+    if (!binding || !binding.r18ToggleInput) return;
+    binding.r18ToggleInput.checked = !!enabled;
+    binding.r18ToggleControl.title = enabled
+      ? translate("r18EnabledTitle")
+      : translate("r18DisabledTitle");
+    applyUiText();
+  }
+
+  function setR18ToggleBusy(isBusy) {
+    isR18ToggleBusy = isBusy;
+    if (!binding || !binding.r18ToggleInput) return;
+    binding.r18ToggleInput.disabled = isBusy;
+    binding.r18ToggleControl.classList.toggle("disabled", isBusy);
+  }
+
+  function createDefaultDisplayObject(config, options = {}) {
+    const defaultImageUrl = (config && config.resolvedDefaultImageUrl ? config.resolvedDefaultImageUrl : "").trim();
+    if (!defaultImageUrl) {
+      return null;
+    }
+    return {
+      mode: "default",
+      title: options.title || "Default background",
+      userName: options.userName || translate("configuredDefaultImage"),
+      userId: null,
+      illustId: null,
+      userIdUrl: "",
+      illustIdUrl: "",
+      profileImageUrl: "",
+      imageObjectUrl: defaultImageUrl,
+      tags: [],
+      fallback: !!options.fallback,
+      message: options.message || null,
+    };
+  }
+
+  function loadStartupConfig() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get({
+        randomImageEnabled: true,
+        mode: "safe",
+        defaultImageUrl: "",
+        defaultImageSourceType: "url",
+        defaultImageUploadName: "",
+        likedUserIds: [],
+        dislikedUserIds: [],
+      }, async (items) => {
+        const config = items || {
+          randomImageEnabled: true,
+          mode: "safe",
+          defaultImageUrl: "",
+          defaultImageSourceType: "url",
+          defaultImageUploadName: "",
+          likedUserIds: [],
+          dislikedUserIds: [],
+        };
+        config.resolvedDefaultImageUrl = await resolveDefaultImageUrl(config, {
+          onLegacyMigrated: (patch) => new Promise((patchResolve) => {
+            chrome.storage.local.set(patch, patchResolve);
+          })
+        });
+        if (config.defaultImageSourceType === "upload") {
+          config.defaultImageUrl = "";
+        }
+        config.likedUserIds = Array.isArray(config.likedUserIds)
+          ? config.likedUserIds.map((id) => String(id || "").trim()).filter(Boolean)
+          : [];
+        config.dislikedUserIds = Array.isArray(config.dislikedUserIds)
+          ? config.dislikedUserIds.map((id) => String(id || "").trim()).filter(Boolean)
+          : [];
+        resolve(config);
+      });
+    });
+  }
+
+  function handleStoredRandomImageEnabledChange(enabled) {
+    if (!runtimeConfig) {
+      return;
+    }
+    const previousEnabled = runtimeConfig.randomImageEnabled !== false;
+    runtimeConfig.randomImageEnabled = enabled;
+    setRandomToggleState(enabled);
+    if (isRandomToggleBusy || previousEnabled === enabled) {
+      return;
+    }
+    if (enabled) {
+      sendRefreshMessage();
+      return;
+    }
+    latestRefreshRequestId += 1;
+    showConfiguredDefaultImage().then((hasDefaultImage) => {
+      if (!hasDefaultImage) {
+        showToast("Random images are disabled and no default image is configured.", "error");
+      }
+    });
+  }
+
+  function handleStoredModeChange(mode) {
+    if (!runtimeConfig) {
+      return;
+    }
+    const normalizedMode = mode === "r18" ? "r18" : "safe";
+    const previousMode = runtimeConfig.mode === "r18" ? "r18" : "safe";
+    runtimeConfig.mode = normalizedMode;
+    setR18ToggleState(normalizedMode === "r18");
+    if (isR18ToggleBusy || previousMode === normalizedMode) {
+      return;
+    }
+    if (runtimeConfig.randomImageEnabled !== false) {
+      sendRefreshMessage({ force: true });
+    }
+  }
+
+  async function refreshRuntimeDefaultImageConfig(changes) {
+    if (!runtimeConfig) {
+      return;
+    }
+
+    if (changes.defaultImageUrl) {
+      runtimeConfig.defaultImageUrl = typeof changes.defaultImageUrl.newValue === "string"
+        ? changes.defaultImageUrl.newValue
+        : "";
+    }
+    if (changes.defaultImageSourceType) {
+      runtimeConfig.defaultImageSourceType = changes.defaultImageSourceType.newValue || "url";
+    }
+    if (changes.defaultImageUploadName) {
+      runtimeConfig.defaultImageUploadName = typeof changes.defaultImageUploadName.newValue === "string"
+        ? changes.defaultImageUploadName.newValue
+        : "";
+    }
+
+    runtimeConfig.resolvedDefaultImageUrl = await resolveDefaultImageUrl(runtimeConfig, {
+      onLegacyMigrated: (patch) => new Promise((patchResolve) => {
+        chrome.storage.local.set(patch, patchResolve);
+      }),
+    });
+
+    if (runtimeConfig.defaultImageSourceType === "upload") {
+      runtimeConfig.defaultImageUrl = "";
+    }
+
+    if (runtimeConfig.randomImageEnabled === false) {
+      const hasDefaultImage = await showConfiguredDefaultImage();
+      if (!hasDefaultImage) {
+        warnNoDefaultImageIfNeeded();
+      }
+    }
+  }
+
+  function refreshRuntimeCreatorPreferences(changes) {
+    if (!runtimeConfig) {
+      return;
+    }
+    if (changes.likedUserIds) {
+      runtimeConfig.likedUserIds = Array.isArray(changes.likedUserIds.newValue)
+        ? changes.likedUserIds.newValue.map((id) => String(id || "").trim()).filter(Boolean)
+        : [];
+    }
+    if (changes.dislikedUserIds) {
+      runtimeConfig.dislikedUserIds = Array.isArray(changes.dislikedUserIds.newValue)
+        ? changes.dislikedUserIds.newValue.map((id) => String(id || "").trim()).filter(Boolean)
+        : [];
+    }
+    updateActionButtons();
+  }
+
+  async function showConfiguredDefaultImage(options = {}) {
+    const defaultDisplay = createDefaultDisplayObject(runtimeConfig, options);
+    if (!defaultDisplay) {
+      return false;
+    }
+    await changeElement(defaultDisplay);
+    return true;
+  }
+
+  function notifyRuntimeConfigUpdated() {
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const timeoutId = setTimeout(() => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        debugLog("notifyRuntimeConfigUpdated:timeout");
+        resolve();
+      }, 1500);
+
+      chrome.runtime.sendMessage({ action: "updateConfig" }, () => {
+        if (settled) {
+          return;
+        }
+        clearTimeout(timeoutId);
+        settled = true;
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        resolve();
+      });
+    });
+  }
+
+  function persistRandomImageEnabled(enabled) {
+    return new Promise((resolve, reject) => {
+      chrome.storage.local.set({ randomImageEnabled: enabled }, () => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        notifyRuntimeConfigUpdated().then(resolve).catch(reject);
+      });
+    });
+  }
+
+  function persistR18Mode(enabled) {
+    const nextMode = enabled ? "r18" : "safe";
+    return new Promise((resolve, reject) => {
+      chrome.storage.local.set({ mode: nextMode }, () => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        notifyRuntimeConfigUpdated().then(resolve).catch(reject);
+      });
+    });
   }
 
   async function changeElement(illustObject) {
     if (!illustObject) { return; }
+    debugLog("changeElement:incoming", illustObject);
+    if (illustObject.error) {
+      showToast(localizeRuntimeMessage(illustObject.message) || translate("failedLoadImage"), "error");
+      return;
+    }
+
+    // Store tags and illustId for like/dislike
+    currentTags = illustObject.tags || [];
+    currentIllustId = illustObject.illustId || null;
+    currentIllustUrl = illustObject.illustIdUrl || null;
+    currentUserId = illustObject.userId ? String(illustObject.userId) : null;
+    currentUserName = illustObject.userName || "";
+    currentImageVisible = !!illustObject.imageObjectUrl;
+    if (currentIllustId !== currentBookmarkedIllustId) {
+      currentBookmarkedIllustId = null;
+    }
+    isBookmarkBusy = false;
+    currentLikedTagsForImage = new Set();
+    currentQueuedPriorityTagForImage = "";
+    debugLog("changeElement:state", {
+      illustId: currentIllustId,
+      userId: currentUserId,
+      imageVisible: currentImageVisible,
+      imageObjectUrl: illustObject.imageObjectUrl,
+      mode: illustObject.mode,
+      tags: currentTags.map(t => t.tag),
+    });
+
+    // Reset like state
+    const likeBtn = document.getElementById("likeButton");
+    likeBtn.classList.remove("liked");
+
+    // Close tag popup if open
+    closeTagPopup({ triggerRefresh: false });
+
     for (let k in binding.ref) {
       if (illustObject.hasOwnProperty(k)) {
         let value = illustObject[k];
@@ -102,34 +702,584 @@
         }
       }
     }
+    updateActionButtons();
     binding.containerElement.classList.toggle("notReady", false);
     clearTimeout(binding.illustInfoFadeOutTimeoutId);
     binding.illustInfoFadeOutTimeoutId = setTimeout(() => {
       binding.illustInfoElement.className = "unfocused";
     }, 10000);
+    if (illustObject.fallback && illustObject.message) {
+      showToast(localizeRuntimeMessage(illustObject.message), "error");
+    }
+    if (illustObject.mode === "random") {
+      showRequestRandomTagsPopup(illustObject.resolvedRandomTags || []);
+    } else {
+      hideRequestRandomTagsPopup();
+    }
+  }
+
+  // ── Like (add to random tag pool) ──
+  function handleLike() {
+    if (!currentTags || currentTags.length === 0) {
+      showToast(translate("noTagsAvailable"), "error");
+      return;
+    }
+    openTagPopup(currentTags, {
+      title: translate("addRandomTagTitle"),
+      mode: "random",
+      expanded: true,
+      triggerElement: document.getElementById("likeButton"),
+      onSelect: addTagToRandomPool,
+    });
+  }
+
+  function handleBookmark() {
+    if (!currentIllustId || isBookmarkBusy) {
+      return;
+    }
+    if (currentBookmarkedIllustId === currentIllustId) {
+      showToast(translate("bookmarked"), "success");
+      return;
+    }
+    setBookmarkBusy(true);
+    chrome.runtime.sendMessage({ action: "bookmarkIllust", illustId: currentIllustId }, (res) => {
+      setBookmarkBusy(false);
+      if (chrome.runtime.lastError) {
+        showToast(translate("bookmarkFailed"), "error");
+        return;
+      }
+      if (res && res.success) {
+        currentBookmarkedIllustId = currentIllustId;
+        updateActionButtons();
+        showToast(translate("bookmarked"), "success");
+        return;
+      }
+      showToast(localizeRuntimeMessage(res?.error) || translate("bookmarkFailed"), "error");
+    });
+  }
+
+  function updateCreatorPreference(preference) {
+    if (!currentUserId) {
+      showToast(translate("creatorUnavailable"), "error");
+      return;
+    }
+    if (isCreatorPreferenceBusy) {
+      return;
+    }
+    isCreatorPreferenceBusy = true;
+    updateActionButtons();
+    chrome.runtime.sendMessage(
+      { action: "setCreatorPreference", userId: currentUserId, preference },
+      (res) => {
+        isCreatorPreferenceBusy = false;
+        if (chrome.runtime.lastError) {
+          updateActionButtons();
+          showToast(translate("creatorPreferenceFailed"), "error");
+          return;
+        }
+        if (res && res.success) {
+          runtimeConfig.likedUserIds = Array.isArray(res.likedUserIds) ? res.likedUserIds : [];
+          runtimeConfig.dislikedUserIds = Array.isArray(res.dislikedUserIds) ? res.dislikedUserIds : [];
+          updateActionButtons();
+          const creatorName = currentUserName || currentUserId;
+          if (preference === "dislike") {
+            showToast(translate("dislikedCreator", { name: creatorName }), "success");
+            sendRefreshMessage();
+          } else if (preference === "like") {
+            showToast(translate("likedCreator", { name: creatorName }), "success");
+          } else {
+            showToast(translate("clearedCreatorPreference", { name: creatorName }), "success");
+          }
+          return;
+        }
+        updateActionButtons();
+        showToast(res?.error || translate("creatorPreferenceFailed"), "error");
+      }
+    );
+  }
+
+  function handleCreatorLike() {
+    const likedUserIds = Array.isArray(runtimeConfig?.likedUserIds) ? runtimeConfig.likedUserIds : [];
+    updateCreatorPreference(likedUserIds.includes(currentUserId) ? "neutral" : "like");
+  }
+
+  function handleCreatorDislike() {
+    const dislikedUserIds = Array.isArray(runtimeConfig?.dislikedUserIds) ? runtimeConfig.dislikedUserIds : [];
+    updateCreatorPreference(dislikedUserIds.includes(currentUserId) ? "neutral" : "dislike");
+  }
+
+  function addTagToRandomPool(tag) {
+    if (activeTagPopupPendingTags.has(tag)) {
+      return;
+    }
+    if (currentLikedTagsForImage.has(tag)) {
+      queueNextPriorityRandomTag(tag);
+      return;
+    }
+    activeTagPopupPendingTags.add(tag);
+    setTagChipPending(tag, true);
+    chrome.runtime.sendMessage(
+      { action: "addRandomTag", tag },
+      (res) => {
+        activeTagPopupPendingTags.delete(tag);
+        setTagChipPending(tag, false);
+        if (chrome.runtime.lastError) {
+          showToast(translate("addRandomTagFailed"), "error");
+          return;
+        }
+        if (res && res.success && res.added !== false) {
+          document.getElementById("likeButton").classList.add("liked");
+          markTagChipState(tag, "selected-like");
+          currentLikedTagsForImage.add(tag);
+          showToast(translate("addedRandomTag", { tag }), "success");
+        } else if (res && res.success && res.exists) {
+          markTagChipState(tag, "selected-like");
+          currentLikedTagsForImage.add(tag);
+          showToast(translate("randomTagExists", { tag }), "success");
+        } else {
+          showToast(res?.error || translate("addRandomTagFailed"), "error");
+        }
+      }
+    );
+  }
+
+  function queueNextPriorityRandomTag(tag) {
+    if (activeTagPopupPendingTags.has(tag)) {
+      return;
+    }
+    activeTagPopupPendingTags.add(tag);
+    setTagChipPending(tag, true);
+    chrome.runtime.sendMessage(
+      { action: "queueNextPriorityRandomTag", tag },
+      (res) => {
+        activeTagPopupPendingTags.delete(tag);
+        setTagChipPending(tag, false);
+        if (chrome.runtime.lastError) {
+          showToast(translate("addRandomTagFailed"), "error");
+          return;
+        }
+        if (res && res.success) {
+          if (currentQueuedPriorityTagForImage && currentQueuedPriorityTagForImage !== tag) {
+            markTagChipState(
+              currentQueuedPriorityTagForImage,
+              currentLikedTagsForImage.has(currentQueuedPriorityTagForImage) ? "selected-like" : ""
+            );
+          }
+          currentQueuedPriorityTagForImage = tag;
+          currentLikedTagsForImage.add(tag);
+          markTagChipState(tag, "queued-next");
+          showToast(translate("queuedNextRandomTag", { tag }), "success");
+        } else {
+          showToast(res?.error || translate("addRandomTagFailed"), "error");
+        }
+      }
+    );
+  }
+
+  // ── Dislike (show tag popup) ──
+  function handleDislike() {
+    if (!currentTags || currentTags.length === 0) {
+      showToast(translate("noTagsAvailable"), "error");
+      return;
+    }
+    openTagPopup(currentTags, {
+      title: translate("excludeTagTitle"),
+      mode: "exclude",
+      triggerElement: document.getElementById("dislikeButton"),
+      onSelect: excludeTag,
+    });
+  }
+
+  function openTagPopup(tags, options = {}) {
+    const popup = document.getElementById("tagPopup");
+    const popupHeader = popup.querySelector(".tag-popup-header");
+    const tagList = document.getElementById("tagList");
+    activeTagPopupPendingTags = new Set();
+    activeTagPopupMode = options.mode === "random" ? "random" : "exclude";
+    shouldRefreshOnTagPopupClose = false;
+    popupHeader.textContent = options.title || translate("excludeTagTitle");
+    tagList.innerHTML = "";
+    activeTagPopupHandler = typeof options.onSelect === "function" ? options.onSelect : null;
+    activeTagPopupTrigger = options.triggerElement || null;
+    popup.classList.toggle("expanded", !!options.expanded);
+    popup.classList.toggle("mode-random", options.mode === "random");
+    popup.classList.toggle("mode-exclude", options.mode !== "random");
+
+    tags.forEach((t) => {
+      const chip = document.createElement("div");
+      chip.className = "tag-chip";
+      chip.dataset.tag = t.tag;
+      let html = `<span class="tag-name">${escapeHtml(t.tag)}</span>`;
+      if (t.translation) {
+        html += ` <span class="tag-translation">(${escapeHtml(t.translation)})</span>`;
+      }
+      chip.innerHTML = html;
+      chip.addEventListener("click", () => {
+        if (activeTagPopupHandler) {
+          activeTagPopupHandler(t.tag);
+        }
+      });
+      tagList.appendChild(chip);
+      if (activeTagPopupMode === "random" && currentQueuedPriorityTagForImage && currentQueuedPriorityTagForImage === t.tag) {
+        markTagChipState(t.tag, "queued-next");
+      } else if (activeTagPopupMode === "random" && currentLikedTagsForImage.has(t.tag)) {
+        markTagChipState(t.tag, "selected-like");
+      }
+    });
+
+    popup.classList.remove("hidden");
+  }
+
+  function closeTagPopup(options = {}) {
+    const popup = document.getElementById("tagPopup");
+    const shouldTriggerRefresh = options.triggerRefresh !== false
+      && activeTagPopupMode === "exclude"
+      && shouldRefreshOnTagPopupClose;
+    popup.classList.add("hidden");
+    popup.classList.remove("expanded", "mode-random", "mode-exclude");
+    activeTagPopupHandler = null;
+    activeTagPopupTrigger = null;
+    activeTagPopupPendingTags = new Set();
+    activeTagPopupMode = "exclude";
+    shouldRefreshOnTagPopupClose = false;
+    if (shouldTriggerRefresh) {
+      sendRefreshMessage();
+    }
+  }
+
+  function excludeTag(tag) {
+    if (activeTagPopupPendingTags.has(tag) || getTagChipState(tag) === "selected-dislike") {
+      return;
+    }
+    activeTagPopupPendingTags.add(tag);
+    setTagChipPending(tag, true);
+    chrome.runtime.sendMessage(
+      { action: "excludeTag", tag: tag, scope: "global" },
+      (res) => {
+        activeTagPopupPendingTags.delete(tag);
+        setTagChipPending(tag, false);
+        if (chrome.runtime.lastError) {
+          showToast(translate("excludeFailed"), "error");
+          return;
+        }
+        if (res && res.success) {
+          markTagChipState(tag, "selected-dislike");
+          shouldRefreshOnTagPopupClose = true;
+          showToast(translate("excludedTag", { tag }), "success");
+        } else {
+          showToast(res?.error || translate("excludeFailed"), "error");
+        }
+      }
+    );
+  }
+
+  function getTagChipByTag(tag) {
+    return document.querySelector(`.tag-chip[data-tag="${CSS.escape(tag)}"]`);
+  }
+
+  function getTagChipState(tag) {
+    const chip = getTagChipByTag(tag);
+    if (!chip) {
+      return "";
+    }
+    if (chip.classList.contains("selected-like")) {
+      return "selected-like";
+    }
+    if (chip.classList.contains("queued-next")) {
+      return "queued-next";
+    }
+    if (chip.classList.contains("selected-dislike")) {
+      return "selected-dislike";
+    }
+    return "";
+  }
+
+  function markTagChipState(tag, state) {
+    const chip = getTagChipByTag(tag);
+    if (!chip) {
+      return;
+    }
+    chip.classList.remove("selected-like", "queued-next", "selected-dislike");
+    if (state) {
+      chip.classList.add(state);
+    }
+  }
+
+  function setTagChipPending(tag, pending) {
+    const chip = getTagChipByTag(tag);
+    if (!chip) {
+      return;
+    }
+    chip.classList.toggle("pending", !!pending);
+  }
+
+  // ── Toast ──
+  let toastTimer = null;
+  function showToast(message, type = "success") {
+    const toast = document.getElementById("toast");
+    toast.textContent = message;
+    toast.className = `toast toast-${type} show`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => { toast.className = "toast"; }, 2500);
+  }
+
+  function showRequestRandomTagsPopup(tags) {
+    const popup = document.getElementById("requestTagPopup");
+    const title = document.getElementById("requestTagPopupTitle");
+    const list = document.getElementById("requestTagPopupList");
+    if (!popup || !title || !list) {
+      return;
+    }
+    title.textContent = translate("requestRandomTagsTitle");
+    list.innerHTML = "";
+
+    const normalizedTags = Array.isArray(tags)
+      ? tags.map((tag) => String(tag || "").trim()).filter(Boolean)
+      : [];
+
+    if (normalizedTags.length === 0) {
+      const empty = document.createElement("span");
+      empty.className = "request-tag-pill empty";
+      empty.textContent = translate("requestRandomTagsEmpty");
+      list.appendChild(empty);
+    } else {
+      normalizedTags.forEach((tag) => {
+        const pill = document.createElement("span");
+        pill.className = "request-tag-pill";
+        pill.textContent = tag;
+        list.appendChild(pill);
+      });
+    }
+
+    popup.classList.remove("hidden");
+    clearTimeout(requestTagPopupTimer);
+    requestTagPopupTimer = setTimeout(() => {
+      popup.classList.add("hidden");
+    }, 3200);
+  }
+
+  function hideRequestRandomTagsPopup() {
+    const popup = document.getElementById("requestTagPopup");
+    if (!popup) {
+      return;
+    }
+    clearTimeout(requestTagPopupTimer);
+    popup.classList.add("hidden");
+  }
+
+  // ── Util ──
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function sendRuntimeMessageWithTimeout(message, timeoutMs = 15000) {
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const timeoutId = setTimeout(() => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        reject(new Error(`Message timeout after ${timeoutMs}ms`));
+      }, timeoutMs);
+
+      chrome.runtime.sendMessage(message, (response) => {
+        if (settled) {
+          return;
+        }
+        clearTimeout(timeoutId);
+        settled = true;
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        resolve(response);
+      });
+    });
   }
 
   const sendRefreshMessage = (() => {
     let isRequestInProgress = false;
-    return () => {
+    let pendingRefreshRequested = false;
+
+    const flushPendingRefresh = () => {
+      if (!pendingRefreshRequested || (runtimeConfig && runtimeConfig.randomImageEnabled === false)) {
+        return;
+      }
+      pendingRefreshRequested = false;
+      sendRefreshMessage({ force: false });
+    };
+
+    return (options = {}) => {
+      const force = !!options.force;
+      if (runtimeConfig && runtimeConfig.randomImageEnabled === false) {
+      showConfiguredDefaultImage().then((hasDefaultImage) => {
+        debugLog("sendRefreshMessage:random-disabled", { hasDefaultImage });
+        if (!hasDefaultImage) {
+          warnNoDefaultImageIfNeeded();
+        }
+      });
+      return;
+      }
       if (isRequestInProgress) {
+        pendingRefreshRequested = true;
+        if (force) {
+          latestRefreshRequestId += 1;
+        }
         return;
       }
       isRequestInProgress = true;
-      chrome.runtime.sendMessage({ action: "fetchImage" }, (res) => {
-        if (chrome.runtime.lastError) {
-          console.warn("Context invalidated, message could not be processed:", chrome.runtime.lastError.message);
+      pendingRefreshRequested = false;
+      const requestId = ++latestRefreshRequestId;
+      debugLog("sendRefreshMessage:start", { requestId, force, mode: runtimeConfig?.mode, randomImageEnabled: runtimeConfig?.randomImageEnabled });
+      sendRuntimeMessageWithTimeout({ action: "fetchImage" }, 15000).then((res) => {
+        debugLog("sendRefreshMessage:response", { requestId, response: res });
+        if (requestId !== latestRefreshRequestId || (runtimeConfig && runtimeConfig.randomImageEnabled === false)) {
+          debugLog("sendRefreshMessage:stale-response", { requestId, latestRefreshRequestId });
           isRequestInProgress = false;
+          flushPendingRefresh();
           return;
         }
-        changeElement(res).finally(() => {
+        Promise.resolve(changeElement(res)).catch((e) => {
+          console.error("changeElement error:", e);
+        }).finally(() => {
           isRequestInProgress = false;
+          flushPendingRefresh();
         });
+      }).catch((error) => {
+        console.warn("sendRefreshMessage failed:", error.message);
+        debugLog("sendRefreshMessage:error", { requestId, error: error.message });
+        isRequestInProgress = false;
+        flushPendingRefresh();
       });
     };
   })();
 
-  initApplication();
-  sendRefreshMessage();
-  console.log("content script loaded");
+  function refreshCurrentPageImage() {
+    sendRefreshMessage();
+  }
+
+  async function handleRandomToggleChange(event) {
+    if (!runtimeConfig || isRandomToggleBusy) {
+      if (binding && binding.randomToggleInput) {
+        binding.randomToggleInput.checked = runtimeConfig ? runtimeConfig.randomImageEnabled !== false : true;
+      }
+      return;
+    }
+
+    const nextEnabled = !!event.target.checked;
+    const previousEnabled = runtimeConfig.randomImageEnabled !== false;
+
+    if (nextEnabled === previousEnabled) {
+      return;
+    }
+
+    setRandomToggleBusy(true);
+    try {
+      await persistRandomImageEnabled(nextEnabled);
+      runtimeConfig.randomImageEnabled = nextEnabled;
+      setRandomToggleState(nextEnabled);
+
+      if (nextEnabled) {
+        debugLog("handleRandomToggleChange:enabled");
+        sendRefreshMessage();
+      } else {
+        latestRefreshRequestId += 1;
+        const hasDefaultImage = await showConfiguredDefaultImage();
+        debugLog("handleRandomToggleChange:disabled", { hasDefaultImage });
+        if (!hasDefaultImage) {
+          warnNoDefaultImageIfNeeded();
+        }
+      }
+    } catch (error) {
+      console.error("Failed to update random image setting:", error);
+      runtimeConfig.randomImageEnabled = previousEnabled;
+      setRandomToggleState(previousEnabled);
+      showToast(translate("randomSettingFailed"), "error");
+    } finally {
+      setRandomToggleBusy(false);
+    }
+  }
+
+  async function handleR18ToggleChange(event) {
+    if (!runtimeConfig || isR18ToggleBusy) {
+      if (binding && binding.r18ToggleInput) {
+        binding.r18ToggleInput.checked = runtimeConfig ? runtimeConfig.mode === "r18" : false;
+      }
+      return;
+    }
+
+    const nextEnabled = !!event.target.checked;
+    const previousEnabled = runtimeConfig.mode === "r18";
+
+    if (nextEnabled === previousEnabled) {
+      return;
+    }
+
+    setR18ToggleBusy(true);
+    try {
+      await persistR18Mode(nextEnabled);
+      runtimeConfig.mode = nextEnabled ? "r18" : "safe";
+      setR18ToggleState(nextEnabled);
+      debugLog("handleR18ToggleChange:applied", { mode: runtimeConfig.mode });
+      if (runtimeConfig.randomImageEnabled !== false) {
+        sendRefreshMessage({ force: true });
+      }
+    } catch (error) {
+      console.error("Failed to update R18 setting:", error);
+      runtimeConfig.mode = previousEnabled ? "r18" : "safe";
+      setR18ToggleState(previousEnabled);
+      showToast(translate("r18SettingFailed"), "error");
+    } finally {
+      setR18ToggleBusy(false);
+    }
+  }
+
+  async function bootstrap() {
+    initApplication();
+    updateActionButtons();
+    runtimeConfig = await loadStartupConfig();
+    applyUiText();
+    setRandomToggleState(runtimeConfig.randomImageEnabled !== false);
+    setR18ToggleState(runtimeConfig.mode === "r18");
+
+    const hasDefaultImage = await showConfiguredDefaultImage({
+      title: translate("defaultBackgroundTitle"),
+      userName: translate("configuredDefaultImage"),
+    });
+
+    if (!hasDefaultImage && runtimeConfig.randomImageEnabled === false) {
+      binding.containerElement.classList.toggle("notReady", false);
+      warnNoDefaultImageIfNeeded();
+    }
+
+    if (runtimeConfig.randomImageEnabled !== false) {
+      sendRefreshMessage();
+    }
+    console.log("content script loaded");
+  }
+
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== "local") {
+      return;
+    }
+    if (changes.randomImageEnabled) {
+      handleStoredRandomImageEnabledChange(changes.randomImageEnabled.newValue !== false);
+    }
+    if (changes.mode) {
+      handleStoredModeChange(changes.mode.newValue);
+    }
+    if (changes.defaultImageUrl || changes.defaultImageSourceType || changes.defaultImageUploadName) {
+      refreshRuntimeDefaultImageConfig(changes).catch((error) => {
+        console.error("Failed to refresh default image config:", error);
+      });
+    }
+    if (changes.likedUserIds || changes.dislikedUserIds) {
+      refreshRuntimeCreatorPreferences(changes);
+    }
+  });
+
+  bootstrap();
 })();

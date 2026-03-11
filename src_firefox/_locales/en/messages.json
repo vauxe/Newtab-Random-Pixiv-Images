@@ -118,5 +118,125 @@
   },
   "reset": {
     "message": "Reset"
+  },
+  "tagManagerLink": {
+    "message": "🏷️ Tag Manager"
+  },
+  "pageTitle": {
+    "message": "Tag Manager"
+  },
+  "pageSubtitle": {
+    "message": "Manage your Pixiv search keywords visually"
+  },
+  "backToOptions": {
+    "message": "Back to Options"
+  },
+  "andSectionTitle": {
+    "message": "AND Keywords"
+  },
+  "orSectionTitle": {
+    "message": "OR Groups"
+  },
+  "minusSectionTitle": {
+    "message": "Exclude Keywords"
+  },
+  "addTagPlaceholder": {
+    "message": "Add a tag..."
+  },
+  "toolbarTitle": {
+    "message": "📦 Import / Export"
+  },
+  "importTextLabel": {
+    "message": "Import from Text"
+  },
+  "importFileLabel": {
+    "message": "Import JSON"
+  },
+  "exportLabel": {
+    "message": "Export JSON"
+  },
+  "saveBtn": {
+    "message": "Save"
+  },
+  "modalTitle": {
+    "message": "Import Tags from Text"
+  },
+  "modalDesc": {
+    "message": "Paste keywords below (separated by spaces, commas, or newlines)"
+  },
+  "importCategoryAnd": {
+    "message": "AND Keywords"
+  },
+  "importCategoryOr": {
+    "message": "OR Keywords"
+  },
+  "importCategoryMinus": {
+    "message": "Exclude Keywords"
+  },
+  "importPlaceholder": {
+    "message": "tag1, tag2, tag3..."
+  },
+  "modalCancelBtn": {
+    "message": "Cancel"
+  },
+  "modalConfirmBtn": {
+    "message": "Import"
+  },
+  "emptyTags": {
+    "message": "No tags yet"
+  },
+  "tagsSaved": {
+    "message": "Tags saved!"
+  },
+  "importedCount": {
+    "message": "Imported {count} tags"
+  },
+  "exportSuccess": {
+    "message": "Exported successfully!"
+  },
+  "importError": {
+    "message": "Invalid JSON file"
+  },
+  "addOrGroupLabel": {
+    "message": "Add OR Group"
+  },
+  "emptyOrGroups": {
+    "message": "No OR groups. Click \"+ Add OR Group\" to create one."
+  },
+  "importCategoryOrNew": {
+    "message": "+ New OR Group"
+  },
+  "previewTitle": {
+    "message": "🔍 Query Preview"
+  },
+  "orKeywordsManageHint": {
+    "message": "OR keywords are managed in Tag Manager (supports multiple OR groups)"
+  },
+  "importedGroup": {
+    "message": "Imported"
+  },
+  "addKeywordLabel": {
+    "message": "Keyword"
+  },
+  "addGroupLabel": {
+    "message": "Group"
+  },
+  "groupLabel": {
+    "message": "Group (Parentheses)"
+  },
+  "emptyFlowState": {
+    "message": "Click buttons below to add keywords or groups"
+  },
+  "presetLabel": {
+    "message": "📋 Preset:"
+  },
+  "presetNewPrompt": {
+    "message": "Enter preset name:"
+  },
+  "presetRenamePrompt": {
+    "message": "Enter new preset name:"
+  },
+  "presetDeleteLast": {
+    "message": "Cannot delete the last preset"
   }
 }

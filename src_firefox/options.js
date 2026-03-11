@@ -1,4 +1,4 @@
-import { defaultConfig, getKeywords } from "./config.js";
+import { defaultConfig, getKeywords, buildQuery, migrateConfig } from "./config.js";
 
 const saveOptions = () => {
   updateKeywords();
@@ -15,13 +15,12 @@ const saveOptions = () => {
     min_sl: document.getElementById('min_sl').value ? Number(document.getElementById('min_sl').value) : null,
     max_sl: document.getElementById('max_sl').value ? Number(document.getElementById('max_sl').value) : null,
     aiType: document.getElementById('aiType').value ? Number(document.getElementById('aiType').value) : null,
-    orKeywords: document.getElementById('orKeywords').value.trim(),
+    // orGroups is managed by the tag manager page, preserve it from storage
     minusKeywords: document.getElementById('minusKeywords').value.trim(),
     andKeywords: document.getElementById('andKeywords').value.trim(),
-    keywords: document.getElementById('keywords').value.trim()
   };
 
-  chrome.storage.local.set(
+  browser.storage.local.set(
     newConfig,
     () => {
       const status = document.getElementById('status');
@@ -34,8 +33,8 @@ const saveOptions = () => {
     }
   );
 
-  chrome.runtime.sendMessage({ action: "updateConfig" }, (response) => {
-    let lastError = chrome.runtime.lastError;
+  browser.runtime.sendMessage({ action: "updateConfig" }, (response) => {
+    let lastError = browser.runtime.lastError;
     if (lastError) {
       console.log(lastError.message);
       return;
@@ -44,7 +43,7 @@ const saveOptions = () => {
 };
 
 const resetOptions = () => {
-  chrome.storage.local.set(
+  browser.storage.local.set(
     defaultConfig,
     () => {
       console.log("Reset config");
@@ -64,9 +63,8 @@ const resetOptions = () => {
       document.getElementById('max_sl').value = items.max_sl;
       document.getElementById('aiType').value = items.aiType;
       document.getElementById('andKeywords').value = items.andKeywords;
-      document.getElementById('orKeywords').value = items.orKeywords;
       document.getElementById('minusKeywords').value = items.minusKeywords;
-      updateKeywords();
+      updateKeywords(items);
       const status = document.getElementById('status');
       status.textContent = 'Options reset.';
       setTimeout(() => {
@@ -80,7 +78,7 @@ const resetOptions = () => {
 
 
 const restoreOptions = () => {
-  chrome.storage.local.get(defaultConfig, (items) => {
+  browser.storage.local.get(defaultConfig, (items) => {
     console.log("Load config");
     console.log(items);
     document.getElementById('order').value = items.order;
@@ -97,9 +95,9 @@ const restoreOptions = () => {
     document.getElementById('max_sl').value = items.max_sl;
     document.getElementById('aiType').value = items.aiType === null ? '' : items.aiType;
     document.getElementById('andKeywords').value = items.andKeywords;
-    document.getElementById('orKeywords').value = items.orKeywords;
     document.getElementById('minusKeywords').value = items.minusKeywords;
-    updateKeywords();
+    migrateConfig(items);
+    updateKeywords(items);
   });
 };
 
@@ -114,18 +112,29 @@ function toggleDateInputs(option) {
   }
 }
 
-function updateKeywords() {
+function updateKeywords(configOrNull) {
   let andKeywords = document.getElementById('andKeywords').value;
-  let orKeywords = document.getElementById('orKeywords').value;
   let minusKeywords = document.getElementById('minusKeywords').value;
-  let word = getKeywords(andKeywords, orKeywords, minusKeywords);
+  // Get orGroups from passed config or from last loaded config
+  let orGroups = configOrNull && configOrNull.orGroups ? configOrNull.orGroups : _lastOrGroups;
+  if (orGroups) _lastOrGroups = orGroups;
+  // Use tree-based query if available
+  let queryTree = configOrNull && configOrNull.queryTree ? configOrNull.queryTree : _lastQueryTree;
+  if (queryTree) _lastQueryTree = queryTree;
+  let word;
+  if (queryTree) {
+    word = buildQuery({ queryTree });
+  } else {
+    word = getKeywords(andKeywords, orGroups || [], minusKeywords);
+  }
   document.getElementById('keywords').value = word;
 }
+let _lastOrGroups = null;
+let _lastQueryTree = null;
 
 document.getElementById('timeOption').addEventListener('change', function () { toggleDateInputs(this.value); });
-document.getElementById('orKeywords').addEventListener('input', updateKeywords);
-document.getElementById('minusKeywords').addEventListener('input', updateKeywords);
-document.getElementById('andKeywords').addEventListener('input', updateKeywords);
+document.getElementById('minusKeywords').addEventListener('input', () => updateKeywords());
+document.getElementById('andKeywords').addEventListener('input', () => updateKeywords());
 document.addEventListener('DOMContentLoaded', restoreOptions);
 document.getElementById('save').addEventListener('click', saveOptions);
 document.getElementById('reset').addEventListener('click', resetOptions);
