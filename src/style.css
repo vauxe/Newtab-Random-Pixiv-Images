@@ -243,16 +243,16 @@ body {
 #illustInfo {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 6px;
   position: fixed;
-  width: min(342px, calc(100vw - 28px));
-  min-height: 66px;
+  width: min(300px, calc(100vw - 24px));
+  min-height: 54px;
   bottom: 98px;
   right: 14px;
-  padding: 10px 12px;
+  padding: 8px 10px;
   font-family: HiraginoSans-W3, Hiragino Kaku Gothic Pro, Meiryo, Verdana,
     sans-serif;
-  border-radius: 18px;
+  border-radius: 16px;
   background: linear-gradient(135deg, rgba(31, 34, 43, 0.62), rgba(63, 67, 78, 0.52));
   border: 1px solid rgba(255, 255, 255, 0.12);
   backdrop-filter: blur(18px);
@@ -271,8 +271,8 @@ body {
 
 #avatarImage {
   display: inline-block;
-  width: 52px;
-  height: 52px;
+  width: 44px;
+  height: 44px;
   border-radius: 50%;
   margin-top: 0;
   margin-left: 0;
@@ -284,13 +284,13 @@ body {
   margin-top: 0;
   margin-left: 0;
   min-width: 0;
-  width: 170px;
+  width: 150px;
   gap: 2px;
 }
 
 #illustTitle {
   display: block;
-  font-size: 15px;
+  font-size: 14px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -298,7 +298,7 @@ body {
 
 #illustName {
   display: block;
-  font-size: 13px;
+  font-size: 12px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -307,8 +307,8 @@ body {
 #creatorActions {
   display: flex;
   align-items: center;
-  gap: 6px;
-  margin-top: 4px;
+  gap: 4px;
+  margin-top: 2px;
 }
 
 /* Like / Dislike buttons */
@@ -321,8 +321,8 @@ body {
   align-items: center;
   justify-content: center;
   border-radius: 100%;
-  width: 22px;
-  height: 22px;
+  width: 20px;
+  height: 20px;
   margin-top: 0;
   margin-left: 0;
   cursor: pointer;
