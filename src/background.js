@@ -982,6 +982,26 @@ async function getStoredConfig() {
   return config;
 }
 
+function createManualRandomTagSearchSource(config, manualRandomTag) {
+  const normalizedTag = String(manualRandomTag || "").trim();
+  if (!normalizedTag) {
+    return null;
+  }
+  const tempSource = new SearchSource(config);
+  tempSource.buildQueryAttempts = function () {
+    const baseQuery = buildQuery(this.searchParam).trim();
+    const queryWord = [baseQuery, normalizedTag].filter(Boolean).join(" ").trim();
+    if (!queryWord) {
+      return [];
+    }
+    return [{
+      queryWord,
+      randomTags: [normalizedTag],
+    }];
+  };
+  return tempSource;
+}
+
 /**
  * 构建默认图片响应
  * @param {object} config - 配置对象
@@ -1092,6 +1112,7 @@ chrome.runtime.onMessage.addListener(function (
       if (message.action === "fetchImage") {
         try {
           const currentConfig = searchSource.searchParam || await getStoredConfig();
+          const manualRandomTag = String(message.manualRandomTag || "").trim();
           if (currentConfig.randomImageEnabled === false) {
             const defaultRes = buildDefaultImageResponse(currentConfig, {
               message: "Random images are disabled."
@@ -1107,13 +1128,27 @@ chrome.runtime.onMessage.addListener(function (
             return;
           }
 
-          let res = await searchSource.getRandomIllust();
+          let res = null;
+          let usedManualRandomTag = false;
+          if (manualRandomTag) {
+            const tempSource = createManualRandomTagSearchSource(currentConfig, manualRandomTag);
+            if (tempSource) {
+              res = await tempSource.getRandomIllust();
+              usedManualRandomTag = !!res;
+            }
+          }
+          if (!res) {
+            res = await searchSource.getRandomIllust();
+          }
           if (res) {
             res.mode = "random";
             res.fallback = false;
-            res.resolvedRandomTags = Array.isArray(searchSource.lastResolvedRandomTags)
-              ? searchSource.lastResolvedRandomTags.slice()
-              : [];
+            res.usedManualRandomTag = manualRandomTag ? usedManualRandomTag : null;
+            res.resolvedRandomTags = manualRandomTag && usedManualRandomTag
+              ? [manualRandomTag]
+              : (Array.isArray(searchSource.lastResolvedRandomTags)
+                ? searchSource.lastResolvedRandomTags.slice()
+                : []);
             sendResponse(res);
             let { profileImageUrl, imageObjectUrl, ...filteredRes } = res;
             console.log(filteredRes);

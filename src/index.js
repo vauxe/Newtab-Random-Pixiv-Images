@@ -15,6 +15,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   let isDownloadBusy = false;
   let isCreatorPreferenceBusy = false;
   let isRandomToggleBusy = false;
+  let isRandomTagPoolToggleBusy = false;
   let isR18ToggleBusy = false;
   let latestRefreshRequestId = 0;
   let activeTagPopupHandler = null;
@@ -32,6 +33,13 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       randomOff: "Off",
       randomEnabledTitle: "Random Pixiv image requests are enabled",
       randomDisabledTitle: "Random Pixiv image requests are disabled",
+      randomTagPoolLabel: "Random Pool",
+      randomTagPoolOn: "On",
+      randomTagPoolOff: "Off",
+      randomTagPoolEnabledTitle: "Random tag pool is enabled",
+      randomTagPoolDisabledTitle: "Random tag pool is disabled",
+      randomTagSearchPlaceholder: "Random pool tag",
+      randomTagSearchTitle: "Use this tag for the next random search",
       r18Label: "R18 Only",
       r18On: "On",
       r18Off: "Off",
@@ -72,6 +80,8 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       excludeFailed: "Failed to exclude tag",
       excludedTag: "Excluded: -{tag}",
       randomSettingFailed: "Failed to update random image setting",
+      randomTagPoolSettingFailed: "Failed to update random tag pool setting",
+      manualRandomTagNoResult: "Custom tag returned no result. Falling back to default random search",
       r18SettingFailed: "Failed to update R18 setting",
       fallbackDefaultImage: "Failed to load a Pixiv image. Showing the default image instead.",
       fetchFailedDefaultImage: "Failed to fetch image. Showing the default image instead.",
@@ -83,6 +93,13 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       randomOff: "关闭",
       randomEnabledTitle: "当前会请求随机 Pixiv 图片",
       randomDisabledTitle: "当前不会请求随机 Pixiv 图片",
+      randomTagPoolLabel: "随机池",
+      randomTagPoolOn: "开启",
+      randomTagPoolOff: "关闭",
+      randomTagPoolEnabledTitle: "当前会启用随机 Tag 池",
+      randomTagPoolDisabledTitle: "当前不会启用随机 Tag 池",
+      randomTagSearchPlaceholder: "随机池 Tag",
+      randomTagSearchTitle: "输入一个 tag，刷新时优先按它搜索",
       r18Label: "仅看 R18",
       r18On: "开启",
       r18Off: "关闭",
@@ -123,6 +140,8 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       excludeFailed: "排除标签失败",
       excludedTag: "已排除：-{tag}",
       randomSettingFailed: "切换随机图片开关失败",
+      randomTagPoolSettingFailed: "切换随机 Tag 池开关失败",
+      manualRandomTagNoResult: "自定义 Tag 没有结果，已回退到默认随机搜索",
       r18SettingFailed: "切换 R18 设置失败",
       fallbackDefaultImage: "Pixiv 图片加载失败，已改为显示默认图片。",
       fetchFailedDefaultImage: "图片请求失败，已改为显示默认图片。",
@@ -134,6 +153,13 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       randomOff: "Off",
       randomEnabledTitle: "Pixiv のランダム画像取得が有効です",
       randomDisabledTitle: "Pixiv のランダム画像取得が無効です",
+      randomTagPoolLabel: "ランダムプール",
+      randomTagPoolOn: "On",
+      randomTagPoolOff: "Off",
+      randomTagPoolEnabledTitle: "ランダム Tag プールが有効です",
+      randomTagPoolDisabledTitle: "ランダム Tag プールが無効です",
+      randomTagSearchPlaceholder: "ランダムプール Tag",
+      randomTagSearchTitle: "入力した tag を優先してランダム検索します",
       r18Label: "R18 のみ",
       r18On: "On",
       r18Off: "Off",
@@ -174,6 +200,8 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       excludeFailed: "タグの除外に失敗しました",
       excludedTag: "除外済み: -{tag}",
       randomSettingFailed: "ランダム画像設定の更新に失敗しました",
+      randomTagPoolSettingFailed: "ランダム Tag プール設定の更新に失敗しました",
+      manualRandomTagNoResult: "指定した Tag では見つからなかったため、通常のランダム検索に戻しました",
       r18SettingFailed: "R18 設定の更新に失敗しました",
       fallbackDefaultImage: "Pixiv 画像の読み込みに失敗したため、デフォルト画像を表示しています。",
       fetchFailedDefaultImage: "画像取得に失敗したため、デフォルト画像を表示しています。",
@@ -243,7 +271,9 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
 
   function applyUiText() {
     const randomToggleText = document.getElementById("randomToggleText");
+    const randomTagPoolToggleText = document.getElementById("randomTagPoolToggleText");
     const r18ToggleText = document.getElementById("r18ToggleText");
+    const randomTagSearchInput = document.getElementById("randomTagSearchInput");
     const refreshButton = document.getElementById("refreshButton");
     const settingsButton = document.getElementById("settingsButton");
     const bookmarkButton = document.getElementById("bookmarkButton");
@@ -254,9 +284,17 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       const enabled = runtimeConfig ? runtimeConfig.randomImageEnabled !== false : true;
       randomToggleText.innerHTML = `<strong>${translate("randomLabel")}</strong><small>${enabled ? translate("randomOn") : translate("randomOff")}</small>`;
     }
+    if (randomTagPoolToggleText) {
+      const enabled = runtimeConfig ? runtimeConfig.randomTagPoolEnabled === true : false;
+      randomTagPoolToggleText.innerHTML = `<strong>${translate("randomTagPoolLabel")}</strong><small>${enabled ? translate("randomTagPoolOn") : translate("randomTagPoolOff")}</small>`;
+    }
     if (r18ToggleText) {
       const enabled = runtimeConfig ? runtimeConfig.mode === "r18" : false;
       r18ToggleText.innerHTML = `<strong>${translate("r18Label")}</strong><small>${enabled ? translate("r18On") : translate("r18Off")}</small>`;
+    }
+    if (randomTagSearchInput) {
+      randomTagSearchInput.placeholder = translate("randomTagSearchPlaceholder");
+      randomTagSearchInput.title = translate("randomTagSearchTitle");
     }
     if (refreshButton) {
       refreshButton.title = translate("refreshTitle");
@@ -296,8 +334,11 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       const settingsElement = document.body.querySelector("#settingsButton");
       const randomToggleInput = document.body.querySelector("#randomToggleInput");
       const randomToggleControl = document.body.querySelector("#randomToggleControl");
+      const randomTagPoolToggleInput = document.body.querySelector("#randomTagPoolToggleInput");
+      const randomTagPoolToggleControl = document.body.querySelector("#randomTagPoolToggleControl");
       const r18ToggleInput = document.body.querySelector("#r18ToggleInput");
       const r18ToggleControl = document.body.querySelector("#r18ToggleControl");
+      const randomTagSearchInput = document.body.querySelector("#randomTagSearchInput");
       const likeElement = document.body.querySelector("#likeButton");
       const bookmarkElement = document.body.querySelector("#bookmarkButton");
       const downloadOriginalElement = document.body.querySelector("#downloadOriginalButton");
@@ -311,8 +352,11 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       this.illustInfoElement = illustInfoElement;
       this.randomToggleInput = randomToggleInput;
       this.randomToggleControl = randomToggleControl;
+      this.randomTagPoolToggleInput = randomTagPoolToggleInput;
+      this.randomTagPoolToggleControl = randomTagPoolToggleControl;
       this.r18ToggleInput = r18ToggleInput;
       this.r18ToggleControl = r18ToggleControl;
+      this.randomTagSearchInput = randomTagSearchInput;
 
       bgElement.referrerPolicy = "no-referrer";
       fgImageElement.referrerPolicy = "no-referrer";
@@ -391,7 +435,14 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
         }
       });
       randomToggleInput.addEventListener("change", handleRandomToggleChange);
+      randomTagPoolToggleInput.addEventListener("change", handleRandomTagPoolToggleChange);
       r18ToggleInput.addEventListener("change", handleR18ToggleChange);
+      randomTagSearchInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          refreshCurrentPageImage();
+        }
+      });
 
       // Like button
       likeElement.addEventListener("click", handleLike);
@@ -489,6 +540,22 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     binding.randomToggleControl.classList.toggle("disabled", isBusy);
   }
 
+  function setRandomTagPoolToggleState(enabled) {
+    if (!binding || !binding.randomTagPoolToggleInput) return;
+    binding.randomTagPoolToggleInput.checked = !!enabled;
+    binding.randomTagPoolToggleControl.title = enabled
+      ? translate("randomTagPoolEnabledTitle")
+      : translate("randomTagPoolDisabledTitle");
+    applyUiText();
+  }
+
+  function setRandomTagPoolToggleBusy(isBusy) {
+    isRandomTagPoolToggleBusy = isBusy;
+    if (!binding || !binding.randomTagPoolToggleInput) return;
+    binding.randomTagPoolToggleInput.disabled = isBusy;
+    binding.randomTagPoolToggleControl.classList.toggle("disabled", isBusy);
+  }
+
   function setR18ToggleState(enabled) {
     if (!binding || !binding.r18ToggleInput) return;
     binding.r18ToggleInput.checked = !!enabled;
@@ -531,6 +598,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     return new Promise((resolve) => {
       chrome.storage.local.get({
         randomImageEnabled: true,
+        randomTagPoolEnabled: false,
         mode: "safe",
         defaultImageUrl: "",
         defaultImageSourceType: "url",
@@ -540,6 +608,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       }, async (items) => {
         const config = items || {
           randomImageEnabled: true,
+          randomTagPoolEnabled: false,
           mode: "safe",
           defaultImageUrl: "",
           defaultImageSourceType: "url",
@@ -586,6 +655,21 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
         showToast("Random images are disabled and no default image is configured.", "error");
       }
     });
+  }
+
+  function handleStoredRandomTagPoolEnabledChange(enabled) {
+    if (!runtimeConfig) {
+      return;
+    }
+    const previousEnabled = runtimeConfig.randomTagPoolEnabled === true;
+    runtimeConfig.randomTagPoolEnabled = enabled;
+    setRandomTagPoolToggleState(enabled);
+    if (isRandomTagPoolToggleBusy || previousEnabled === enabled) {
+      return;
+    }
+    if (runtimeConfig.randomImageEnabled !== false) {
+      sendRefreshMessage({ force: true });
+    }
   }
 
   function handleStoredModeChange(mode) {
@@ -710,6 +794,18 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     const nextMode = enabled ? "r18" : "safe";
     return new Promise((resolve, reject) => {
       chrome.storage.local.set({ mode: nextMode }, () => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        notifyRuntimeConfigUpdated().then(resolve).catch(reject);
+      });
+    });
+  }
+
+  function persistRandomTagPoolEnabled(enabled) {
+    return new Promise((resolve, reject) => {
+      chrome.storage.local.set({ randomTagPoolEnabled: enabled }, () => {
         if (chrome.runtime.lastError) {
           reject(new Error(chrome.runtime.lastError.message));
           return;
@@ -1274,6 +1370,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
 
     return (options = {}) => {
       const force = !!options.force;
+      const manualRandomTag = String(options.manualRandomTag || "").trim();
       if (runtimeConfig && runtimeConfig.randomImageEnabled === false) {
       showConfiguredDefaultImage().then((hasDefaultImage) => {
         debugLog("sendRefreshMessage:random-disabled", { hasDefaultImage });
@@ -1293,14 +1390,17 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       isRequestInProgress = true;
       pendingRefreshRequested = false;
       const requestId = ++latestRefreshRequestId;
-      debugLog("sendRefreshMessage:start", { requestId, force, mode: runtimeConfig?.mode, randomImageEnabled: runtimeConfig?.randomImageEnabled });
-      sendRuntimeMessageWithTimeout({ action: "fetchImage" }, 15000).then((res) => {
+      debugLog("sendRefreshMessage:start", { requestId, force, mode: runtimeConfig?.mode, randomImageEnabled: runtimeConfig?.randomImageEnabled, manualRandomTag });
+      sendRuntimeMessageWithTimeout({ action: "fetchImage", manualRandomTag }, 15000).then((res) => {
         debugLog("sendRefreshMessage:response", { requestId, response: res });
         if (requestId !== latestRefreshRequestId || (runtimeConfig && runtimeConfig.randomImageEnabled === false)) {
           debugLog("sendRefreshMessage:stale-response", { requestId, latestRefreshRequestId });
           isRequestInProgress = false;
           flushPendingRefresh();
           return;
+        }
+        if (manualRandomTag && res && res.usedManualRandomTag === false) {
+          showToast(translate("manualRandomTagNoResult"), "success");
         }
         Promise.resolve(changeElement(res)).catch((e) => {
           console.error("changeElement error:", e);
@@ -1318,7 +1418,10 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   })();
 
   function refreshCurrentPageImage() {
-    sendRefreshMessage();
+    const manualRandomTag = binding && binding.randomTagSearchInput
+      ? String(binding.randomTagSearchInput.value || "").trim()
+      : "";
+    sendRefreshMessage({ manualRandomTag });
   }
 
   async function handleRandomToggleChange(event) {
@@ -1397,12 +1500,46 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     }
   }
 
+  async function handleRandomTagPoolToggleChange(event) {
+    if (!runtimeConfig || isRandomTagPoolToggleBusy) {
+      if (binding && binding.randomTagPoolToggleInput) {
+        binding.randomTagPoolToggleInput.checked = runtimeConfig ? runtimeConfig.randomTagPoolEnabled === true : false;
+      }
+      return;
+    }
+
+    const nextEnabled = !!event.target.checked;
+    const previousEnabled = runtimeConfig.randomTagPoolEnabled === true;
+
+    if (nextEnabled === previousEnabled) {
+      return;
+    }
+
+    setRandomTagPoolToggleBusy(true);
+    try {
+      await persistRandomTagPoolEnabled(nextEnabled);
+      runtimeConfig.randomTagPoolEnabled = nextEnabled;
+      setRandomTagPoolToggleState(nextEnabled);
+      if (runtimeConfig.randomImageEnabled !== false) {
+        sendRefreshMessage({ force: true });
+      }
+    } catch (error) {
+      console.error("Failed to update random tag pool setting:", error);
+      runtimeConfig.randomTagPoolEnabled = previousEnabled;
+      setRandomTagPoolToggleState(previousEnabled);
+      showToast(translate("randomTagPoolSettingFailed"), "error");
+    } finally {
+      setRandomTagPoolToggleBusy(false);
+    }
+  }
+
   async function bootstrap() {
     initApplication();
     updateActionButtons();
     runtimeConfig = await loadStartupConfig();
     applyUiText();
     setRandomToggleState(runtimeConfig.randomImageEnabled !== false);
+    setRandomTagPoolToggleState(runtimeConfig.randomTagPoolEnabled === true);
     setR18ToggleState(runtimeConfig.mode === "r18");
 
     const hasDefaultImage = await showConfiguredDefaultImage({
@@ -1427,6 +1564,9 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     }
     if (changes.randomImageEnabled) {
       handleStoredRandomImageEnabledChange(changes.randomImageEnabled.newValue !== false);
+    }
+    if (changes.randomTagPoolEnabled) {
+      handleStoredRandomTagPoolEnabledChange(changes.randomTagPoolEnabled.newValue === true);
     }
     if (changes.mode) {
       handleStoredModeChange(changes.mode.newValue);

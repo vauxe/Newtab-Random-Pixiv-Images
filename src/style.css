@@ -97,6 +97,12 @@ body {
   gap: 6px;
 }
 
+#pageSearchGroup {
+  display: flex;
+  align-items: center;
+  min-width: 0;
+}
+
 .page-toggle-control {
   display: inline-flex;
   align-items: center;
@@ -113,6 +119,52 @@ body {
   gap: 4px;
   padding-left: 7px;
   border-left: 1px solid rgba(255, 255, 255, 0.12);
+}
+
+.page-search-input {
+  width: 112px;
+  min-width: 0;
+  padding: 7px 10px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  border-radius: 12px;
+  background: rgba(255, 255, 255, 0.07);
+  color: #fff;
+  font-family: HiraginoSans-W3, Hiragino Kaku Gothic Pro, Meiryo, Verdana, sans-serif;
+  font-size: 11px;
+  line-height: 1.2;
+  outline: none;
+  transition: border-color 0.2s ease, background-color 0.2s ease, box-shadow 0.2s ease;
+}
+
+.page-search-input::placeholder {
+  color: rgba(255, 255, 255, 0.45);
+}
+
+.page-search-input:focus {
+  border-color: rgba(96, 165, 250, 0.6);
+  background: rgba(255, 255, 255, 0.12);
+  box-shadow: 0 0 0 3px rgba(96, 165, 250, 0.14);
+}
+
+@media (max-width: 720px) {
+  #pageControls {
+    gap: 6px;
+    padding: 7px;
+  }
+
+  #pageToggleGroup {
+    gap: 4px;
+  }
+
+  .page-toggle-control {
+    min-width: 78px;
+    gap: 6px;
+  }
+
+  .page-search-input {
+    width: 88px;
+    padding: 6px 8px;
+  }
 }
 
 #refreshButton,
@@ -148,6 +200,7 @@ body {
 }
 
 #randomToggleInput,
+#randomTagPoolToggleInput,
 #r18ToggleInput {
   position: absolute;
   opacity: 0;
@@ -178,16 +231,19 @@ body {
 }
 
 #randomToggleInput:checked + .random-toggle-slider,
+#randomTagPoolToggleInput:checked + .random-toggle-slider,
 #r18ToggleInput:checked + .random-toggle-slider {
   background: linear-gradient(135deg, rgba(66, 188, 255, 0.95), rgba(89, 132, 255, 0.9));
 }
 
 #randomToggleInput:checked + .random-toggle-slider::after,
+#randomTagPoolToggleInput:checked + .random-toggle-slider::after,
 #r18ToggleInput:checked + .random-toggle-slider::after {
   transform: translateX(16px);
 }
 
 #randomToggleText,
+#randomTagPoolToggleText,
 #r18ToggleText {
   display: flex;
   flex-direction: column;
@@ -197,12 +253,14 @@ body {
 }
 
 #randomToggleText strong,
+#randomTagPoolToggleText strong,
 #r18ToggleText strong {
   font-size: 10px;
   font-weight: 600;
 }
 
 #randomToggleText small,
+#randomTagPoolToggleText small,
 #r18ToggleText small {
   font-size: 9px;
   color: rgba(255, 255, 255, 0.7);
