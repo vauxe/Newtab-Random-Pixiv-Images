@@ -18,27 +18,33 @@ function expectProp(block, prop, value) {
 }
 
 const illustInfo = getBlock("#illustInfo");
-expectProp(illustInfo, "gap", "10px");
-expectProp(illustInfo, "min-height", "72px");
-expectProp(illustInfo, "padding", "12px");
+expectProp(illustInfo, "grid-template-columns", "auto auto minmax\\(0, 1fr\\) auto");
+expectProp(illustInfo, "gap", "14px");
+expectProp(illustInfo, "width", "min\\(492px, calc\\(100vw - 24px\\)\\)");
+expectProp(illustInfo, "min-height", "68px");
+expectProp(illustInfo, "padding", "10px 16px");
+expectProp(illustInfo, "border-radius", "16px");
 
 const avatarImage = getBlock("#avatarImage");
-expectProp(avatarImage, "width", "48px");
-expectProp(avatarImage, "height", "48px");
+expectProp(avatarImage, "width", "56px");
+expectProp(avatarImage, "height", "56px");
 
 const illustTitle = getBlock("#illustTitle");
-expectProp(illustTitle, "font-size", "14px");
+expectProp(illustTitle, "font-size", "20px");
 
 const illustName = getBlock("#illustName");
-expectProp(illustName, "font-size", "12px");
+expectProp(illustName, "font-size", "16px");
 
 const creatorActions = getBlock("#creatorActions");
-expectProp(creatorActions, "gap", "6px");
-expectProp(creatorActions, "margin-top", "6px");
+expectProp(creatorActions, "gap", "18px");
+expectProp(creatorActions, "justify-self", "end");
+expectProp(creatorActions, "margin-top", "0");
 
 const buttonBlock = getBlock("#likeButton,\n#bookmarkButton,\n#downloadOriginalButton,\n#dislikeButton,\n#creatorLikeButton,\n#creatorDislikeButton");
-expectProp(buttonBlock, "width", "24px");
-expectProp(buttonBlock, "height", "24px");
+expectProp(buttonBlock, "width", "28px");
+expectProp(buttonBlock, "height", "28px");
+expectProp(buttonBlock, "background", "transparent");
+expectProp(buttonBlock, "border", "0");
 
 const pageControls = getBlock("#pageControls");
 expectProp(pageControls, "display", "grid");
