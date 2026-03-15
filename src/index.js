@@ -5,12 +5,14 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   let currentTags = [];
   let currentIllustId = null;
   let currentIllustUrl = null;
+  let currentOriginalImageUrl = null;
   let currentUserId = null;
   let currentUserName = "";
   let currentBookmarkedIllustId = null;
   let runtimeConfig = null;
   let currentImageVisible = false;
   let isBookmarkBusy = false;
+  let isDownloadBusy = false;
   let isCreatorPreferenceBusy = false;
   let isRandomToggleBusy = false;
   let isR18ToggleBusy = false;
@@ -38,6 +40,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       settingsTitle: "Tag Manager",
       refreshTitle: "Refresh image",
       bookmarkTitle: "Bookmark artwork",
+      downloadOriginalTitle: "Download original image",
       creatorLikeTitle: "Like creator",
       creatorDislikeTitle: "Dislike creator",
       defaultBackgroundTitle: "Default background",
@@ -46,11 +49,17 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       failedLoadImage: "Failed to load image",
       bookmarkFailed: "Bookmark failed",
       bookmarked: "Bookmarked!",
+      originalUnavailable: "Original image is unavailable",
+      downloadOriginalFailed: "Failed to download original image",
+      downloadOriginalStarted: "Downloading original image",
       creatorUnavailable: "Creator information is unavailable",
       creatorPreferenceFailed: "Failed to update creator preference",
       likedCreator: "Liked creator: {name}",
       dislikedCreator: "Disliked creator: {name}",
       clearedCreatorPreference: "Cleared creator preference: {name}",
+      blockIllustAction: "Never show this artwork again",
+      blockIllustFailed: "Failed to hide this artwork",
+      blockedIllust: "This artwork will no longer appear",
       addRandomTagTitle: "Select tags to add to random pool",
       addRandomTagFailed: "Failed to add tag to random pool",
       addedRandomTag: "Added to random pool: {tag}",
@@ -82,6 +91,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       settingsTitle: "标签管理",
       refreshTitle: "刷新图片",
       bookmarkTitle: "收藏作品",
+      downloadOriginalTitle: "下载原图",
       creatorLikeTitle: "喜欢作者",
       creatorDislikeTitle: "不喜欢作者",
       defaultBackgroundTitle: "默认背景",
@@ -90,11 +100,17 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       failedLoadImage: "图片加载失败",
       bookmarkFailed: "收藏失败",
       bookmarked: "已收藏",
+      originalUnavailable: "当前没有可下载的原图",
+      downloadOriginalFailed: "下载原图失败",
+      downloadOriginalStarted: "开始下载原图",
       creatorUnavailable: "当前没有可操作的作者信息",
       creatorPreferenceFailed: "更新作者偏好失败",
       likedCreator: "已喜欢作者：{name}",
       dislikedCreator: "已屏蔽作者：{name}",
       clearedCreatorPreference: "已清除作者偏好：{name}",
+      blockIllustAction: "不再显示当前作品",
+      blockIllustFailed: "隐藏当前作品失败",
+      blockedIllust: "这张作品后续将不再出现",
       addRandomTagTitle: "选择要加入随机池的标签",
       addRandomTagFailed: "加入随机池失败",
       addedRandomTag: "已加入随机池：{tag}",
@@ -126,6 +142,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       settingsTitle: "タグ管理",
       refreshTitle: "画像を更新",
       bookmarkTitle: "作品をブックマーク",
+      downloadOriginalTitle: "オリジナル画像を保存",
       creatorLikeTitle: "作者をお気に入り",
       creatorDislikeTitle: "作者を非表示",
       defaultBackgroundTitle: "デフォルト背景",
@@ -134,11 +151,17 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       failedLoadImage: "画像の読み込みに失敗しました",
       bookmarkFailed: "ブックマークに失敗しました",
       bookmarked: "ブックマークしました",
+      originalUnavailable: "ダウンロードできる原寸画像がありません",
+      downloadOriginalFailed: "オリジナル画像のダウンロードに失敗しました",
+      downloadOriginalStarted: "オリジナル画像をダウンロードしています",
       creatorUnavailable: "作者情報がありません",
       creatorPreferenceFailed: "作者設定の更新に失敗しました",
       likedCreator: "作者をお気に入りに追加しました: {name}",
       dislikedCreator: "作者を非表示にしました: {name}",
       clearedCreatorPreference: "作者設定を解除しました: {name}",
+      blockIllustAction: "この作品を今後表示しない",
+      blockIllustFailed: "この作品の非表示に失敗しました",
+      blockedIllust: "この作品は今後表示されません",
       addRandomTagTitle: "ランダムプールに追加する tag を選択",
       addRandomTagFailed: "ランダムプールへの追加に失敗しました",
       addedRandomTag: "ランダムプールに追加しました: {tag}",
@@ -193,12 +216,38 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     console.log("[newtab]", ...args);
   }
 
+  function sanitizeFilenamePart(value, fallback) {
+    const sanitized = String(value || "")
+      .replace(/[\\/:*?"<>|]+/g, "-")
+      .replace(/\s+/g, " ")
+      .trim();
+    return sanitized || fallback;
+  }
+
+  function getOriginalDownloadFilename(url) {
+    const pathname = (() => {
+      try {
+        return new URL(url).pathname;
+      } catch (error) {
+        return "";
+      }
+    })();
+    const rawName = pathname.split("/").pop() || "";
+    const extMatch = rawName.match(/\.[a-zA-Z0-9]+$/);
+    const ext = extMatch ? extMatch[0] : ".jpg";
+    const baseName = currentIllustId
+      ? `pixiv-${currentIllustId}`
+      : sanitizeFilenamePart(currentUserName || "pixiv-original", "pixiv-original");
+    return `${baseName}${ext}`;
+  }
+
   function applyUiText() {
     const randomToggleText = document.getElementById("randomToggleText");
     const r18ToggleText = document.getElementById("r18ToggleText");
     const refreshButton = document.getElementById("refreshButton");
     const settingsButton = document.getElementById("settingsButton");
     const bookmarkButton = document.getElementById("bookmarkButton");
+    const downloadOriginalButton = document.getElementById("downloadOriginalButton");
     const creatorLikeButton = document.getElementById("creatorLikeButton");
     const creatorDislikeButton = document.getElementById("creatorDislikeButton");
     if (randomToggleText) {
@@ -217,6 +266,9 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     }
     if (bookmarkButton) {
       bookmarkButton.title = translate("bookmarkTitle");
+    }
+    if (downloadOriginalButton) {
+      downloadOriginalButton.title = translate("downloadOriginalTitle");
     }
     if (creatorLikeButton) {
       creatorLikeButton.title = translate("creatorLikeTitle");
@@ -248,6 +300,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       const r18ToggleControl = document.body.querySelector("#r18ToggleControl");
       const likeElement = document.body.querySelector("#likeButton");
       const bookmarkElement = document.body.querySelector("#bookmarkButton");
+      const downloadOriginalElement = document.body.querySelector("#downloadOriginalButton");
       const dislikeElement = document.body.querySelector("#dislikeButton");
       const creatorLikeElement = document.body.querySelector("#creatorLikeButton");
       const creatorDislikeElement = document.body.querySelector("#creatorDislikeButton");
@@ -346,6 +399,9 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       // Bookmark button
       bookmarkElement.addEventListener("click", handleBookmark);
 
+      // Download original button
+      downloadOriginalElement.addEventListener("click", handleDownloadOriginal);
+
       // Dislike button
       dislikeElement.addEventListener("click", handleDislike);
 
@@ -387,6 +443,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   function updateActionButtons() {
     const likeBtn = document.getElementById("likeButton");
     const bookmarkBtn = document.getElementById("bookmarkButton");
+    const downloadOriginalBtn = document.getElementById("downloadOriginalButton");
     const dislikeBtn = document.getElementById("dislikeButton");
     const creatorLikeBtn = document.getElementById("creatorLikeButton");
     const creatorDislikeBtn = document.getElementById("creatorDislikeButton");
@@ -394,6 +451,8 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     bookmarkBtn.classList.toggle("disabled", !currentIllustId || isBookmarkBusy);
     bookmarkBtn.classList.toggle("loading", !!currentIllustId && isBookmarkBusy);
     bookmarkBtn.classList.toggle("bookmarked", !!currentIllustId && currentBookmarkedIllustId === currentIllustId);
+    downloadOriginalBtn.classList.toggle("disabled", !currentOriginalImageUrl || isDownloadBusy);
+    downloadOriginalBtn.classList.toggle("loading", !!currentOriginalImageUrl && isDownloadBusy);
     dislikeBtn.classList.toggle("disabled", !currentTags || currentTags.length === 0);
     const hasCreator = !!currentUserId;
     const likedUserIds = Array.isArray(runtimeConfig?.likedUserIds) ? runtimeConfig.likedUserIds : [];
@@ -406,6 +465,11 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
 
   function setBookmarkBusy(isBusy) {
     isBookmarkBusy = isBusy;
+    updateActionButtons();
+  }
+
+  function setDownloadBusy(isBusy) {
+    isDownloadBusy = isBusy;
     updateActionButtons();
   }
 
@@ -454,6 +518,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       illustId: null,
       userIdUrl: "",
       illustIdUrl: "",
+      originalImageUrl: "",
       profileImageUrl: "",
       imageObjectUrl: defaultImageUrl,
       tags: [],
@@ -666,6 +731,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     currentTags = illustObject.tags || [];
     currentIllustId = illustObject.illustId || null;
     currentIllustUrl = illustObject.illustIdUrl || null;
+    currentOriginalImageUrl = illustObject.originalImageUrl || null;
     currentUserId = illustObject.userId ? String(illustObject.userId) : null;
     currentUserName = illustObject.userName || "";
     currentImageVisible = !!illustObject.imageObjectUrl;
@@ -673,6 +739,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       currentBookmarkedIllustId = null;
     }
     isBookmarkBusy = false;
+    isDownloadBusy = false;
     currentLikedTagsForImage = new Set();
     currentQueuedPriorityTagForImage = "";
     debugLog("changeElement:state", {
@@ -756,6 +823,41 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       }
       showToast(localizeRuntimeMessage(res?.error) || translate("bookmarkFailed"), "error");
     });
+  }
+
+  async function handleDownloadOriginal() {
+    if (!currentOriginalImageUrl || isDownloadBusy) {
+      if (!currentOriginalImageUrl) {
+        showToast(translate("originalUnavailable"), "error");
+      }
+      return;
+    }
+
+    setDownloadBusy(true);
+    try {
+      const response = await fetch(currentOriginalImageUrl, {
+        credentials: "omit",
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = getOriginalDownloadFilename(currentOriginalImageUrl);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+      showToast(translate("downloadOriginalStarted"), "success");
+    } catch (error) {
+      console.error("Failed to download original image:", error);
+      showToast(translate("downloadOriginalFailed"), "error");
+    } finally {
+      setDownloadBusy(false);
+    }
   }
 
   function updateCreatorPreference(preference) {
@@ -878,7 +980,9 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
 
   // ── Dislike (show tag popup) ──
   function handleDislike() {
-    if (!currentTags || currentTags.length === 0) {
+    const hasTagOptions = !!currentTags && currentTags.length > 0;
+    const hasIllustOption = !!currentIllustId;
+    if (!hasTagOptions && !hasIllustOption) {
       showToast(translate("noTagsAvailable"), "error");
       return;
     }
@@ -887,23 +991,42 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       mode: "exclude",
       triggerElement: document.getElementById("dislikeButton"),
       onSelect: excludeTag,
+      extraActions: hasIllustOption ? [{
+        label: translate("blockIllustAction"),
+        onClick: blockCurrentIllust,
+      }] : [],
     });
   }
 
   function openTagPopup(tags, options = {}) {
     const popup = document.getElementById("tagPopup");
     const popupHeader = popup.querySelector(".tag-popup-header");
+    const popupActions = document.getElementById("tagPopupActions");
     const tagList = document.getElementById("tagList");
     activeTagPopupPendingTags = new Set();
     activeTagPopupMode = options.mode === "random" ? "random" : "exclude";
     shouldRefreshOnTagPopupClose = false;
     popupHeader.textContent = options.title || translate("excludeTagTitle");
+    popupActions.innerHTML = "";
     tagList.innerHTML = "";
     activeTagPopupHandler = typeof options.onSelect === "function" ? options.onSelect : null;
     activeTagPopupTrigger = options.triggerElement || null;
     popup.classList.toggle("expanded", !!options.expanded);
     popup.classList.toggle("mode-random", options.mode === "random");
     popup.classList.toggle("mode-exclude", options.mode !== "random");
+
+    const extraActions = Array.isArray(options.extraActions) ? options.extraActions : [];
+    extraActions.forEach((action, index) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "tag-popup-action-btn";
+      btn.dataset.actionIndex = String(index);
+      btn.textContent = action.label;
+      btn.addEventListener("click", () => {
+        action.onClick?.(btn);
+      });
+      popupActions.appendChild(btn);
+    });
 
     tags.forEach((t) => {
       const chip = document.createElement("div");
@@ -969,6 +1092,43 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
         } else {
           showToast(res?.error || translate("excludeFailed"), "error");
         }
+      }
+    );
+  }
+
+  function setPopupActionPending(actionIndex, pending) {
+    const actionBtn = document.querySelector(`.tag-popup-action-btn[data-action-index="${actionIndex}"]`);
+    if (!actionBtn) {
+      return;
+    }
+    actionBtn.classList.toggle("pending", pending);
+  }
+
+  function blockCurrentIllust(actionBtn) {
+    if (!currentIllustId) {
+      showToast(translate("blockIllustFailed"), "error");
+      return;
+    }
+    if (actionBtn && actionBtn.classList.contains("pending")) {
+      return;
+    }
+    const actionIndex = actionBtn?.dataset.actionIndex || "0";
+    setPopupActionPending(actionIndex, true);
+    chrome.runtime.sendMessage(
+      { action: "blockIllust", illustId: currentIllustId },
+      (res) => {
+        setPopupActionPending(actionIndex, false);
+        if (chrome.runtime.lastError) {
+          showToast(translate("blockIllustFailed"), "error");
+          return;
+        }
+        if (res && res.success) {
+          showToast(translate("blockedIllust"), "success");
+          closeTagPopup({ triggerRefresh: false });
+          sendRefreshMessage({ force: true });
+          return;
+        }
+        showToast(res?.error || translate("blockIllustFailed"), "error");
       }
     );
   }

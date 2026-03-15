@@ -314,6 +314,7 @@ body {
 /* Like / Dislike buttons */
 #likeButton,
 #bookmarkButton,
+#downloadOriginalButton,
 #dislikeButton,
 #creatorLikeButton,
 #creatorDislikeButton {
@@ -339,6 +340,11 @@ body {
   transform: scale(1.15);
 }
 
+#downloadOriginalButton:hover {
+  background-color: rgba(96, 165, 250, 0.72);
+  transform: scale(1.15);
+}
+
 #creatorLikeButton:hover {
   background-color: rgba(72, 199, 116, 0.7);
   transform: scale(1.1);
@@ -351,6 +357,7 @@ body {
 
 #likeButton.disabled,
 #bookmarkButton.disabled,
+#downloadOriginalButton.disabled,
 #dislikeButton.disabled,
 #creatorLikeButton.disabled,
 #creatorDislikeButton.disabled {
@@ -376,6 +383,10 @@ body {
 }
 
 #bookmarkButton.loading {
+  animation: bookmarkPulse 0.9s ease-in-out infinite;
+}
+
+#downloadOriginalButton.loading {
   animation: bookmarkPulse 0.9s ease-in-out infinite;
 }
 
@@ -443,6 +454,42 @@ body {
   color: #aaa;
   border-bottom: 1px solid rgba(255, 255, 255, 0.06);
   font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+.tag-popup-actions {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding: 10px 10px 0;
+}
+
+.tag-popup-actions:empty {
+  display: none;
+}
+
+.tag-popup-action-btn {
+  width: 100%;
+  border: 1px solid rgba(255, 255, 255, 0.08);
+  border-radius: 10px;
+  padding: 8px 10px;
+  background: rgba(255, 255, 255, 0.04);
+  color: #f0f0f5;
+  font-size: 12px;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  text-align: left;
+  cursor: pointer;
+  transition: background-color 0.2s, border-color 0.2s, color 0.2s;
+}
+
+.tag-popup-action-btn:hover {
+  background: rgba(244, 67, 54, 0.16);
+  border-color: rgba(244, 67, 54, 0.32);
+  color: #ffb3b3;
+}
+
+.tag-popup-action-btn.pending {
+  opacity: 0.65;
+  pointer-events: none;
 }
 
 .tag-list {

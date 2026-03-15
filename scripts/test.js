@@ -36,7 +36,7 @@ const creatorActions = getBlock("#creatorActions");
 expectProp(creatorActions, "gap", "4px");
 expectProp(creatorActions, "margin-top", "2px");
 
-const buttonBlock = getBlock("#likeButton,\n#bookmarkButton,\n#dislikeButton,\n#creatorLikeButton,\n#creatorDislikeButton");
+const buttonBlock = getBlock("#likeButton,\n#bookmarkButton,\n#downloadOriginalButton,\n#dislikeButton,\n#creatorLikeButton,\n#creatorDislikeButton");
 expectProp(buttonBlock, "width", "20px");
 expectProp(buttonBlock, "height", "20px");
 

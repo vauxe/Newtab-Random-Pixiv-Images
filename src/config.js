@@ -61,6 +61,7 @@ export const defaultConfig = {
   presetMinusKeywords: [], // deprecated: merged into globalMinusKeywords
   likedUserIds: [],
   dislikedUserIds: [],
+  blockedIllustIds: [],
   randomTagPoolEnabled: false,
   randomTagPool: [],
   randomTagPoolCounts: {},
@@ -322,6 +323,15 @@ export function migrateConfig(config) {
   }
   if (!Array.isArray(config.dislikedUserIds)) {
     config.dislikedUserIds = [];
+  }
+  if (!Array.isArray(config.blockedIllustIds)) {
+    config.blockedIllustIds = [];
+  } else {
+    config.blockedIllustIds = Array.from(new Set(
+      config.blockedIllustIds
+        .map((id) => String(id || "").trim())
+        .filter(Boolean)
+    ));
   }
   if (typeof config.randomTagPoolEnabled !== "boolean") {
     config.randomTagPoolEnabled = false;

@@ -73,6 +73,13 @@
             d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2zm0 14.97-5-2.14-5 2.14V5h10v12.97z" />
         </svg>
       </div>
+      <div id="downloadOriginalButton" title="Download original image">
+        <svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" focusable="false"
+          style="pointer-events:none;display:block;width:100%;height:100%;fill:#eeeeee;">
+          <path
+            d="M5 20h14v-2H5v2zm7-18-5.5 5.5 1.41 1.41L11 5.83V16h2V5.83l3.09 3.08 1.41-1.41L12 2z" />
+        </svg>
+      </div>
       <div id="dislikeButton" title="Dislike — exclude a tag">
         <svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" focusable="false"
           style="pointer-events:none;display:block;width:100%;height:100%;fill:#eeeeee;">
@@ -108,6 +115,7 @@
     <!-- Tag Popup for dislike -->
     <div id="tagPopup" class="tag-popup hidden">
       <div class="tag-popup-header">Select a tag to exclude:</div>
+      <div id="tagPopupActions" class="tag-popup-actions"></div>
       <div id="tagList" class="tag-list"></div>
     </div>
 

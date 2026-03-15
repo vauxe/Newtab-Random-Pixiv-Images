@@ -1,6 +1,10 @@
 import { defaultConfig, buildQuery, sampleRandomTagPool, migrateConfig } from "./config.js";
 import { resolveDefaultImageUrl } from "./default-image-store.js";
 
+/**
+ * 确保 Pixiv 请求头规则
+ * 配置 declarativeNetRequest 规则，为 Pixiv 请求添加正确的 referer 和 CORS 头
+ */
 function ensurePixivHeaderRules() {
   const RULE = [
     {
@@ -69,20 +73,32 @@ function ensurePixivHeaderRules() {
   });
 }
 
+// 扩展安装时初始化 Pixiv 请求头规则
 chrome.runtime.onInstalled.addListener(() => {
   ensurePixivHeaderRules();
 });
 
+// 扩展启动时初始化 Pixiv 请求头规则
 chrome.runtime.onStartup.addListener(() => {
   ensurePixivHeaderRules();
 });
 
+// 页面加载时确保 Pixiv 请求头规则已应用
 ensurePixivHeaderRules();
 
+/**
+ * 调试日志输出
+ */
 function debugLog(...args) {
   console.log("[bg]", ...args);
 }
 
+/**
+ * 带超时的 fetch 请求
+ * @param {string} url - 请求 URL
+ * @param {object} init - fetch 初始化参数
+ * @param {number} timeoutMs - 超时时间（毫秒）
+ */
 async function fetchWithTimeout(url, init = {}, timeoutMs = 12000) {
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
@@ -96,12 +112,18 @@ async function fetchWithTimeout(url, init = {}, timeoutMs = 12000) {
   }
 }
 
+/**
+ * 生成指定范围内的随机整数
+ */
 function getRandomInt(min, max) {
   min = Math.ceil(min);
   max = Math.floor(max);
   return Math.floor(Math.random() * (max - min) + min);
 }
 
+/**
+ * 打乱数组顺序（Fisher-Yates 洗牌算法）
+ */
 function shuffleArray(array) {
   for (let i = array.length - 1; i > 0; i--) {
     const j = getRandomInt(0, i + 1);
@@ -109,6 +131,10 @@ function shuffleArray(array) {
   }
   return array;
 }
+
+/**
+ * 固定大小的队列数据结构，用于缓存候选作品
+ */
 class Queue {
   constructor(maxsize) {
     this.maxsize = maxsize;
@@ -140,12 +166,17 @@ class Queue {
   }
 }
 
+/**
+ * 从 Pixiv API 获取 JSON 数据
+ * @param {string} url - 请求 URL
+ * @returns {Promise<object>} - 返回解析后的 JSON 或错误对象
+ */
 async function fetchPixivJson(url) {
   try {
     debugLog("fetchPixivJson:start", url);
     let res = await fetchWithTimeout(url, {}, 12000);
     if (!res.ok) {
-      console.error(`Fetch pixiv json failed: ${res.status} ${res.statusText}`);
+      console.error(`Fetch Pixiv json failed: ${res.status} ${res.statusText}`);
       return { __error: true, message: `HTTP ${res.status} ${res.statusText}` };
     }
     let res_json = await res.json();
@@ -156,22 +187,30 @@ async function fetchPixivJson(url) {
     debugLog("fetchPixivJson:ok", url);
     return res_json;
   } catch (e) {
-    console.error(`Fetch pixiv json error:`, e);
+    console.error(`Fetch Pixiv json error:`, e);
     return { __error: true, message: e && e.message ? e.message : "Network error" };
   }
 }
 
+/**
+ * 获取图片资源，支持多种降级策略
+ * @param {string} url - 图片 URL
+ * @param {string} label - 图片标签（用于日志）
+ * @returns {Promise<Blob|null>} - 返回图片 Blob 对象
+ */
 async function fetchImage(url, label = "image") {
   if (!url) {
     debugLog("fetchImage:skip-empty", label);
     return null;
   }
+  // 在扩展环境中优先使用 XHR 方式
   if (typeof XMLHttpRequest !== "undefined") {
     const xhrBlob = await fetchImageViaXhr(url, label);
     if (xhrBlob) {
       return xhrBlob;
     }
   }
+  // 尝试不同的获取策略
   const attempts = [
     {
       name: "pixiv-referrer",
@@ -209,6 +248,13 @@ async function fetchImage(url, label = "image") {
   return null;
 }
 
+/**
+ * 使用 XHR 方式获取图片（适用于扩展环境）
+ * @param {string} url - 图片 URL
+ * @param {string} label - 图片标签
+ * @param {number} timeoutMs - 超时时间
+ * @returns {Promise<Blob|null>}
+ */
 function fetchImageViaXhr(url, label = "image", timeoutMs = 10000) {
   if (typeof XMLHttpRequest === "undefined") {
     debugLog("fetchImage:xhr-unavailable", { label, url });
@@ -262,6 +308,12 @@ function fetchImageViaXhr(url, label = "image", timeoutMs = 10000) {
   });
 }
 
+/**
+ * 按顺序尝试获取多个图片 URL 中的第一个可用图片
+ * @param {string[]} urls - 图片 URL 数组
+ * @param {string} label - 图片标签
+ * @returns {Promise<{blob: Blob|null, url: string|null}>}
+ */
 async function fetchFirstAvailableImage(urls, label = "image") {
   const candidates = Array.from(new Set(
     (Array.isArray(urls) ? urls : [])
@@ -277,10 +329,19 @@ async function fetchFirstAvailableImage(urls, label = "image") {
   return { blob: null, url: null };
 }
 
+// Pixiv API 基础 URL
 let baseUrl = "https://www.pixiv.net";
 let illustInfoUrl = "/ajax/illust/";
 let searchUrl = "/ajax/search/illustrations/";
 
+/**
+ * 搜索源类，负责从 Pixiv 获取随机作品
+ * 功能包括：
+ * - 根据配置生成查询条件
+ * - 管理候选作品队列
+ * - 缓存已加载的页面
+ * - 过滤不喜欢的用户和作品
+ */
 class SearchSource {
   constructor(config) {
     this.searchParam = config;
@@ -299,6 +360,10 @@ class SearchSource {
     this.lastResolvedRandomTagsAt = 0;
   }
 
+  /**
+   * 更新搜索配置
+   * @param {object} config - 新的配置对象
+   */
   updateConfig(config) {
     this.searchParam = config;
     this.totalPage = 0;
@@ -319,9 +384,14 @@ class SearchSource {
       randomImageEnabled: config.randomImageEnabled,
       query: this.activeQueryWord,
       dislikedUsers: Array.isArray(config.dislikedUserIds) ? config.dislikedUserIds.length : 0,
+      blockedIllusts: Array.isArray(config.blockedIllustIds) ? config.blockedIllustIds.length : 0,
     });
   }
 
+  /**
+   * URL 编码特殊字符处理
+   * Pixiv API 需要对某些特殊字符进行额外编码
+   */
   replaceSpecialCharacter = (function () {
     var reg = /[!'()~]/g;
     var mapping = {
@@ -340,6 +410,12 @@ class SearchSource {
     return fn;
   })();
 
+  /**
+   * 生成搜索 URL
+   * @param {number} p - 页码
+   * @param {string} queryWord - 查询词
+   * @returns {string}
+   */
   generateSearchUrl(p = 1, queryWord = this.activeQueryWord) {
     let sp = this.searchParam;
     let runtimeParam = { ...sp, p };
@@ -356,6 +432,12 @@ class SearchSource {
     return firstPart + secondPart;
   }
 
+  /**
+   * 搜索作品页面
+   * @param {number} p - 页码
+   * @param {string} queryWord - 查询词
+   * @returns {Promise<object|null>}
+   */
   async searchIllustPage(p, queryWord = this.activeQueryWord) {
     let paramUrl = this.generateSearchUrl(p, queryWord);
     debugLog("searchIllustPage", { page: p, queryWord, url: baseUrl + searchUrl + paramUrl });
@@ -367,18 +449,29 @@ class SearchSource {
     return jsonResult;
   }
 
+  /**
+   * 获取已查看历史的最大数量限制
+   * @returns {number}
+   */
   getSeenHistoryLimit() {
     return Number.isInteger(this.searchParam.seenHistoryLimit) && this.searchParam.seenHistoryLimit > 0
       ? this.searchParam.seenHistoryLimit
       : 300;
   }
 
+  /**
+   * 获取已查看历史的过期时间（毫秒）
+   * @returns {number}
+   */
   getSeenHistoryTtlMs() {
     return Number.isInteger(this.searchParam.seenHistoryTtlMs) && this.searchParam.seenHistoryTtlMs > 0
       ? this.searchParam.seenHistoryTtlMs
       : 21600000;
   }
 
+  /**
+   * 清理过期的已查看历史记录
+   */
   pruneSeenHistory() {
     const now = Date.now();
     const ttl = this.getSeenHistoryTtlMs();
@@ -402,6 +495,11 @@ class SearchSource {
     }
   }
 
+  /**
+   * 检查作品是否在近期已查看过
+   * @param {string} illustId - 作品 ID
+   * @returns {boolean}
+   */
   hasSeenRecently(illustId) {
     this.pruneSeenHistory();
     const seenAt = this.seenMap.get(illustId);
@@ -415,11 +513,20 @@ class SearchSource {
     return true;
   }
 
+  /**
+   * 标记作品为已查看
+   * @param {string} illustId - 作品 ID
+   */
   markSeen(illustId) {
     this.pruneSeenHistory();
     this.seenMap.set(illustId, Date.now());
   }
 
+  /**
+   * 缓存页面结果
+   * @param {string} cacheKey - 缓存键
+   * @param {object} pageObj - 页面对象
+   */
   cachePage(cacheKey, pageObj) {
     if (!pageObj) {
       return;
@@ -434,6 +541,12 @@ class SearchSource {
     }
   }
 
+  /**
+   * 获取页面数据（优先从缓存读取）
+   * @param {number} pageNumber - 页码
+   * @param {string} queryWord - 查询词
+   * @returns {Promise<object>}
+   */
   async getPage(pageNumber, queryWord = this.activeQueryWord) {
     const cacheKey = `${queryWord}::${pageNumber}`;
     if (this.pageCache.has(cacheKey)) {
@@ -454,10 +567,20 @@ class SearchSource {
     return pageObj;
   }
 
+  /**
+   * 标准化用户 ID 格式
+   * @param {string} userId - 用户 ID
+   * @returns {string}
+   */
   normalizeUserId(userId) {
     return String(userId || "").trim();
   }
 
+  /**
+   * 检查用户是否在屏蔽列表中
+   * @param {string} userId - 用户 ID
+   * @returns {boolean}
+   */
   isDislikedUser(userId) {
     const normalizedUserId = this.normalizeUserId(userId);
     if (!normalizedUserId) {
@@ -469,6 +592,23 @@ class SearchSource {
     return dislikedUserIds.includes(normalizedUserId);
   }
 
+  isBlockedIllust(illustId) {
+    const normalizedIllustId = String(illustId || "").trim();
+    if (!normalizedIllustId) {
+      return false;
+    }
+    const blockedIllustIds = Array.isArray(this.searchParam.blockedIllustIds)
+      ? this.searchParam.blockedIllustIds.map((id) => String(id || "").trim()).filter(Boolean)
+      : [];
+    return blockedIllustIds.includes(normalizedIllustId);
+  }
+
+  /**
+   * 过滤作品数组，移除不符合条件的作品
+   * 条件包括：点赞数范围、AI 类型、屏蔽用户等
+   * @param {array} illustArray - 作品数组
+   * @returns {array}
+   */
   filterIllustArray(illustArray) {
     if (!Array.isArray(illustArray)) {
       return [];
@@ -478,10 +618,15 @@ class SearchSource {
       let condition2 = !this.searchParam.max_sl || el.sl <= this.searchParam.max_sl;
       let condition3 = !this.searchParam.aiType || el.aiType == this.searchParam.aiType;
       let condition4 = !this.isDislikedUser(el.userId);
-      return condition1 && condition2 && condition3 && condition4;
+      let condition5 = !this.isBlockedIllust(el.id);
+      return condition1 && condition2 && condition3 && condition4 && condition5;
     });
   }
 
+  /**
+   * 将候选作品加入队列
+   * @param {array} candidates - 候选作品数组
+   */
   enqueueCandidates(candidates) {
     const shuffled = shuffleArray(candidates.slice());
     for (const candidate of shuffled) {
@@ -496,6 +641,10 @@ class SearchSource {
     }
   }
 
+  /**
+   * 从队列中取出一个候选作品
+   * @returns {object|null}
+   */
   dequeueCandidate() {
     while (this.candidateQueue.length > 0) {
       const candidate = this.candidateQueue.shift();
@@ -511,6 +660,11 @@ class SearchSource {
     return null;
   }
 
+  /**
+   * 确保获取总页数
+   * @param {string} queryWord - 查询词
+   * @returns {Promise<number>}
+   */
   async ensureTotalPages(queryWord = this.activeQueryWord) {
     if (this.totalPage > 0) {
       return this.totalPage;
@@ -524,6 +678,11 @@ class SearchSource {
     return this.totalPage;
   }
 
+  /**
+   * 随机选择指定数量的页码
+   * @param {number} maxPagesToSample - 最大采样页数
+   * @returns {array}
+   */
   pickSamplePages(maxPagesToSample) {
     if (this.totalPage <= 0) {
       return [];
@@ -535,6 +694,10 @@ class SearchSource {
     return Array.from(pickedPages);
   }
 
+  /**
+   * 构建查询尝试列表（支持随机标签池）
+   * @returns {array}
+   */
   buildQueryAttempts() {
     const baseQuery = buildQuery(this.searchParam).trim();
     const sampling = sampleRandomTagPool(this.searchParam);
@@ -573,6 +736,10 @@ class SearchSource {
     return attempts;
   }
 
+  /**
+   * 发布已解析的随机标签到存储
+   * @param {array} randomTags - 随机标签数组
+   */
   async publishResolvedRandomTags(randomTags) {
     const normalizedTags = Array.isArray(randomTags)
       ? randomTags.map((tag) => String(tag || "").trim()).filter(Boolean)
@@ -586,6 +753,9 @@ class SearchSource {
     debugLog("publishResolvedRandomTags", normalizedTags);
   }
 
+  /**
+   * 填充候选队列，确保有足够的候选作品
+   */
   async fillCandidateQueue() {
     if (this.candidateQueue.length >= this.candidateQueueTargetSize) {
       return;
@@ -638,6 +808,16 @@ class SearchSource {
     debugLog("fillCandidateQueue:empty");
   }
 
+  /**
+   * 获取随机作品（核心方法）
+   * 流程：
+   * 1. 填充候选队列
+   * 2. 从队列中取出一个候选
+   * 3. 获取作品详细信息
+   * 4. 下载图片和头像
+   * 5. 返回完整作品信息
+   * @returns {Promise<object|null>}
+   */
   async getRandomIllust() {
     const MAX_RETRIES = 12;
     this.lastErrorMessage = null;
@@ -661,6 +841,7 @@ class SearchSource {
         res.illustId = picked.id;
         res.profileImageUrl = picked.profileImageUrl;
 
+        // 获取作品详细信息
         let illustInfo = await fetchPixivJson(baseUrl + illustInfoUrl + res.illustId);
         if (!illustInfo || illustInfo.__error || !illustInfo.body) {
           if (illustInfo && illustInfo.__error) {
@@ -672,6 +853,7 @@ class SearchSource {
 
         res.userName = illustInfo.body.userName;
         res.userId = illustInfo.body.userId;
+        // 检查是否为屏蔽用户
         if (this.isDislikedUser(res.userId)) {
           this.markSeen(picked.id);
           debugLog("getRandomIllust:skip-disliked-user", { illustId: picked.id, userId: res.userId });
@@ -681,8 +863,9 @@ class SearchSource {
         res.userIdUrl = baseUrl + "/users/" + illustInfo.body.userId;
         res.illustIdUrl = baseUrl + "/artworks/" + illustInfo.body.illustId;
         res.title = illustInfo.body.title;
+        res.originalImageUrl = illustInfo.body.urls.original || "";
         res.imageObjectUrl = illustInfo.body.urls.regular || illustInfo.body.urls.small || picked.url;
-        // Extract tags for frontend (prefer zh → zh_tw → en translation)
+        // 提取标签信息（优先使用中文翻译）
         res.tags = (illustInfo.body.tags && illustInfo.body.tags.tags || []).map(t => {
           let tr = t.translation || {};
           return {
@@ -691,6 +874,7 @@ class SearchSource {
           };
         });
 
+        // 准备多个图片候选 URL
         const imageCandidates = [
           illustInfo.body.urls.regular,
           illustInfo.body.urls.small,
@@ -704,6 +888,7 @@ class SearchSource {
           pickedUrl: picked.url,
           resolvedImageUrl,
         });
+        // 下载图片和头像
         const { blob: illustBlob, url: loadedImageUrl } = await fetchFirstAvailableImage(imageCandidates, "illust");
         const profileBlob = await fetchImage(res.profileImageUrl, "profile");
 
@@ -723,7 +908,7 @@ class SearchSource {
           try {
             res.profileImageUrl = await blobToDataUrl(profileBlob);
           } catch (e) {
-            // ignore profile image error
+            // 忽略头像加载错误
           }
         } else {
           debugLog("getRandomIllust:profile-fallback-empty", {
@@ -752,6 +937,11 @@ class SearchSource {
   }
 }
 
+/**
+ * 将 Blob 对象转换为 Data URL
+ * @param {Blob} blob - Blob 对象
+ * @returns {Promise<string>}
+ */
 function blobToDataUrl(blob) {
   return new Promise((resolve, reject) => {
     let reader = new FileReader();
@@ -761,8 +951,14 @@ function blobToDataUrl(blob) {
   });
 }
 
+// 全局搜索源实例
 let searchSource;
 
+/**
+ * 标准化运行时配置
+ * @param {object} config - 配置对象
+ * @returns {object}
+ */
 function normalizeRuntimeConfig(config) {
   migrateConfig(config);
   applyActivePreset(config);
@@ -770,6 +966,10 @@ function normalizeRuntimeConfig(config) {
   return config;
 }
 
+/**
+ * 从存储中获取配置
+ * @returns {Promise<object>}
+ */
 async function getStoredConfig() {
   let config = await chrome.storage.local.get(defaultConfig);
   config = normalizeRuntimeConfig(config);
@@ -782,6 +982,12 @@ async function getStoredConfig() {
   return config;
 }
 
+/**
+ * 构建默认图片响应
+ * @param {object} config - 配置对象
+ * @param {object} options - 选项
+ * @returns {object|null}
+ */
 function buildDefaultImageResponse(config, options = {}) {
   const defaultImageUrl = (config.resolvedDefaultImageUrl || "").trim();
   if (!defaultImageUrl) {
@@ -795,6 +1001,7 @@ function buildDefaultImageResponse(config, options = {}) {
     illustId: null,
     userIdUrl: "",
     illustIdUrl: "",
+    originalImageUrl: "",
     profileImageUrl: "",
     imageObjectUrl: defaultImageUrl,
     tags: [],
@@ -803,6 +1010,11 @@ function buildDefaultImageResponse(config, options = {}) {
   };
 }
 
+/**
+ * 应用激活的预设配置
+ * @param {object} config - 配置对象
+ * @returns {object}
+ */
 function applyActivePreset(config) {
   if (config.queryPresets && Array.isArray(config.queryPresets) && config.queryPresets.length > 0) {
     let idx = Math.min(config.activePresetIndex || 0, config.queryPresets.length - 1);
@@ -813,25 +1025,45 @@ function applyActivePreset(config) {
   return config;
 }
 
+/**
+ * 计算有效的排除关键词
+ * @param {object} config - 配置对象
+ * @returns {string}
+ */
 function computeEffectiveMinus(config) {
   let globalMinus = (config.globalMinusKeywords || "").trim();
   return globalMinus.replace(/\s+/g, " ");
 }
 
+/**
+ * 初始化后台脚本
+ */
 async function start() {
   let config = await getStoredConfig();
-  // Persist migrated config if orKeywords was converted
+  // 持久化迁移后的配置（如果 orKeywords 被转换）
   chrome.storage.local.set({ orGroups: config.orGroups, orKeywords: null });
   console.log("Current search query:", buildQuery(config));
   searchSource = new SearchSource(config);
   console.log("background script loaded");
 }
 
+// 初始化后台脚本，失败时记录错误
 let initPromise = start().catch((e) => {
   console.error("Background init failed:", e);
   return null;
 });
 
+/**
+ * 监听来自前端的消息
+ * 支持的操作：
+ * - fetchImage: 获取随机图片
+ * - updateConfig: 更新配置
+ * - bookmarkIllust: 收藏作品
+ * - excludeTag: 排除标签
+ * - setCreatorPreference: 设置创作者偏好
+ * - addRandomTag: 添加随机标签
+ * - queueNextPriorityRandomTag: 队列下次优先的随机标签
+ */
 chrome.runtime.onMessage.addListener(function (
   message,
   sender,
@@ -856,6 +1088,7 @@ chrome.runtime.onMessage.addListener(function (
         });
         return;
       }
+      // 处理获取图片请求
       if (message.action === "fetchImage") {
         try {
           const currentConfig = searchSource.searchParam || await getStoredConfig();
@@ -914,11 +1147,13 @@ chrome.runtime.onMessage.addListener(function (
             });
           }
         }
+      // 处理更新配置请求
       } else if (message.action === "updateConfig") {
         let config = await getStoredConfig();
         console.log("Updated search query:", buildQuery(config));
         searchSource.updateConfig(config);
         sendResponse({ success: true });
+      // 处理收藏作品请求
       } else if (message.action === "bookmarkIllust") {
         try {
           const illustIdStr = String(message.illustId || "");
@@ -927,6 +1162,7 @@ chrome.runtime.onMessage.addListener(function (
             return;
           }
 
+          // 从 HTML 页面中提取 CSRF token
           const fetchTokenFromHtml = async (url) => {
             try {
               const res = await fetch(url, { credentials: "include" });
@@ -942,6 +1178,7 @@ chrome.runtime.onMessage.addListener(function (
             }
           };
 
+          // 从 JSON 接口中提取 CSRF token
           const fetchTokenFromJson = async (url) => {
             try {
               const res = await fetch(url, { credentials: "include" });
@@ -957,19 +1194,19 @@ chrome.runtime.onMessage.addListener(function (
             }
           };
 
-          // 1) Try JSON endpoints (no page navigation)
+          // 1) 优先尝试 JSON 端点（无需页面导航）
           let token =
             (await fetchTokenFromJson("https://www.pixiv.net/ajax/user/extra")) ||
             (await fetchTokenFromJson("https://www.pixiv.net/ajax/user/extra?lang=zh"));
 
-          // 2) Try HTML endpoints (no page navigation)
+          // 2) 尝试 HTML 端点（无需页面导航）
           if (!token) {
             token =
               (await fetchTokenFromHtml(`https://www.pixiv.net/artworks/${illustIdStr}`)) ||
               (await fetchTokenFromHtml("https://www.pixiv.net/"));
           }
 
-          // 3) Fallback: if user already has a Pixiv tab, extract token from DOM
+          // 3) 降级方案：如果用户已打开 Pixiv 标签页，从 DOM 中提取 token
           if (!token) {
             let tabs = await chrome.tabs.query({ url: "*://*.pixiv.net/*" });
             if (tabs.length > 0) {
@@ -1023,6 +1260,7 @@ chrome.runtime.onMessage.addListener(function (
             return;
           }
 
+          // 调用 Pixiv 收藏 API
           let r;
           try {
             r = await fetch("https://www.pixiv.net/ajax/illusts/bookmarks/add", {
@@ -1065,6 +1303,7 @@ chrome.runtime.onMessage.addListener(function (
           console.error("Bookmark error:", e);
           sendResponse({ success: false, error: e.message });
         }
+      // 处理排除标签请求
       } else if (message.action === "excludeTag") {
         try {
           let config = await getStoredConfig();
@@ -1090,6 +1329,7 @@ chrome.runtime.onMessage.addListener(function (
           console.error("Exclude tag error:", e);
           sendResponse({ success: false, error: e.message });
         }
+      // 处理设置创作者偏好请求
       } else if (message.action === "setCreatorPreference") {
         try {
           const userId = String(message.userId || "").trim();
@@ -1137,6 +1377,39 @@ chrome.runtime.onMessage.addListener(function (
           console.error("Set creator preference error:", e);
           sendResponse({ success: false, error: e.message });
         }
+      // 处理屏蔽作品请求
+      } else if (message.action === "blockIllust") {
+        try {
+          const illustId = String(message.illustId || "").trim();
+          if (!illustId) {
+            sendResponse({ success: false, error: "Invalid illust id" });
+            return;
+          }
+
+          let config = await getStoredConfig();
+          const blockedIllustIds = Array.isArray(config.blockedIllustIds)
+            ? config.blockedIllustIds.map((id) => String(id || "").trim()).filter(Boolean)
+            : [];
+          if (!blockedIllustIds.includes(illustId)) {
+            blockedIllustIds.push(illustId);
+          }
+          config.blockedIllustIds = blockedIllustIds;
+
+          await chrome.storage.local.set({
+            blockedIllustIds: config.blockedIllustIds,
+          });
+
+          searchSource.updateConfig(config);
+          sendResponse({
+            success: true,
+            illustId,
+            blockedIllustIds: config.blockedIllustIds,
+          });
+        } catch (e) {
+          console.error("Block illust error:", e);
+          sendResponse({ success: false, error: e.message });
+        }
+      // 处理添加随机标签请求
       } else if (message.action === "addRandomTag") {
         try {
           let config = await getStoredConfig();
@@ -1168,6 +1441,7 @@ chrome.runtime.onMessage.addListener(function (
           console.error("Add random tag error:", e);
           sendResponse({ success: false, error: e.message });
         }
+      // 处理队列下次优先随机标签请求
       } else if (message.action === "queueNextPriorityRandomTag") {
         try {
           let config = await getStoredConfig();
