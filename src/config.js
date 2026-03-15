@@ -72,6 +72,11 @@ export const defaultConfig = {
   seenHistoryTtlMs: 21600000,
 }
 
+// 统一约束“随机 Tag 池每次抽取数量”。
+// 这里既服务于设置页输入框，也服务于运行时采样逻辑：
+// 1. 非数字时回退到 fallback，避免旧配置或异常输入污染状态。
+// 2. 目前把范围限制在 1..10，防止一次请求拼出过长 query。
+// 3. 所有入口都调用同一个函数，避免 UI、存储和运行时规则不一致。
 export function normalizeRandomTagPoolPickCount(value, fallback = 2) {
   const parsed = parseInt(value, 10);
   if (!Number.isInteger(parsed)) {
@@ -235,6 +240,7 @@ export function normalizeRandomTagPool(pool) {
 }
 
 export function sampleRandomTagPool(config) {
+  // 未启用随机池时直接返回空结果，调用方会退回到基础查询。
   if (!config || config.randomTagPoolEnabled !== true) {
     return {
       tags: [],
@@ -242,18 +248,23 @@ export function sampleRandomTagPool(config) {
     };
   }
   const pool = normalizeRandomTagPool(config.randomTagPool);
+  // 池子为空时同样不附加随机 Tag。
   if (pool.length === 0) {
     return {
       tags: [],
       remainingNextPriorityTag: "",
     };
   }
+  // 抽取数量从配置读取，并在这里再次归一化。
+  // 这样即使外部绕过设置页直接写 storage，也不会把非法值带进运行时。
   const pickCount = normalizeRandomTagPoolPickCount(config.randomTagPoolPickCount);
   const shuffled = pool.slice();
   for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
     [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
   }
+  // nextPriorityTag 表示“下次优先命中”的 Tag。
+  // 如果它仍然存在于当前池子里，就先占掉一个名额，再从剩余 Tag 随机补足。
   const nextPriorityTag = typeof config.randomTagPoolNextPriorityTag === "string" && pool.includes(config.randomTagPoolNextPriorityTag.trim())
     ? config.randomTagPoolNextPriorityTag.trim()
     : "";
@@ -264,6 +275,7 @@ export function sampleRandomTagPool(config) {
   }
 
   const remainingShuffled = shuffled.filter((tag) => !pickedTags.includes(tag));
+  // 最终数量不会超过“配置数量”和“池子大小”中的较小值。
   while (pickedTags.length < Math.min(pickCount, pool.length) && remainingShuffled.length > 0) {
     pickedTags.push(remainingShuffled.shift());
   }
@@ -342,6 +354,9 @@ export function migrateConfig(config) {
   if (!Array.isArray(config.randomTagPoolPriorityTags)) {
     config.randomTagPoolPriorityTags = [];
   }
+  // 迁移阶段也必须走同一套归一化逻辑。
+  // 否则旧版本写入的固定值或非法值会让设置页看起来能改，
+  // 但重新加载后又被悄悄改回去。
   config.randomTagPoolPickCount = normalizeRandomTagPoolPickCount(config.randomTagPoolPickCount);
   if (!config.randomSeedStrategy) {
     config.randomSeedStrategy = "page_pool";

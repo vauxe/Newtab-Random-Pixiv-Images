@@ -895,6 +895,8 @@ function syncRandomImageToggleControl() {
 }
 
 function parseRandomTagPoolInput(value) {
+  // 设置页允许用户用空格、换行、中文逗号等多种分隔方式一次输入多个 Tag。
+  // 这里先做统一拆分，后续新增/导入逻辑都复用这份结果。
   return String(value || "")
     .split(/[\n,，、\s]+/)
     .map((item) => item.trim())
@@ -906,6 +908,9 @@ function syncRandomTagPoolControls() {
     randomTagPoolEnabledInput.checked = randomTagPoolEnabled;
   }
   if (randomTagPoolPickCountInput) {
+    // 输入框展示值始终和配置归一化规则保持一致。
+    // 这样用户如果输入越界值，界面会立刻回写成最终生效的值，
+    // 避免“看起来改成功了，实际运行不是这个数”的错觉。
     randomTagPoolPickCount = normalizeRandomTagPoolPickCount(randomTagPoolPickCount);
     randomTagPoolPickCountInput.value = String(randomTagPoolPickCount);
   }
