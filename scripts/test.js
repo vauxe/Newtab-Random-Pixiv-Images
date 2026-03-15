@@ -18,13 +18,13 @@ function expectProp(block, prop, value) {
 }
 
 const illustInfo = getBlock("#illustInfo");
-expectProp(illustInfo, "gap", "6px");
-expectProp(illustInfo, "min-height", "54px");
-expectProp(illustInfo, "padding", "8px 10px");
+expectProp(illustInfo, "gap", "10px");
+expectProp(illustInfo, "min-height", "72px");
+expectProp(illustInfo, "padding", "12px");
 
 const avatarImage = getBlock("#avatarImage");
-expectProp(avatarImage, "width", "44px");
-expectProp(avatarImage, "height", "44px");
+expectProp(avatarImage, "width", "48px");
+expectProp(avatarImage, "height", "48px");
 
 const illustTitle = getBlock("#illustTitle");
 expectProp(illustTitle, "font-size", "14px");
@@ -33,11 +33,18 @@ const illustName = getBlock("#illustName");
 expectProp(illustName, "font-size", "12px");
 
 const creatorActions = getBlock("#creatorActions");
-expectProp(creatorActions, "gap", "4px");
-expectProp(creatorActions, "margin-top", "2px");
+expectProp(creatorActions, "gap", "6px");
+expectProp(creatorActions, "margin-top", "6px");
 
 const buttonBlock = getBlock("#likeButton,\n#bookmarkButton,\n#downloadOriginalButton,\n#dislikeButton,\n#creatorLikeButton,\n#creatorDislikeButton");
-expectProp(buttonBlock, "width", "20px");
-expectProp(buttonBlock, "height", "20px");
+expectProp(buttonBlock, "width", "24px");
+expectProp(buttonBlock, "height", "24px");
+
+const pageControls = getBlock("#pageControls");
+expectProp(pageControls, "display", "grid");
+expectProp(pageControls, "width", "var\\(--dock-width\\)");
+
+const requestPopup = getBlock("\\.request-tag-popup");
+expectProp(requestPopup, "bottom", "308px");
 
 console.log("CSS UI size checks passed.");
