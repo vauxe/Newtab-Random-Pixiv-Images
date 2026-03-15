@@ -1,4 +1,11 @@
-import { defaultConfig, buildQuery, migrateConfig, legacyToTree, treeToLegacy } from "./config.js";
+import {
+  defaultConfig,
+  buildQuery,
+  migrateConfig,
+  legacyToTree,
+  normalizeRandomTagPoolPickCount,
+  treeToLegacy,
+} from "./config.js";
 import {
   clearUploadedDefaultImage,
   resolveDefaultImageUrl,
@@ -892,10 +899,6 @@ function parseRandomTagPoolInput(value) {
     .split(/[\n,，、\s]+/)
     .map((item) => item.trim())
     .filter(Boolean);
-}
-
-function normalizeRandomTagPoolPickCount(value) {
-  return 2;
 }
 
 function syncRandomTagPoolControls() {

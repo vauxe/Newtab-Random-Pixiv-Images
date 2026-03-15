@@ -72,6 +72,14 @@ export const defaultConfig = {
   seenHistoryTtlMs: 21600000,
 }
 
+export function normalizeRandomTagPoolPickCount(value, fallback = 2) {
+  const parsed = parseInt(value, 10);
+  if (!Number.isInteger(parsed)) {
+    return fallback;
+  }
+  return Math.max(1, Math.min(10, parsed));
+}
+
 // ── Tree Data Model ──
 // Tag:   { type: "tag", value: string, negated: boolean }
 // Group: { type: "group", connector: "AND"|"OR", children: node[] }
@@ -240,7 +248,7 @@ export function sampleRandomTagPool(config) {
       remainingNextPriorityTag: "",
     };
   }
-  const pickCount = 2;
+  const pickCount = normalizeRandomTagPoolPickCount(config.randomTagPoolPickCount);
   const shuffled = pool.slice();
   for (let i = shuffled.length - 1; i > 0; i--) {
     const j = Math.floor(Math.random() * (i + 1));
@@ -334,7 +342,7 @@ export function migrateConfig(config) {
   if (!Array.isArray(config.randomTagPoolPriorityTags)) {
     config.randomTagPoolPriorityTags = [];
   }
-  config.randomTagPoolPickCount = 2;
+  config.randomTagPoolPickCount = normalizeRandomTagPoolPickCount(config.randomTagPoolPickCount);
   if (!config.randomSeedStrategy) {
     config.randomSeedStrategy = "page_pool";
   }
