@@ -58,7 +58,7 @@ const pageControls = getBlock("#pageControls");
 expectProp(pageControls, "display", "grid");
 expectProp(pageControls, "width", "var\\(--dock-width\\)");
 expectProp(pageControls, "padding", "8px 10px");
-expectProp(pageControls, "border-radius", "16px");
+expectProp(pageControls, "border-radius", "18px");
 
 const dockPopup = getLastBlock("^\\.dock-popup");
 expectProp(dockPopup, "bottom", "148px");
