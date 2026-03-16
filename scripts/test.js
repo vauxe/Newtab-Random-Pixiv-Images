@@ -60,14 +60,15 @@ expectProp(pageControls, "width", "var\\(--dock-width\\)");
 expectProp(pageControls, "padding", "8px 10px");
 expectProp(pageControls, "border-radius", "16px");
 
-const requestPopup = getLastBlock("^\\.request-tag-popup");
-expectProp(requestPopup, "bottom", "146px");
+const dockPopup = getLastBlock("^\\.dock-popup");
+expectProp(dockPopup, "bottom", "148px");
+expectProp(dockPopup, "width", "var\\(--dock-width\\)");
 
 const hotspot = getBlock("#rightDockHotspot");
 expectProp(hotspot, "width", "72px");
 expectProp(hotspot, "height", "min\\(220px, 38vh\\)");
 
-const hiddenDockBlock = getBlock("body\\.dock-collapsible:not\\(\\.right-dock-active\\) #pageControls,\nbody\\.dock-collapsible:not\\(\\.right-dock-active\\) #illustInfo,\nbody\\.dock-collapsible:not\\(\\.right-dock-active\\) \\.tag-popup,\nbody\\.dock-collapsible:not\\(\\.right-dock-active\\) \\.request-tag-popup");
+const hiddenDockBlock = getBlock("body\\.dock-collapsible:not\\(\\.right-dock-active\\) #pageControls,\nbody\\.dock-collapsible:not\\(\\.right-dock-active\\) #illustInfo,\nbody\\.dock-collapsible:not\\(\\.right-dock-active\\) \\.dock-popup");
 expectProp(hiddenDockBlock, "opacity", "0");
 expectProp(hiddenDockBlock, "transform", "translateX\\(20px\\)");
 

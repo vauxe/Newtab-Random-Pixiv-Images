@@ -349,6 +349,27 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     }, durationMs);
   }
 
+  function getDockPopupElements() {
+    return {
+      popup: document.getElementById("dockPopup"),
+      requestSection: document.getElementById("requestTagPopup"),
+      tagSection: document.getElementById("tagPopup"),
+    };
+  }
+
+  function syncDockPopupVisibility() {
+    const { popup, requestSection, tagSection } = getDockPopupElements();
+    if (!popup || !requestSection || !tagSection) {
+      return;
+    }
+    const hasVisibleSection = !requestSection.classList.contains("hidden")
+      || !tagSection.classList.contains("hidden");
+    popup.classList.toggle("hidden", !hasVisibleSection);
+    if (!hasVisibleSection) {
+      popup.classList.remove("expanded", "mode-random", "mode-exclude");
+    }
+  }
+
   class Binding {
     constructor() {
       const bgElement = document.body.querySelector("#backgroundImage");
@@ -376,14 +397,12 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       const wallpaperElement = document.body.querySelector("#wallpaper");
       const illustInfoElement = document.body.querySelector("#illustInfo");
       const pageControlsElement = document.body.querySelector("#pageControls");
-      const tagPopupElement = document.body.querySelector("#tagPopup");
-      const requestTagPopupElement = document.body.querySelector("#requestTagPopup");
+      const dockPopupElement = document.body.querySelector("#dockPopup");
       const rightDockHotspotElement = document.body.querySelector("#rightDockHotspot");
       this.containerElement = containerElement;
       this.illustInfoElement = illustInfoElement;
       this.pageControlsElement = pageControlsElement;
-      this.tagPopupElement = tagPopupElement;
-      this.requestTagPopupElement = requestTagPopupElement;
+      this.dockPopupElement = dockPopupElement;
       this.rightDockHotspotElement = rightDockHotspotElement;
       this.randomToggleInput = randomToggleInput;
       this.randomToggleControl = randomToggleControl;
@@ -499,8 +518,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       const dockElements = [
         pageControlsElement,
         illustInfoElement,
-        tagPopupElement,
-        requestTagPopupElement,
+        dockPopupElement,
       ].filter(Boolean);
       const updateRightDockVisibility = (event) => {
         if (!isDockCollapsibleViewport()) {
@@ -545,7 +563,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     binding = new Binding();
     // Close popup on clicking outside
     document.addEventListener("click", (e) => {
-      const popup = document.getElementById("tagPopup");
+      const popup = document.getElementById("dockPopup");
       const triggerElement = activeTagPopupTrigger;
       if (!popup.classList.contains("hidden") &&
         !popup.contains(e.target) &&
@@ -1155,8 +1173,9 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   }
 
   function openTagPopup(tags, options = {}) {
-    const popup = document.getElementById("tagPopup");
-    const popupHeader = popup.querySelector(".tag-popup-header");
+    const popup = document.getElementById("dockPopup");
+    const popupSection = document.getElementById("tagPopup");
+    const popupHeader = popupSection.querySelector(".tag-popup-header");
     const popupActions = document.getElementById("tagPopupActions");
     const tagList = document.getElementById("tagList");
     activeTagPopupPendingTags = new Set();
@@ -1207,16 +1226,18 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       }
     });
 
-    popup.classList.remove("hidden");
+    popupSection.classList.remove("hidden");
+    syncDockPopupVisibility();
   }
 
   function closeTagPopup(options = {}) {
-    const popup = document.getElementById("tagPopup");
+    const popup = document.getElementById("dockPopup");
+    const popupSection = document.getElementById("tagPopup");
     const shouldTriggerRefresh = options.triggerRefresh !== false
       && activeTagPopupMode === "exclude"
       && shouldRefreshOnTagPopupClose;
-    popup.classList.add("hidden");
-    popup.classList.remove("expanded", "mode-random", "mode-exclude");
+    popupSection.classList.add("hidden");
+    syncDockPopupVisibility();
     activeTagPopupHandler = null;
     activeTagPopupTrigger = null;
     activeTagPopupPendingTags = new Set();
@@ -1341,10 +1362,11 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   }
 
   function showRequestRandomTagsPopup(tags) {
-    const popup = document.getElementById("requestTagPopup");
+    const popup = document.getElementById("dockPopup");
+    const requestSection = document.getElementById("requestTagPopup");
     const title = document.getElementById("requestTagPopupTitle");
     const list = document.getElementById("requestTagPopupList");
-    if (!popup || !title || !list) {
+    if (!popup || !requestSection || !title || !list) {
       return;
     }
     title.textContent = translate("requestRandomTagsTitle");
@@ -1368,21 +1390,24 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       });
     }
 
-    popup.classList.remove("hidden");
+    requestSection.classList.remove("hidden");
+    syncDockPopupVisibility();
     revealRightDockFor(2500);
     clearTimeout(requestTagPopupTimer);
     requestTagPopupTimer = setTimeout(() => {
-      popup.classList.add("hidden");
+      requestSection.classList.add("hidden");
+      syncDockPopupVisibility();
     }, 3200);
   }
 
   function hideRequestRandomTagsPopup() {
-    const popup = document.getElementById("requestTagPopup");
-    if (!popup) {
+    const requestSection = document.getElementById("requestTagPopup");
+    if (!requestSection) {
       return;
     }
     clearTimeout(requestTagPopupTimer);
-    popup.classList.add("hidden");
+    requestSection.classList.add("hidden");
+    syncDockPopupVisibility();
   }
 
   // ── Util ──

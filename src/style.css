@@ -20,8 +20,7 @@ body {
 
 body.dock-collapsible:not(.right-dock-active) #pageControls,
 body.dock-collapsible:not(.right-dock-active) #illustInfo,
-body.dock-collapsible:not(.right-dock-active) .tag-popup,
-body.dock-collapsible:not(.right-dock-active) .request-tag-popup {
+body.dock-collapsible:not(.right-dock-active) .dock-popup {
   opacity: 0;
   transform: translateX(20px);
   pointer-events: none;
@@ -536,8 +535,8 @@ body.dock-collapsible:not(.right-dock-active) .request-tag-popup {
   }
 }
 
-/* Tag Popup */
-.tag-popup {
+/* Unified Dock Popup */
+.dock-popup {
   position: fixed;
   bottom: 148px;
   right: var(--dock-edge);
@@ -558,12 +557,25 @@ body.dock-collapsible:not(.right-dock-active) .request-tag-popup {
   transition: opacity 0.22s ease, transform 0.22s ease;
 }
 
-.tag-popup.expanded {
+.dock-popup.expanded {
   max-height: calc(100vh - 140px);
 }
 
-.tag-popup.hidden {
+.dock-popup.hidden {
   display: none;
+}
+
+.dock-popup-section {
+  display: flex;
+  flex-direction: column;
+}
+
+.dock-popup-section.hidden {
+  display: none;
+}
+
+.dock-popup-section + .dock-popup-section {
+  border-top: 1px solid rgba(255, 255, 255, 0.08);
 }
 
 @keyframes popupIn {
@@ -633,7 +645,7 @@ body.dock-collapsible:not(.right-dock-active) .request-tag-popup {
 }
 
 @media (max-width: 520px) {
-  .tag-popup {
+  .dock-popup {
     min-width: 0;
     width: calc(100vw - 16px);
     min-height: 160px;
@@ -667,35 +679,35 @@ body.dock-collapsible:not(.right-dock-active) .request-tag-popup {
   color: #ef9a9a;
 }
 
-.tag-popup.mode-random .tag-chip:hover {
+.dock-popup.mode-random .tag-chip:hover {
   background: rgba(76, 175, 80, 0.18);
   border-color: rgba(76, 175, 80, 0.45);
   color: #b8f5be;
 }
 
-.tag-popup.mode-random .tag-chip.selected-like {
+.dock-popup.mode-random .tag-chip.selected-like {
   background: rgba(76, 175, 80, 0.1);
   border-color: rgba(121, 255, 130, 0.9);
   box-shadow: 0 0 0 2px rgba(121, 255, 130, 0.18);
   color: #d4ffd8;
 }
 
-.tag-popup.mode-random .tag-chip.queued-next {
+.dock-popup.mode-random .tag-chip.queued-next {
   background: rgba(255, 193, 7, 0.12);
   border-color: rgba(255, 193, 7, 0.78);
   box-shadow: 0 0 0 2px rgba(255, 193, 7, 0.14);
   color: #ffe7a3;
 }
 
-.tag-popup.mode-exclude .tag-chip.selected-dislike {
+.dock-popup.mode-exclude .tag-chip.selected-dislike {
   background: rgba(148, 148, 160, 0.12);
   border-color: rgba(148, 148, 160, 0.28);
   color: rgba(214, 214, 224, 0.55);
 }
 
-.tag-popup .tag-chip.selected-like:hover,
-.tag-popup .tag-chip.queued-next:hover,
-.tag-popup .tag-chip.selected-dislike:hover {
+.dock-popup .tag-chip.selected-like:hover,
+.dock-popup .tag-chip.queued-next:hover,
+.dock-popup .tag-chip.selected-dislike:hover {
   transform: none;
 }
 
@@ -704,48 +716,11 @@ body.dock-collapsible:not(.right-dock-active) .request-tag-popup {
   font-size: 10px;
 }
 
-.request-tag-popup {
-  position: fixed;
-  bottom: 146px;
-  right: var(--dock-edge);
-  width: var(--dock-width);
-  padding: 10px 12px;
-  border-radius: 16px;
-  background: rgba(16, 22, 36, 0.88);
-  backdrop-filter: var(--dock-blur);
-  border: var(--dock-border);
-  box-shadow: 0 14px 34px rgba(0, 0, 0, 0.24);
-  z-index: 1900;
-  opacity: 1;
-  transform: translateY(0);
-  transition: opacity 0.25s ease, transform 0.25s ease;
-}
-
-@media (hover: none), (pointer: coarse) {
-  #rightDockHotspot {
-    display: none;
-  }
-
-  body.dock-collapsible #pageControls,
-  body.dock-collapsible #illustInfo,
-  body.dock-collapsible .tag-popup,
-  body.dock-collapsible .request-tag-popup {
-    opacity: 1;
-    transform: none;
-    pointer-events: auto;
-  }
-}
-
-.request-tag-popup.hidden {
-  opacity: 0;
-  pointer-events: none;
-  transform: translateY(8px);
-}
-
 .request-tag-popup-title {
+  padding: 10px 12px;
   font-size: 12px;
   color: #cfcfe8;
-  margin-bottom: 8px;
+  margin-bottom: 0;
   font-family: 'Segoe UI', Arial, sans-serif;
 }
 
@@ -753,6 +728,7 @@ body.dock-collapsible:not(.right-dock-active) .request-tag-popup {
   display: flex;
   flex-wrap: wrap;
   gap: 6px;
+  padding: 0 12px 12px;
 }
 
 .request-tag-pill {
@@ -771,6 +747,20 @@ body.dock-collapsible:not(.right-dock-active) .request-tag-popup {
   background: rgba(255, 255, 255, 0.08);
   border-color: rgba(255, 255, 255, 0.12);
   color: #b9bfd2;
+}
+
+@media (hover: none), (pointer: coarse) {
+  #rightDockHotspot {
+    display: none;
+  }
+
+  body.dock-collapsible #pageControls,
+  body.dock-collapsible #illustInfo,
+  body.dock-collapsible .dock-popup {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+  }
 }
 
 /* Toast */
