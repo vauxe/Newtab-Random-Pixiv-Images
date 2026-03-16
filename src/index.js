@@ -362,11 +362,16 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     if (!popup || !requestSection || !tagSection) {
       return;
     }
+    const requestVisible = !requestSection.classList.contains("hidden");
+    const tagVisible = !tagSection.classList.contains("hidden");
     const hasVisibleSection = !requestSection.classList.contains("hidden")
       || !tagSection.classList.contains("hidden");
     popup.classList.toggle("hidden", !hasVisibleSection);
+    popup.classList.toggle("request-only", requestVisible && !tagVisible);
+    popup.classList.toggle("tag-only", tagVisible && !requestVisible);
+    popup.classList.toggle("combined", requestVisible && tagVisible);
     if (!hasVisibleSection) {
-      popup.classList.remove("expanded", "mode-random", "mode-exclude");
+      popup.classList.remove("expanded", "mode-random", "mode-exclude", "request-only", "tag-only", "combined");
     }
   }
 

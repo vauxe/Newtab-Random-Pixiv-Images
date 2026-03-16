@@ -26,6 +26,11 @@ assert(
 );
 
 assert(
+  js.includes('popup.classList.toggle("request-only", requestVisible && !tagVisible);'),
+  "Expected dock popup to support request-only layout mode",
+);
+
+assert(
   !js.includes('this.illustInfoFadeOutTimeoutId = setTimeout'),
   "Artwork info panel should no longer auto-fade out",
 );
