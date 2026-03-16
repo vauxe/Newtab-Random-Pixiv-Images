@@ -12,6 +12,13 @@ function getBlock(selector) {
   return match[1];
 }
 
+function getLastBlock(selector) {
+  const re = new RegExp(`${selector}\\s*\\{([\\s\\S]*?)\\}`, "gm");
+  const matches = [...css.matchAll(re)];
+  assert(matches.length > 0, `Missing CSS block for ${selector}`);
+  return matches[matches.length - 1][1];
+}
+
 function expectProp(block, prop, value) {
   const re = new RegExp(`${prop}\\s*:\\s*${value}\\s*;`);
   assert(re.test(block), `Expected ${prop}: ${value}`);
@@ -50,7 +57,15 @@ const pageControls = getBlock("#pageControls");
 expectProp(pageControls, "display", "grid");
 expectProp(pageControls, "width", "var\\(--dock-width\\)");
 
-const requestPopup = getBlock("\\.request-tag-popup");
+const requestPopup = getLastBlock("^\\.request-tag-popup");
 expectProp(requestPopup, "bottom", "308px");
+
+const hotspot = getBlock("#rightDockHotspot");
+expectProp(hotspot, "width", "72px");
+expectProp(hotspot, "height", "min\\(360px, 60vh\\)");
+
+const hiddenDockBlock = getBlock("body\\.dock-collapsible:not\\(\\.right-dock-active\\) #pageControls,\nbody\\.dock-collapsible:not\\(\\.right-dock-active\\) #illustInfo,\nbody\\.dock-collapsible:not\\(\\.right-dock-active\\) \\.tag-popup,\nbody\\.dock-collapsible:not\\(\\.right-dock-active\\) \\.request-tag-popup");
+expectProp(hiddenDockBlock, "opacity", "0");
+expectProp(hiddenDockBlock, "transform", "translateX\\(20px\\)");
 
 console.log("CSS UI size checks passed.");

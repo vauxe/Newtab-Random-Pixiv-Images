@@ -26,6 +26,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   let activeTagPopupMode = "exclude";
   let shouldRefreshOnTagPopupClose = false;
   let requestTagPopupTimer = null;
+  let rightDockRevealTimer = null;
   const UI_STRINGS = {
     en: {
       randomLabel: "Random Pixiv",
@@ -322,6 +323,32 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     }
   }
 
+  function isDockCollapsibleViewport() {
+    return typeof window.matchMedia === "function"
+      && window.matchMedia("(hover: hover) and (pointer: fine)").matches;
+  }
+
+  function setRightDockActive(isActive) {
+    if (!document?.body) {
+      return;
+    }
+    document.body.classList.toggle("right-dock-active", !!isActive || !isDockCollapsibleViewport());
+  }
+
+  function revealRightDockFor(durationMs = 0) {
+    setRightDockActive(true);
+    clearTimeout(rightDockRevealTimer);
+    if (!isDockCollapsibleViewport() || durationMs <= 0) {
+      return;
+    }
+    rightDockRevealTimer = setTimeout(() => {
+      if (binding?.isPointerInsideRightDock) {
+        return;
+      }
+      setRightDockActive(false);
+    }, durationMs);
+  }
+
   class Binding {
     constructor() {
       const bgElement = document.body.querySelector("#backgroundImage");
@@ -348,8 +375,16 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       const containerElement = document.body.querySelector("#container");
       const wallpaperElement = document.body.querySelector("#wallpaper");
       const illustInfoElement = document.body.querySelector("#illustInfo");
+      const pageControlsElement = document.body.querySelector("#pageControls");
+      const tagPopupElement = document.body.querySelector("#tagPopup");
+      const requestTagPopupElement = document.body.querySelector("#requestTagPopup");
+      const rightDockHotspotElement = document.body.querySelector("#rightDockHotspot");
       this.containerElement = containerElement;
       this.illustInfoElement = illustInfoElement;
+      this.pageControlsElement = pageControlsElement;
+      this.tagPopupElement = tagPopupElement;
+      this.requestTagPopupElement = requestTagPopupElement;
+      this.rightDockHotspotElement = rightDockHotspotElement;
       this.randomToggleInput = randomToggleInput;
       this.randomToggleControl = randomToggleControl;
       this.randomTagPoolToggleInput = randomTagPoolToggleInput;
@@ -357,6 +392,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       this.r18ToggleInput = r18ToggleInput;
       this.r18ToggleControl = r18ToggleControl;
       this.randomTagSearchInput = randomTagSearchInput;
+      this.isPointerInsideRightDock = false;
 
       bgElement.referrerPolicy = "no-referrer";
       fgImageElement.referrerPolicy = "no-referrer";
@@ -460,20 +496,48 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       creatorLikeElement.addEventListener("click", handleCreatorLike);
       creatorDislikeElement.addEventListener("click", handleCreatorDislike);
 
-      this.illustInfoFadeOutTimeoutId = null;
-      illustInfoElement.addEventListener("mouseleave", () => {
-        this.illustInfoFadeOutTimeoutId = setTimeout(() => {
-          this.illustInfoElement.className = "unfocused";
-        }, 10000);
+      const dockElements = [
+        pageControlsElement,
+        illustInfoElement,
+        tagPopupElement,
+        requestTagPopupElement,
+      ].filter(Boolean);
+      const updateRightDockVisibility = (event) => {
+        if (!isDockCollapsibleViewport()) {
+          document.body.classList.remove("dock-collapsible");
+          setRightDockActive(true);
+          return;
+        }
+        document.body.classList.add("dock-collapsible");
+        const hotspotHeight = Math.min(360, Math.round(window.innerHeight * 0.6));
+        const pointerInHotspot = !!event
+          && event.clientX >= window.innerWidth - 72
+          && event.clientY >= window.innerHeight - hotspotHeight;
+        setRightDockActive(this.isPointerInsideRightDock || pointerInHotspot);
+      };
+      dockElements.forEach((element) => {
+        element.addEventListener("mouseenter", () => {
+          this.isPointerInsideRightDock = true;
+          setRightDockActive(true);
+        });
+        element.addEventListener("mouseleave", () => {
+          this.isPointerInsideRightDock = false;
+        });
       });
-      illustInfoElement.addEventListener("mouseenter", () => {
-        illustInfoElement.className = "focused";
-        clearTimeout(this.illustInfoFadeOutTimeoutId);
+      if (rightDockHotspotElement) {
+        rightDockHotspotElement.addEventListener("mouseenter", () => {
+          setRightDockActive(true);
+        });
+      }
+      document.addEventListener("mousemove", updateRightDockVisibility);
+      document.addEventListener("mouseleave", () => {
+        this.isPointerInsideRightDock = false;
+        if (isDockCollapsibleViewport()) {
+          setRightDockActive(false);
+        }
       });
-      illustInfoElement.addEventListener("mouseover", () => {
-        illustInfoElement.className = "focused";
-        clearTimeout(this.illustInfoFadeOutTimeoutId);
-      });
+      window.addEventListener("resize", updateRightDockVisibility);
+      updateRightDockVisibility();
     }
   }
   var binding = null;
@@ -867,10 +931,6 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     }
     updateActionButtons();
     binding.containerElement.classList.toggle("notReady", false);
-    clearTimeout(binding.illustInfoFadeOutTimeoutId);
-    binding.illustInfoFadeOutTimeoutId = setTimeout(() => {
-      binding.illustInfoElement.className = "unfocused";
-    }, 10000);
     if (illustObject.fallback && illustObject.message) {
       showToast(localizeRuntimeMessage(illustObject.message), "error");
     }
@@ -1110,6 +1170,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     popup.classList.toggle("expanded", !!options.expanded);
     popup.classList.toggle("mode-random", options.mode === "random");
     popup.classList.toggle("mode-exclude", options.mode !== "random");
+    revealRightDockFor(3000);
 
     const extraActions = Array.isArray(options.extraActions) ? options.extraActions : [];
     extraActions.forEach((action, index) => {
@@ -1308,6 +1369,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     }
 
     popup.classList.remove("hidden");
+    revealRightDockFor(2500);
     clearTimeout(requestTagPopupTimer);
     requestTagPopupTimer = setTimeout(() => {
       popup.classList.add("hidden");

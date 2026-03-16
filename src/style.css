@@ -18,6 +18,25 @@ body {
   --dock-blur: blur(18px);
 }
 
+body.dock-collapsible:not(.right-dock-active) #pageControls,
+body.dock-collapsible:not(.right-dock-active) #illustInfo,
+body.dock-collapsible:not(.right-dock-active) .tag-popup,
+body.dock-collapsible:not(.right-dock-active) .request-tag-popup {
+  opacity: 0;
+  transform: translateX(20px);
+  pointer-events: none;
+}
+
+#rightDockHotspot {
+  position: fixed;
+  right: 0;
+  bottom: 0;
+  width: 72px;
+  height: min(360px, 60vh);
+  z-index: 15;
+  background: transparent;
+}
+
 .notReady {
   visibility: hidden;
 }
@@ -100,6 +119,7 @@ body {
   border: var(--dock-border);
   backdrop-filter: var(--dock-blur);
   box-shadow: var(--dock-shadow);
+  transition: opacity 0.22s ease, transform 0.22s ease;
 }
 
 #pageToggleGroup {
@@ -352,14 +372,7 @@ body {
   color: #fff;
   transition: opacity 1s;
   box-shadow: 0 12px 30px rgba(0, 0, 0, 0.24);
-}
-
-#illustInfo.unfocused {
-  opacity: 0;
-}
-
-#inllustInfo.focused {
-  opacity: 1;
+  transition: opacity 0.22s ease, transform 0.22s ease;
 }
 
 #avatarImage {
@@ -543,6 +556,7 @@ body {
   flex-direction: column;
   overflow: hidden;
   animation: popupIn 0.2s ease;
+  transition: opacity 0.22s ease, transform 0.22s ease;
 }
 
 .tag-popup.expanded {
@@ -706,6 +720,21 @@ body {
   opacity: 1;
   transform: translateY(0);
   transition: opacity 0.25s ease, transform 0.25s ease;
+}
+
+@media (hover: none), (pointer: coarse) {
+  #rightDockHotspot {
+    display: none;
+  }
+
+  body.dock-collapsible #pageControls,
+  body.dock-collapsible #illustInfo,
+  body.dock-collapsible .tag-popup,
+  body.dock-collapsible .request-tag-popup {
+    opacity: 1;
+    transform: none;
+    pointer-events: auto;
+  }
 }
 
 .request-tag-popup.hidden {
