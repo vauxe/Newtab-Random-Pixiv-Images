@@ -16,7 +16,7 @@ assert(
 );
 
 assert(
-  js.includes('window.innerWidth - 72') && js.includes('Math.min(360, Math.round(window.innerHeight * 0.6))'),
+  js.includes('window.innerWidth - 72') && js.includes('Math.min(220, Math.round(window.innerHeight * 0.38))'),
   "Expected right dock hotspot geometry to be enforced in index.js",
 );
 

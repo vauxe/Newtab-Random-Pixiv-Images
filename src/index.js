@@ -509,7 +509,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
           return;
         }
         document.body.classList.add("dock-collapsible");
-        const hotspotHeight = Math.min(360, Math.round(window.innerHeight * 0.6));
+        const hotspotHeight = Math.min(220, Math.round(window.innerHeight * 0.38));
         const pointerInHotspot = !!event
           && event.clientX >= window.innerWidth - 72
           && event.clientY >= window.innerHeight - hotspotHeight;

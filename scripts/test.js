@@ -26,43 +26,46 @@ function expectProp(block, prop, value) {
 
 const illustInfo = getBlock("#illustInfo");
 expectProp(illustInfo, "grid-template-columns", "auto auto minmax\\(0, 1fr\\) auto");
-expectProp(illustInfo, "gap", "14px");
-expectProp(illustInfo, "width", "min\\(492px, calc\\(100vw - 24px\\)\\)");
-expectProp(illustInfo, "min-height", "68px");
-expectProp(illustInfo, "padding", "10px 16px");
+expectProp(illustInfo, "gap", "10px");
+expectProp(illustInfo, "width", "var\\(--dock-width\\)");
+expectProp(illustInfo, "min-height", "64px");
+expectProp(illustInfo, "bottom", "76px");
+expectProp(illustInfo, "padding", "8px 12px");
 expectProp(illustInfo, "border-radius", "16px");
 
 const avatarImage = getBlock("#avatarImage");
-expectProp(avatarImage, "width", "56px");
-expectProp(avatarImage, "height", "56px");
+expectProp(avatarImage, "width", "46px");
+expectProp(avatarImage, "height", "46px");
 
 const illustTitle = getBlock("#illustTitle");
-expectProp(illustTitle, "font-size", "20px");
+expectProp(illustTitle, "font-size", "16px");
 
 const illustName = getBlock("#illustName");
-expectProp(illustName, "font-size", "16px");
+expectProp(illustName, "font-size", "13px");
 
 const creatorActions = getBlock("#creatorActions");
-expectProp(creatorActions, "gap", "18px");
+expectProp(creatorActions, "gap", "12px");
 expectProp(creatorActions, "justify-self", "end");
 expectProp(creatorActions, "margin-top", "0");
 
 const buttonBlock = getBlock("#likeButton,\n#bookmarkButton,\n#downloadOriginalButton,\n#dislikeButton,\n#creatorLikeButton,\n#creatorDislikeButton");
-expectProp(buttonBlock, "width", "28px");
-expectProp(buttonBlock, "height", "28px");
+expectProp(buttonBlock, "width", "24px");
+expectProp(buttonBlock, "height", "24px");
 expectProp(buttonBlock, "background", "transparent");
 expectProp(buttonBlock, "border", "0");
 
 const pageControls = getBlock("#pageControls");
 expectProp(pageControls, "display", "grid");
 expectProp(pageControls, "width", "var\\(--dock-width\\)");
+expectProp(pageControls, "padding", "8px 10px");
+expectProp(pageControls, "border-radius", "16px");
 
 const requestPopup = getLastBlock("^\\.request-tag-popup");
-expectProp(requestPopup, "bottom", "308px");
+expectProp(requestPopup, "bottom", "146px");
 
 const hotspot = getBlock("#rightDockHotspot");
 expectProp(hotspot, "width", "72px");
-expectProp(hotspot, "height", "min\\(360px, 60vh\\)");
+expectProp(hotspot, "height", "min\\(220px, 38vh\\)");
 
 const hiddenDockBlock = getBlock("body\\.dock-collapsible:not\\(\\.right-dock-active\\) #pageControls,\nbody\\.dock-collapsible:not\\(\\.right-dock-active\\) #illustInfo,\nbody\\.dock-collapsible:not\\(\\.right-dock-active\\) \\.tag-popup,\nbody\\.dock-collapsible:not\\(\\.right-dock-active\\) \\.request-tag-popup");
 expectProp(hiddenDockBlock, "opacity", "0");
