@@ -13,6 +13,7 @@
   "permissions": [
     "storage",
     "cookies",
+    "tabs",
     "scripting",
     "declarativeNetRequest",
     "declarativeNetRequestWithHostAccess"
