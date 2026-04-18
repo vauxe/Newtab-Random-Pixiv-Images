@@ -1,4 +1,9 @@
-import { defaultConfig, buildQuery, sampleRandomTagPool, migrateConfig } from "./config.js";
+import {
+  defaultConfig,
+  buildQuery,
+  sampleRandomTagPool,
+  migrateConfig,
+} from "./config.js";
 import { resolveDefaultImageUrl } from "./default-image-store.js";
 
 /**
@@ -8,69 +13,70 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
 function ensurePixivHeaderRules() {
   const RULE = [
     {
-      "id": 1,
-      "priority": 1,
-      "action": {
-        "type": "modifyHeaders",
-        "requestHeaders": [
+      id: 1,
+      priority: 1,
+      action: {
+        type: "modifyHeaders",
+        requestHeaders: [
           {
-            "header": "referer",
-            "operation": "set",
-            "value": "https://www.pixiv.net/"
-          }
-        ]
+            header: "referer",
+            operation: "set",
+            value: "https://www.pixiv.net/",
+          },
+        ],
       },
-      "condition": {
+      condition: {
         initiatorDomains: [chrome.runtime.id],
-        "urlFilter": "pixiv.net",
-        "resourceTypes": [
-          "xmlhttprequest",
-        ]
-      }
+        urlFilter: "pixiv.net",
+        resourceTypes: ["xmlhttprequest"],
+      },
     },
     {
-      "id": 2,
-      "priority": 2,
-      "action": {
-        "type": "modifyHeaders",
-        "requestHeaders": [
+      id: 2,
+      priority: 2,
+      action: {
+        type: "modifyHeaders",
+        requestHeaders: [
           {
-            "header": "referer",
-            "operation": "set",
-            "value": "https://www.pixiv.net/"
-          }
+            header: "referer",
+            operation: "set",
+            value: "https://www.pixiv.net/",
+          },
         ],
-        "responseHeaders": [
+        responseHeaders: [
           {
-            "header": "Access-Control-Allow-Origin",
-            "operation": "set",
-            "value": "*"
-          }
-        ]
+            header: "Access-Control-Allow-Origin",
+            operation: "set",
+            value: "*",
+          },
+        ],
       },
-      "condition": {
-        "requestDomains": ["i.pximg.net", "s.pximg.net"],
-        "resourceTypes": [
-          "xmlhttprequest",
-          "image",
-        ]
-      }
-    }
+      condition: {
+        requestDomains: ["i.pximg.net", "s.pximg.net"],
+        resourceTypes: ["xmlhttprequest", "image"],
+      },
+    },
   ];
-  chrome.declarativeNetRequest.updateDynamicRules({
-    removeRuleIds: RULE.map(o => o.id),
-    addRules: RULE,
-  }, () => {
-    if (chrome.runtime.lastError) {
-      console.error("Failed to update Pixiv header rules:", chrome.runtime.lastError);
-      return;
-    }
-    debugLog("ensurePixivHeaderRules:applied", RULE.map((rule) => ({
-      id: rule.id,
-      requestDomains: rule.condition.requestDomains || null,
-      resourceTypes: rule.condition.resourceTypes,
-    })));
-  });
+  chrome.declarativeNetRequest.updateDynamicRules(
+    {
+      removeRuleIds: RULE.map((o) => o.id),
+      addRules: RULE,
+    },
+    () => {
+      if (chrome.runtime.lastError) {
+        console.error("更新 Pixiv 请求头规则失败:", chrome.runtime.lastError);
+        return;
+      }
+      debugLog(
+        "请求头规则:已应用",
+        RULE.map((rule) => ({
+          id: rule.id,
+          requestDomains: rule.condition.requestDomains || null,
+          resourceTypes: rule.condition.resourceTypes,
+        })),
+      );
+    },
+  );
 }
 
 // 扩展安装时初始化 Pixiv 请求头规则
@@ -173,22 +179,25 @@ class Queue {
  */
 async function fetchPixivJson(url) {
   try {
-    debugLog("fetchPixivJson:start", url);
-    let res = await fetchWithTimeout(url, {}, 12000);
+    debugLog("请求Pixiv数据:开始", url);
+    let res = await fetchWithTimeout(url, { credentials: "include" }, 12000);
     if (!res.ok) {
-      console.error(`Fetch Pixiv json failed: ${res.status} ${res.statusText}`);
+      console.error(`请求 Pixiv JSON 失败: ${res.status} ${res.statusText}`);
       return { __error: true, message: `HTTP ${res.status} ${res.statusText}` };
     }
     let res_json = await res.json();
     if (res_json.error) {
-      console.error(`Pixiv API error: ${res_json.message}`);
+      console.error(`Pixiv API 错误: ${res_json.message}`);
       return { __error: true, message: res_json.message || "Pixiv API error" };
     }
-    debugLog("fetchPixivJson:ok", url);
+    debugLog("请求Pixiv数据:成功", url);
     return res_json;
   } catch (e) {
-    console.error(`Fetch Pixiv json error:`, e);
-    return { __error: true, message: e && e.message ? e.message : "Network error" };
+    console.error(`请求 Pixiv JSON 出错:`, e);
+    return {
+      __error: true,
+      message: e && e.message ? e.message : "Network error",
+    };
   }
 }
 
@@ -200,7 +209,7 @@ async function fetchPixivJson(url) {
  */
 async function fetchImage(url, label = "image") {
   if (!url) {
-    debugLog("fetchImage:skip-empty", label);
+    debugLog("下载图片:跳过空URL", label);
     return null;
   }
   // 在扩展环境中优先使用 XHR 方式
@@ -219,32 +228,32 @@ async function fetchImage(url, label = "image") {
         referrerPolicy: "strict-origin-when-cross-origin",
         credentials: "omit",
         cache: "no-store",
-      }
+      },
     },
     {
       name: "plain-fetch",
       init: {
         credentials: "omit",
         cache: "no-store",
-      }
-    }
+      },
+    },
   ];
 
   for (const attempt of attempts) {
     try {
-      debugLog("fetchImage:start", { label, attempt: attempt.name, url });
+      debugLog("下载图片:开始", { label, attempt: attempt.name, url });
       const res = await fetchWithTimeout(url, attempt.init, 10000);
       if (!res.ok) {
-        console.warn(`Fetch ${label} failed with status`, attempt.name, res.status, url);
+        console.warn(`下载${label}失败，状态码`, attempt.name, res.status, url);
         continue;
       }
-      debugLog("fetchImage:ok", { label, attempt: attempt.name, url });
+      debugLog("下载图片:成功", { label, attempt: attempt.name, url });
       return await res.blob();
     } catch (e) {
-      console.error(`Fetch ${label} error [${attempt.name}] ${url}:`, e);
+      console.error(`下载${label}出错 [${attempt.name}] ${url}:`, e);
     }
   }
-  debugLog("fetchImage:all-failed", { label, url });
+  debugLog("下载图片:全部失败", { label, url });
   return null;
 }
 
@@ -257,7 +266,7 @@ async function fetchImage(url, label = "image") {
  */
 function fetchImageViaXhr(url, label = "image", timeoutMs = 10000) {
   if (typeof XMLHttpRequest === "undefined") {
-    debugLog("fetchImage:xhr-unavailable", { label, url });
+    debugLog("下载图片:XHR不可用", { label, url });
     return Promise.resolve(null);
   }
   return new Promise((resolve) => {
@@ -272,11 +281,11 @@ function fetchImageViaXhr(url, label = "image", timeoutMs = 10000) {
       }
       settled = true;
       if (xhr.status >= 200 && xhr.status < 300 && xhr.response) {
-        debugLog("fetchImage:xhr-ok", { label, url, status: xhr.status });
+        debugLog("下载图片:XHR成功", { label, url, status: xhr.status });
         resolve(xhr.response);
         return;
       }
-      console.warn(`Fetch ${label} xhr failed with status`, xhr.status, url);
+      console.warn(`下载${label} XHR失败，状态码`, xhr.status, url);
       resolve(null);
     };
     xhr.onerror = () => {
@@ -284,7 +293,7 @@ function fetchImageViaXhr(url, label = "image", timeoutMs = 10000) {
         return;
       }
       settled = true;
-      console.error(`Fetch ${label} xhr error ${url}`);
+      console.error(`下载${label} XHR出错 ${url}`);
       resolve(null);
     };
     xhr.ontimeout = () => {
@@ -292,7 +301,7 @@ function fetchImageViaXhr(url, label = "image", timeoutMs = 10000) {
         return;
       }
       settled = true;
-      console.error(`Fetch ${label} xhr timeout ${url}`);
+      console.error(`下载${label} XHR超时 ${url}`);
       resolve(null);
     };
     xhr.onabort = () => {
@@ -300,10 +309,10 @@ function fetchImageViaXhr(url, label = "image", timeoutMs = 10000) {
         return;
       }
       settled = true;
-      console.error(`Fetch ${label} xhr abort ${url}`);
+      console.error(`下载${label} XHR中止 ${url}`);
       resolve(null);
     };
-    debugLog("fetchImage:xhr-start", { label, url });
+    debugLog("下载图片:XHR开始", { label, url });
     xhr.send();
   });
 }
@@ -315,11 +324,13 @@ function fetchImageViaXhr(url, label = "image", timeoutMs = 10000) {
  * @returns {Promise<{blob: Blob|null, url: string|null}>}
  */
 async function fetchFirstAvailableImage(urls, label = "image") {
-  const candidates = Array.from(new Set(
-    (Array.isArray(urls) ? urls : [])
-      .map((url) => String(url || "").trim())
-      .filter(Boolean)
-  ));
+  const candidates = Array.from(
+    new Set(
+      (Array.isArray(urls) ? urls : [])
+        .map((url) => String(url || "").trim())
+        .filter(Boolean),
+    ),
+  );
   for (const url of candidates) {
     const blob = await fetchImage(url, label);
     if (blob) {
@@ -345,7 +356,17 @@ let searchUrl = "/ajax/search/illustrations/";
 class SearchSource {
   constructor(config) {
     this.searchParam = config;
-    this.params = ["order", "mode", "p", "s_mode", "type", "scd", "ecd", "blt", "bgt"];
+    this.params = [
+      "order",
+      "mode",
+      "p",
+      "s_mode",
+      "type",
+      "scd",
+      "ecd",
+      "blt",
+      "bgt",
+    ];
     this.totalPage = 0;
     this.itemsPerPage = 60;
     this.pageCache = new Map();
@@ -379,12 +400,16 @@ class SearchSource {
       randomTagPoolLastResolvedTags: [],
       randomTagPoolLastResolvedAt: 0,
     });
-    debugLog("searchSource:updateConfig", {
+    debugLog("搜索源:更新配置", {
       mode: config.mode,
       randomImageEnabled: config.randomImageEnabled,
       query: this.activeQueryWord,
-      dislikedUsers: Array.isArray(config.dislikedUserIds) ? config.dislikedUserIds.length : 0,
-      blockedIllusts: Array.isArray(config.blockedIllustIds) ? config.blockedIllustIds.length : 0,
+      dislikedUsers: Array.isArray(config.dislikedUserIds)
+        ? config.dislikedUserIds.length
+        : 0,
+      blockedIllusts: Array.isArray(config.blockedIllustIds)
+        ? config.blockedIllustIds.length
+        : 0,
     });
   }
 
@@ -440,7 +465,11 @@ class SearchSource {
    */
   async searchIllustPage(p, queryWord = this.activeQueryWord) {
     let paramUrl = this.generateSearchUrl(p, queryWord);
-    debugLog("searchIllustPage", { page: p, queryWord, url: baseUrl + searchUrl + paramUrl });
+    debugLog("搜索插画页", {
+      page: p,
+      queryWord,
+      url: baseUrl + searchUrl + paramUrl,
+    });
     let jsonResult = await fetchPixivJson(baseUrl + searchUrl + paramUrl);
     if (jsonResult && jsonResult.__error) {
       this.lastErrorMessage = jsonResult.message;
@@ -454,7 +483,8 @@ class SearchSource {
    * @returns {number}
    */
   getSeenHistoryLimit() {
-    return Number.isInteger(this.searchParam.seenHistoryLimit) && this.searchParam.seenHistoryLimit > 0
+    return Number.isInteger(this.searchParam.seenHistoryLimit) &&
+      this.searchParam.seenHistoryLimit > 0
       ? this.searchParam.seenHistoryLimit
       : 300;
   }
@@ -464,7 +494,8 @@ class SearchSource {
    * @returns {number}
    */
   getSeenHistoryTtlMs() {
-    return Number.isInteger(this.searchParam.seenHistoryTtlMs) && this.searchParam.seenHistoryTtlMs > 0
+    return Number.isInteger(this.searchParam.seenHistoryTtlMs) &&
+      this.searchParam.seenHistoryTtlMs > 0
       ? this.searchParam.seenHistoryTtlMs
       : 21600000;
   }
@@ -557,11 +588,13 @@ class SearchSource {
     }
     const pageObj = await this.searchIllustPage(pageNumber, queryWord);
     if (pageObj && pageObj.body) {
-      this.cachePage(cacheKey, pageObj);
-      const total = pageObj.body.illust.total;
+      const total = pageObj.body.illust ? pageObj.body.illust.total : 0;
       const nextTotalPage = Math.ceil(total / this.itemsPerPage);
-      if (nextTotalPage > this.totalPage) {
-        this.totalPage = nextTotalPage;
+      if (nextTotalPage > 0) {
+        this.cachePage(cacheKey, pageObj);
+        if (nextTotalPage > this.totalPage) {
+          this.totalPage = nextTotalPage;
+        }
       }
     }
     return pageObj;
@@ -587,7 +620,9 @@ class SearchSource {
       return false;
     }
     const dislikedUserIds = Array.isArray(this.searchParam.dislikedUserIds)
-      ? this.searchParam.dislikedUserIds.map((id) => this.normalizeUserId(id)).filter(Boolean)
+      ? this.searchParam.dislikedUserIds
+          .map((id) => this.normalizeUserId(id))
+          .filter(Boolean)
       : [];
     return dislikedUserIds.includes(normalizedUserId);
   }
@@ -598,7 +633,9 @@ class SearchSource {
       return false;
     }
     const blockedIllustIds = Array.isArray(this.searchParam.blockedIllustIds)
-      ? this.searchParam.blockedIllustIds.map((id) => String(id || "").trim()).filter(Boolean)
+      ? this.searchParam.blockedIllustIds
+          .map((id) => String(id || "").trim())
+          .filter(Boolean)
       : [];
     return blockedIllustIds.includes(normalizedIllustId);
   }
@@ -614,9 +651,12 @@ class SearchSource {
       return [];
     }
     return illustArray.filter((el) => {
-      let condition1 = !this.searchParam.min_sl || el.sl >= this.searchParam.min_sl;
-      let condition2 = !this.searchParam.max_sl || el.sl <= this.searchParam.max_sl;
-      let condition3 = !this.searchParam.aiType || el.aiType == this.searchParam.aiType;
+      let condition1 =
+        !this.searchParam.min_sl || el.sl >= this.searchParam.min_sl;
+      let condition2 =
+        !this.searchParam.max_sl || el.sl <= this.searchParam.max_sl;
+      let condition3 =
+        !this.searchParam.aiType || el.aiType == this.searchParam.aiType;
       let condition4 = !this.isDislikedUser(el.userId);
       let condition5 = !this.isBlockedIllust(el.id);
       return condition1 && condition2 && condition3 && condition4 && condition5;
@@ -633,7 +673,10 @@ class SearchSource {
       if (!candidate || !candidate.id) {
         continue;
       }
-      if (this.enqueuedIds.has(candidate.id) || this.hasSeenRecently(candidate.id)) {
+      if (
+        this.enqueuedIds.has(candidate.id) ||
+        this.hasSeenRecently(candidate.id)
+      ) {
         continue;
       }
       this.candidateQueue.push(candidate);
@@ -704,7 +747,8 @@ class SearchSource {
     const sampledTags = sampling.tags;
     const attempts = [];
 
-    this.searchParam.randomTagPoolNextPriorityTag = sampling.remainingNextPriorityTag;
+    this.searchParam.randomTagPoolNextPriorityTag =
+      sampling.remainingNextPriorityTag;
     chrome.storage.local.set({
       randomTagPoolNextPriorityTag: sampling.remainingNextPriorityTag,
     });
@@ -714,7 +758,10 @@ class SearchSource {
         .filter(Boolean)
         .join(" ")
         .trim();
-      if (queryWord && !attempts.some((attempt) => attempt.queryWord === queryWord)) {
+      if (
+        queryWord &&
+        !attempts.some((attempt) => attempt.queryWord === queryWord)
+      ) {
         attempts.push({
           queryWord,
           randomTags: sampledTags.slice(0, count),
@@ -729,10 +776,13 @@ class SearchSource {
       });
     }
 
-    debugLog("buildQueryAttempts", attempts.map((attempt) => ({
-      queryWord: attempt.queryWord,
-      randomTags: attempt.randomTags,
-    })));
+    debugLog(
+      "构建查询尝试",
+      attempts.map((attempt) => ({
+        queryWord: attempt.queryWord,
+        randomTags: attempt.randomTags,
+      })),
+    );
     return attempts;
   }
 
@@ -750,7 +800,7 @@ class SearchSource {
       randomTagPoolLastResolvedTags: normalizedTags,
       randomTagPoolLastResolvedAt: this.lastResolvedRandomTagsAt,
     });
-    debugLog("publishResolvedRandomTags", normalizedTags);
+    debugLog("发布已解析随机标签", normalizedTags);
   }
 
   /**
@@ -776,17 +826,23 @@ class SearchSource {
 
       const maxPagesToSample = Math.min(4, totalPage);
       const pageNumbers = this.pickSamplePages(maxPagesToSample);
-      debugLog("fillCandidateQueue:sample-pages", { queryWord, totalPage, pageNumbers });
+      debugLog("填充候选队列:采样页码", {
+        queryWord,
+        totalPage,
+        pageNumbers,
+      });
       for (const pageNumber of pageNumbers) {
         const pageObj = await this.getPage(pageNumber, queryWord);
         if (!pageObj || !pageObj.body || !pageObj.body.illust) {
           continue;
         }
         const filtered = this.filterIllustArray(pageObj.body.illust.data);
-        debugLog("fillCandidateQueue:page-result", {
+        debugLog("填充候选队列:页面结果", {
           queryWord,
           pageNumber,
-          rawCount: Array.isArray(pageObj.body.illust.data) ? pageObj.body.illust.data.length : 0,
+          rawCount: Array.isArray(pageObj.body.illust.data)
+            ? pageObj.body.illust.data.length
+            : 0,
           filteredCount: filtered.length,
         });
         this.enqueueCandidates(filtered);
@@ -797,7 +853,7 @@ class SearchSource {
 
       if (this.candidateQueue.length > 0) {
         await this.publishResolvedRandomTags(attempt.randomTags);
-        debugLog("fillCandidateQueue:queue-ready", {
+        debugLog("填充候选队列:队列就绪", {
           queryWord,
           queueSize: this.candidateQueue.length,
           randomTags: attempt.randomTags,
@@ -805,7 +861,7 @@ class SearchSource {
         return;
       }
     }
-    debugLog("fillCandidateQueue:empty");
+    debugLog("填充候选队列:结果为空");
   }
 
   /**
@@ -823,14 +879,17 @@ class SearchSource {
     this.lastErrorMessage = null;
     for (let i = 0; i < MAX_RETRIES; i++) {
       try {
-        debugLog("getRandomIllust:attempt", { retry: i + 1, queueSize: this.candidateQueue.length });
+        debugLog("获取随机插画:尝试", {
+          retry: i + 1,
+          queueSize: this.candidateQueue.length,
+        });
         await this.fillCandidateQueue();
         let picked = this.dequeueCandidate();
         if (!picked) {
-          debugLog("getRandomIllust:no-candidate", { retry: i + 1 });
+          debugLog("获取随机插画:无候选", { retry: i + 1 });
           continue;
         }
-        debugLog("getRandomIllust:picked", {
+        debugLog("获取随机插画:已选取", {
           retry: i + 1,
           illustId: picked.id,
           userId: picked.userId,
@@ -842,12 +901,17 @@ class SearchSource {
         res.profileImageUrl = picked.profileImageUrl;
 
         // 获取作品详细信息
-        let illustInfo = await fetchPixivJson(baseUrl + illustInfoUrl + res.illustId);
+        let illustInfo = await fetchPixivJson(
+          baseUrl + illustInfoUrl + res.illustId,
+        );
         if (!illustInfo || illustInfo.__error || !illustInfo.body) {
           if (illustInfo && illustInfo.__error) {
             this.lastErrorMessage = illustInfo.message;
           }
-          debugLog("getRandomIllust:illustInfo-failed", { illustId: res.illustId, message: this.lastErrorMessage });
+          debugLog("获取随机插画:插画信息失败", {
+            illustId: res.illustId,
+            message: this.lastErrorMessage,
+          });
           continue;
         }
 
@@ -856,7 +920,10 @@ class SearchSource {
         // 检查是否为屏蔽用户
         if (this.isDislikedUser(res.userId)) {
           this.markSeen(picked.id);
-          debugLog("getRandomIllust:skip-disliked-user", { illustId: picked.id, userId: res.userId });
+          debugLog("获取随机插画:跳过屏蔽作者", {
+            illustId: picked.id,
+            userId: res.userId,
+          });
           continue;
         }
         res.illustId = illustInfo.body.illustId;
@@ -864,9 +931,15 @@ class SearchSource {
         res.illustIdUrl = baseUrl + "/artworks/" + illustInfo.body.illustId;
         res.title = illustInfo.body.title;
         res.originalImageUrl = illustInfo.body.urls.original || "";
-        res.imageObjectUrl = illustInfo.body.urls.regular || illustInfo.body.urls.small || picked.url;
+        res.imageObjectUrl =
+          illustInfo.body.urls.regular ||
+          illustInfo.body.urls.small ||
+          picked.url;
         // 提取标签信息（优先使用中文翻译）
-        res.tags = (illustInfo.body.tags && illustInfo.body.tags.tags || []).map(t => {
+        res.tags = (
+          (illustInfo.body.tags && illustInfo.body.tags.tags) ||
+          []
+        ).map((t) => {
           let tr = t.translation || {};
           return {
             tag: t.tag,
@@ -879,60 +952,35 @@ class SearchSource {
           illustInfo.body.urls.regular,
           illustInfo.body.urls.small,
           picked.url,
-        ].map((url) => String(url || "").trim()).filter(Boolean);
+        ]
+          .map((url) => String(url || "").trim())
+          .filter(Boolean);
         const resolvedImageUrl = imageCandidates.find(Boolean);
-        debugLog("getRandomIllust:image-candidates", {
+        debugLog("获取随机插画:图片候选列表", {
           illustId: res.illustId,
           regular: illustInfo.body.urls.regular,
           small: illustInfo.body.urls.small,
           pickedUrl: picked.url,
           resolvedImageUrl,
         });
-        // 下载图片和头像
-        const { blob: illustBlob, url: loadedImageUrl } = await fetchFirstAvailableImage(imageCandidates, "illust");
-        const profileBlob = await fetchImage(res.profileImageUrl, "profile");
-
         if (!resolvedImageUrl) continue;
-        if (illustBlob) {
-          try {
-            res.imageObjectUrl = await blobToDataUrl(illustBlob);
-          } catch (e) {
-            console.error("Failed to convert illust blob to data URL:", e);
-            res.imageObjectUrl = loadedImageUrl || resolvedImageUrl;
-          }
-        } else {
-          res.imageObjectUrl = resolvedImageUrl;
-        }
-
-        if (profileBlob) {
-          try {
-            res.profileImageUrl = await blobToDataUrl(profileBlob);
-          } catch (e) {
-            // 忽略头像加载错误
-          }
-        } else {
-          debugLog("getRandomIllust:profile-fallback-empty", {
-            illustId: res.illustId,
-            profileImageUrl: res.profileImageUrl,
-          });
-          res.profileImageUrl = "";
-        }
+        res.imageObjectUrl = resolvedImageUrl;
         this.markSeen(picked.id);
-        debugLog("getRandomIllust:success", {
+        debugLog("获取随机插画:成功", {
           illustId: res.illustId,
           userId: res.userId,
           title: res.title,
           imageObjectUrl: res.imageObjectUrl,
-          imageLoadedAsBlob: !!illustBlob,
-          profileLoaded: !!profileBlob,
         });
         return res;
       } catch (e) {
-        console.error("Error in getRandomIllust loop:", e);
+        console.error("获取随机插画循环出错:", e);
         continue;
       }
     }
-    debugLog("getRandomIllust:exhausted", { lastErrorMessage: this.lastErrorMessage });
+    debugLog("获取随机插画:重试耗尽", {
+      lastErrorMessage: this.lastErrorMessage,
+    });
     return null;
   }
 }
@@ -990,14 +1038,19 @@ function createManualRandomTagSearchSource(config, manualRandomTag) {
   const tempSource = new SearchSource(config);
   tempSource.buildQueryAttempts = function () {
     const baseQuery = buildQuery(this.searchParam).trim();
-    const queryWord = [baseQuery, normalizedTag].filter(Boolean).join(" ").trim();
+    const queryWord = [baseQuery, normalizedTag]
+      .filter(Boolean)
+      .join(" ")
+      .trim();
     if (!queryWord) {
       return [];
     }
-    return [{
-      queryWord,
-      randomTags: [normalizedTag],
-    }];
+    return [
+      {
+        queryWord,
+        randomTags: [normalizedTag],
+      },
+    ];
   };
   return tempSource;
 }
@@ -1036,8 +1089,15 @@ function buildDefaultImageResponse(config, options = {}) {
  * @returns {object}
  */
 function applyActivePreset(config) {
-  if (config.queryPresets && Array.isArray(config.queryPresets) && config.queryPresets.length > 0) {
-    let idx = Math.min(config.activePresetIndex || 0, config.queryPresets.length - 1);
+  if (
+    config.queryPresets &&
+    Array.isArray(config.queryPresets) &&
+    config.queryPresets.length > 0
+  ) {
+    let idx = Math.min(
+      config.activePresetIndex || 0,
+      config.queryPresets.length - 1,
+    );
     if (config.queryPresets[idx] && config.queryPresets[idx].tree) {
       config.queryTree = config.queryPresets[idx].tree;
     }
@@ -1062,14 +1122,14 @@ async function start() {
   let config = await getStoredConfig();
   // 持久化迁移后的配置（如果 orKeywords 被转换）
   chrome.storage.local.set({ orGroups: config.orGroups, orKeywords: null });
-  console.log("Current search query:", buildQuery(config));
+  console.log("当前搜索查询:", buildQuery(config));
   searchSource = new SearchSource(config);
-  console.log("background script loaded");
+  console.log("后台脚本已加载");
 }
 
 // 初始化后台脚本，失败时记录错误
 let initPromise = start().catch((e) => {
-  console.error("Background init failed:", e);
+  console.error("后台初始化失败:", e);
   return null;
 });
 
@@ -1084,433 +1144,485 @@ let initPromise = start().catch((e) => {
  * - addRandomTag: 添加随机标签
  * - queueNextPriorityRandomTag: 队列下次优先的随机标签
  */
-chrome.runtime.onMessage.addListener(function (
-  message,
-  sender,
-  sendResponse
-) {
-  (
-    async () => {
+chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
+  (async () => {
+    try {
+      await initPromise;
+    } catch (e) {
+      console.error("初始化出错:", e);
+      sendResponse({
+        error: "INIT_FAILED",
+        message: "Background init failed. Please reload the extension.",
+      });
+      return;
+    }
+    if (!searchSource) {
+      sendResponse({
+        error: "INIT_FAILED",
+        message: "Background not ready. Please reload the extension.",
+      });
+      return;
+    }
+    // 处理获取图片请求
+    if (message.action === "fetchImage") {
       try {
-        await initPromise;
-      } catch (e) {
-        console.error("Init promise error:", e);
-        sendResponse({
-          error: "INIT_FAILED",
-          message: "Background init failed. Please reload the extension."
-        });
-        return;
-      }
-      if (!searchSource) {
-        sendResponse({
-          error: "INIT_FAILED",
-          message: "Background not ready. Please reload the extension."
-        });
-        return;
-      }
-      // 处理获取图片请求
-      if (message.action === "fetchImage") {
-        try {
-          const currentConfig = searchSource.searchParam || await getStoredConfig();
-          const manualRandomTag = String(message.manualRandomTag || "").trim();
-          if (currentConfig.randomImageEnabled === false) {
-            const defaultRes = buildDefaultImageResponse(currentConfig, {
-              message: "Random images are disabled."
-            });
-            if (defaultRes) {
-              sendResponse(defaultRes);
-            } else {
-              sendResponse({
-                error: "DEFAULT_IMAGE_MISSING",
-                message: "Random images are disabled and no default image is configured."
-              });
-            }
-            return;
-          }
-
-          let res = null;
-          let usedManualRandomTag = false;
-          if (manualRandomTag) {
-            const tempSource = createManualRandomTagSearchSource(currentConfig, manualRandomTag);
-            if (tempSource) {
-              res = await tempSource.getRandomIllust();
-              usedManualRandomTag = !!res;
-            }
-          }
-          if (!res) {
-            res = await searchSource.getRandomIllust();
-          }
-          if (res) {
-            res.mode = "random";
-            res.fallback = false;
-            res.usedManualRandomTag = manualRandomTag ? usedManualRandomTag : null;
-            res.resolvedRandomTags = manualRandomTag && usedManualRandomTag
-              ? [manualRandomTag]
-              : (Array.isArray(searchSource.lastResolvedRandomTags)
-                ? searchSource.lastResolvedRandomTags.slice()
-                : []);
-            sendResponse(res);
-            let { profileImageUrl, imageObjectUrl, ...filteredRes } = res;
-            console.log(filteredRes);
+        const currentConfig =
+          searchSource.searchParam || (await getStoredConfig());
+        const manualRandomTag = String(message.manualRandomTag || "").trim();
+        if (currentConfig.randomImageEnabled === false) {
+          const defaultRes = buildDefaultImageResponse(currentConfig, {
+            message: "Random images are disabled.",
+          });
+          if (defaultRes) {
+            sendResponse(defaultRes);
           } else {
-            const fallbackRes = buildDefaultImageResponse(currentConfig, {
-              fallback: true,
-              message: searchSource.lastErrorMessage || "Failed to load a Pixiv image. Showing the default image instead."
+            sendResponse({
+              error: "DEFAULT_IMAGE_MISSING",
+              message:
+                "Random images are disabled and no default image is configured.",
             });
-            if (fallbackRes) {
-              sendResponse(fallbackRes);
-            } else {
-              sendResponse({
-                error: "NO_RESULT",
-                message: searchSource.lastErrorMessage || "No image found. Please check your tags or Pixiv availability."
-              });
-            }
           }
-        } catch (e) {
-          console.error("fetchImage handler error:", e);
-          const currentConfig = searchSource.searchParam || await getStoredConfig();
+          return;
+        }
+
+        let res = null;
+        let usedManualRandomTag = false;
+        if (manualRandomTag) {
+          const tempSource = createManualRandomTagSearchSource(
+            currentConfig,
+            manualRandomTag,
+          );
+          if (tempSource) {
+            res = await tempSource.getRandomIllust();
+            usedManualRandomTag = !!res;
+          }
+        }
+        if (!res) {
+          res = await searchSource.getRandomIllust();
+        }
+        if (res) {
+          res.mode = "random";
+          res.fallback = false;
+          res.usedManualRandomTag = manualRandomTag
+            ? usedManualRandomTag
+            : null;
+          res.resolvedRandomTags =
+            manualRandomTag && usedManualRandomTag
+              ? [manualRandomTag]
+              : Array.isArray(searchSource.lastResolvedRandomTags)
+                ? searchSource.lastResolvedRandomTags.slice()
+                : [];
+          sendResponse(res);
+          let { profileImageUrl, imageObjectUrl, ...filteredRes } = res;
+          console.log(filteredRes);
+        } else {
           const fallbackRes = buildDefaultImageResponse(currentConfig, {
             fallback: true,
-            message: "Failed to fetch image. Showing the default image instead."
+            message:
+              searchSource.lastErrorMessage ||
+              "Failed to load a Pixiv image. Showing the default image instead.",
           });
           if (fallbackRes) {
             sendResponse(fallbackRes);
           } else {
             sendResponse({
-              error: "FETCH_FAILED",
-              message: "Failed to fetch image. Please try again."
+              error: "NO_RESULT",
+              message:
+                searchSource.lastErrorMessage ||
+                "No image found. Please check your tags or Pixiv availability.",
             });
           }
         }
+      } catch (e) {
+        console.error("处理图片请求出错:", e);
+        const currentConfig =
+          searchSource.searchParam || (await getStoredConfig());
+        const fallbackRes = buildDefaultImageResponse(currentConfig, {
+          fallback: true,
+          message: "Failed to fetch image. Showing the default image instead.",
+        });
+        if (fallbackRes) {
+          sendResponse(fallbackRes);
+        } else {
+          sendResponse({
+            error: "FETCH_FAILED",
+            message: "Failed to fetch image. Please try again.",
+          });
+        }
+      }
       // 处理更新配置请求
-      } else if (message.action === "updateConfig") {
+    } else if (message.action === "updateConfig") {
+      let config = await getStoredConfig();
+      console.log("搜索查询已更新:", buildQuery(config));
+      searchSource.updateConfig(config);
+      sendResponse({ success: true });
+      // 处理收藏作品请求
+    } else if (message.action === "bookmarkIllust") {
+      try {
+        const illustIdStr = String(message.illustId || "");
+        if (!illustIdStr) {
+          sendResponse({ success: false, error: "Invalid illust id" });
+          return;
+        }
+
+        // 从 HTML 页面中提取 CSRF token
+        const fetchTokenFromHtml = async (url) => {
+          try {
+            const res = await fetch(url, { credentials: "include" });
+            console.log("[收藏] HTML 请求", url, "状态码", res.status);
+            if (!res.ok) return null;
+            const html = await res.text();
+            console.log(
+              "[收藏] HTML 长度",
+              html.length,
+              "token 匹配",
+              /\"token\"\s*:\s*\"([a-f0-9]{32})\"/.test(html),
+            );
+            const m = html.match(/"token"\s*:\s*"([a-f0-9]{32})"/);
+            return m ? m[1] : null;
+          } catch (e) {
+            console.warn("[收藏] HTML 请求出错", url, e);
+            return null;
+          }
+        };
+
+        // 从 JSON 接口中提取 CSRF token
+        const fetchTokenFromJson = async (url) => {
+          try {
+            const res = await fetch(url, { credentials: "include" });
+            console.log("[收藏] JSON 请求", url, "状态码", res.status);
+            if (!res.ok) return null;
+            const json = await res.json();
+            console.log("[收藏] JSON 错误", !!(json && json.error));
+            if (json && json.error) return null;
+            return (
+              (json && (json.token || (json.body && json.body.token))) || null
+            );
+          } catch (e) {
+            console.warn("[收藏] JSON 请求出错", url, e);
+            return null;
+          }
+        };
+
+        // 1) 优先尝试 JSON 端点（无需页面导航）
+        let token =
+          (await fetchTokenFromJson("https://www.pixiv.net/ajax/user/extra")) ||
+          (await fetchTokenFromJson(
+            "https://www.pixiv.net/ajax/user/extra?lang=zh",
+          ));
+
+        // 2) 尝试 HTML 端点（无需页面导航）
+        if (!token) {
+          token =
+            (await fetchTokenFromHtml(
+              `https://www.pixiv.net/artworks/${illustIdStr}`,
+            )) || (await fetchTokenFromHtml("https://www.pixiv.net/"));
+        }
+
+        // 3) 降级方案：如果用户已打开 Pixiv 标签页，从 DOM 中提取 token
+        if (!token) {
+          let tabs = await chrome.tabs.query({ url: "*://*.pixiv.net/*" });
+          if (tabs.length > 0) {
+            let tabId = tabs[0].id;
+            console.log("[收藏] DOM 回退标签页", tabId);
+            let results = await chrome.scripting.executeScript({
+              target: { tabId: tabId },
+              world: "MAIN",
+              func: () => {
+                let token = null;
+                let meta =
+                  document.querySelector("#meta-global-data") ||
+                  document.querySelector('meta[name="global-data"]');
+                if (meta) {
+                  try {
+                    token = JSON.parse(meta.getAttribute("content")).token;
+                  } catch (e) {}
+                }
+                if (!token && typeof pixiv !== "undefined" && pixiv.context) {
+                  token = pixiv.context.token;
+                }
+                if (!token && typeof globalInitData !== "undefined") {
+                  token = globalInitData.token;
+                }
+                if (!token) {
+                  let nd = document.querySelector("#__NEXT_DATA__");
+                  if (nd) {
+                    try {
+                      let data = JSON.parse(nd.textContent);
+                      token = data?.props?.pageProps?.token;
+                    } catch (e) {}
+                  }
+                }
+                if (!token) {
+                  for (let s of document.querySelectorAll("script")) {
+                    let m = s.textContent.match(
+                      /"token"\s*:\s*"([a-f0-9]{32})"/,
+                    );
+                    if (m) {
+                      token = m[1];
+                      break;
+                    }
+                  }
+                }
+                return token;
+              },
+            });
+            token =
+              results && results[0] && results[0].result
+                ? results[0].result
+                : null;
+            console.log("[收藏] DOM 已找到 Token", !!token);
+          }
+        }
+
+        if (!token) {
+          sendResponse({
+            success: false,
+            code: "TOKEN_NOT_FOUND",
+            error:
+              "CSRF token not found. Please ensure you are logged in to Pixiv.",
+          });
+          return;
+        }
+
+        // 调用 Pixiv 收藏 API
+        let r;
+        try {
+          r = await fetch("https://www.pixiv.net/ajax/illusts/bookmarks/add", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json; charset=utf-8",
+              Accept: "application/json",
+              "X-CSRF-Token": token,
+            },
+            body: JSON.stringify({
+              illust_id: illustIdStr,
+              restrict: 0,
+              comment: "",
+              tags: [],
+            }),
+            credentials: "include",
+          });
+        } catch (e) {
+          sendResponse({
+            success: false,
+            code: "BOOKMARK_FAILED",
+            error: e.message || "Bookmark failed",
+          });
+          return;
+        }
+
+        if (!r.ok) {
+          let msg = `HTTP ${r.status}`;
+          if (r.status === 401 || r.status === 403) {
+            msg = "Not logged in. Please log in to Pixiv.";
+          }
+          sendResponse({ success: false, code: "BOOKMARK_FAILED", error: msg });
+          return;
+        }
+
+        let json = await r.json();
+        if (json && json.error) {
+          sendResponse({
+            success: false,
+            code: "BOOKMARK_FAILED",
+            error: json.message || "Bookmark failed",
+          });
+          return;
+        }
+
+        sendResponse({ success: true });
+      } catch (e) {
+        console.error("收藏出错:", e);
+        sendResponse({ success: false, error: e.message });
+      }
+      // 处理排除标签请求
+    } else if (message.action === "excludeTag") {
+      try {
         let config = await getStoredConfig();
-        console.log("Updated search query:", buildQuery(config));
+        let tag = String(message.tag || "").trim();
+        if (!tag) {
+          sendResponse({ success: false, error: "Invalid tag" });
+          return;
+        }
+        let list = (config.globalMinusKeywords || "")
+          .trim()
+          .split(/\s+/)
+          .filter(Boolean);
+        if (!list.includes(tag)) list.push(tag);
+        config.globalMinusKeywords = list.join(" ");
+
+        applyActivePreset(config);
+        config.minusKeywords = computeEffectiveMinus(config);
+        await chrome.storage.local.set({
+          globalMinusKeywords: config.globalMinusKeywords,
+          presetMinusKeywords: [],
+        });
+
         searchSource.updateConfig(config);
         sendResponse({ success: true });
-      // 处理收藏作品请求
-      } else if (message.action === "bookmarkIllust") {
-        try {
-          const illustIdStr = String(message.illustId || "");
-          if (!illustIdStr) {
-            sendResponse({ success: false, error: "Invalid illust id" });
-            return;
-          }
-
-          // 从 HTML 页面中提取 CSRF token
-          const fetchTokenFromHtml = async (url) => {
-            try {
-              const res = await fetch(url, { credentials: "include" });
-              console.log("[bookmark] HTML fetch", url, "status", res.status);
-              if (!res.ok) return null;
-              const html = await res.text();
-              console.log("[bookmark] HTML length", html.length, "token match", /\"token\"\s*:\s*\"([a-f0-9]{32})\"/.test(html));
-              const m = html.match(/"token"\s*:\s*"([a-f0-9]{32})"/);
-              return m ? m[1] : null;
-            } catch (e) {
-              console.warn("[bookmark] HTML fetch error", url, e);
-              return null;
-            }
-          };
-
-          // 从 JSON 接口中提取 CSRF token
-          const fetchTokenFromJson = async (url) => {
-            try {
-              const res = await fetch(url, { credentials: "include" });
-              console.log("[bookmark] JSON fetch", url, "status", res.status);
-              if (!res.ok) return null;
-              const json = await res.json();
-              console.log("[bookmark] JSON error", !!(json && json.error));
-              if (json && json.error) return null;
-              return (json && (json.token || (json.body && json.body.token))) || null;
-            } catch (e) {
-              console.warn("[bookmark] JSON fetch error", url, e);
-              return null;
-            }
-          };
-
-          // 1) 优先尝试 JSON 端点（无需页面导航）
-          let token =
-            (await fetchTokenFromJson("https://www.pixiv.net/ajax/user/extra")) ||
-            (await fetchTokenFromJson("https://www.pixiv.net/ajax/user/extra?lang=zh"));
-
-          // 2) 尝试 HTML 端点（无需页面导航）
-          if (!token) {
-            token =
-              (await fetchTokenFromHtml(`https://www.pixiv.net/artworks/${illustIdStr}`)) ||
-              (await fetchTokenFromHtml("https://www.pixiv.net/"));
-          }
-
-          // 3) 降级方案：如果用户已打开 Pixiv 标签页，从 DOM 中提取 token
-          if (!token) {
-            let tabs = await chrome.tabs.query({ url: "*://*.pixiv.net/*" });
-            if (tabs.length > 0) {
-              let tabId = tabs[0].id;
-              console.log("[bookmark] DOM fallback tab", tabId);
-              let results = await chrome.scripting.executeScript({
-                target: { tabId: tabId },
-                world: "MAIN",
-                func: () => {
-                  let token = null;
-                  let meta = document.querySelector('#meta-global-data')
-                    || document.querySelector('meta[name="global-data"]');
-                  if (meta) {
-                    try { token = JSON.parse(meta.getAttribute('content')).token; } catch (e) { }
-                  }
-                  if (!token && typeof pixiv !== 'undefined' && pixiv.context) {
-                    token = pixiv.context.token;
-                  }
-                  if (!token && typeof globalInitData !== 'undefined') {
-                    token = globalInitData.token;
-                  }
-                  if (!token) {
-                    let nd = document.querySelector('#__NEXT_DATA__');
-                    if (nd) {
-                      try {
-                        let data = JSON.parse(nd.textContent);
-                        token = data?.props?.pageProps?.token;
-                      } catch (e) { }
-                    }
-                  }
-                  if (!token) {
-                    for (let s of document.querySelectorAll('script')) {
-                      let m = s.textContent.match(/"token"\s*:\s*"([a-f0-9]{32})"/);
-                      if (m) { token = m[1]; break; }
-                    }
-                  }
-                  return token;
-                }
-              });
-              token = results && results[0] && results[0].result ? results[0].result : null;
-              console.log("[bookmark] DOM fallback token found", !!token);
-            }
-          }
-
-          if (!token) {
-            sendResponse({
-              success: false,
-              code: "TOKEN_NOT_FOUND",
-              error: "CSRF token not found. Please ensure you are logged in to Pixiv."
-            });
-            return;
-          }
-
-          // 调用 Pixiv 收藏 API
-          let r;
-          try {
-            r = await fetch("https://www.pixiv.net/ajax/illusts/bookmarks/add", {
-              method: "POST",
-              headers: {
-                "Content-Type": "application/json; charset=utf-8",
-                "Accept": "application/json",
-                "X-CSRF-Token": token,
-              },
-              body: JSON.stringify({
-                illust_id: illustIdStr,
-                restrict: 0,
-                comment: "",
-                tags: [],
-              }),
-              credentials: "include",
-            });
-          } catch (e) {
-            sendResponse({ success: false, code: "BOOKMARK_FAILED", error: e.message || "Bookmark failed" });
-            return;
-          }
-
-          if (!r.ok) {
-            let msg = `HTTP ${r.status}`;
-            if (r.status === 401 || r.status === 403) {
-              msg = "Not logged in. Please log in to Pixiv.";
-            }
-            sendResponse({ success: false, code: "BOOKMARK_FAILED", error: msg });
-            return;
-          }
-
-          let json = await r.json();
-          if (json && json.error) {
-            sendResponse({ success: false, code: "BOOKMARK_FAILED", error: json.message || "Bookmark failed" });
-            return;
-          }
-
-          sendResponse({ success: true });
-        } catch (e) {
-          console.error("Bookmark error:", e);
-          sendResponse({ success: false, error: e.message });
-        }
-      // 处理排除标签请求
-      } else if (message.action === "excludeTag") {
-        try {
-          let config = await getStoredConfig();
-          let tag = String(message.tag || "").trim();
-          if (!tag) {
-            sendResponse({ success: false, error: "Invalid tag" });
-            return;
-          }
-          let list = (config.globalMinusKeywords || "").trim().split(/\s+/).filter(Boolean);
-          if (!list.includes(tag)) list.push(tag);
-          config.globalMinusKeywords = list.join(" ");
-
-          applyActivePreset(config);
-          config.minusKeywords = computeEffectiveMinus(config);
-          await chrome.storage.local.set({
-            globalMinusKeywords: config.globalMinusKeywords,
-            presetMinusKeywords: [],
-          });
-
-          searchSource.updateConfig(config);
-          sendResponse({ success: true });
-        } catch (e) {
-          console.error("Exclude tag error:", e);
-          sendResponse({ success: false, error: e.message });
-        }
-      // 处理设置创作者偏好请求
-      } else if (message.action === "setCreatorPreference") {
-        try {
-          const userId = String(message.userId || "").trim();
-          const preference = String(message.preference || "").trim();
-          if (!userId) {
-            sendResponse({ success: false, error: "Invalid user id" });
-            return;
-          }
-          if (!["like", "dislike", "neutral"].includes(preference)) {
-            sendResponse({ success: false, error: "Invalid preference" });
-            return;
-          }
-          let config = await getStoredConfig();
-          const likedUserIds = Array.isArray(config.likedUserIds)
-            ? config.likedUserIds.map((id) => String(id || "").trim()).filter(Boolean)
-            : [];
-          const dislikedUserIds = Array.isArray(config.dislikedUserIds)
-            ? config.dislikedUserIds.map((id) => String(id || "").trim()).filter(Boolean)
-            : [];
-          const nextLikedUserIds = likedUserIds.filter((id) => id !== userId);
-          const nextDislikedUserIds = dislikedUserIds.filter((id) => id !== userId);
-
-          if (preference === "like") {
-            nextLikedUserIds.push(userId);
-          } else if (preference === "dislike") {
-            nextDislikedUserIds.push(userId);
-          }
-
-          config.likedUserIds = nextLikedUserIds;
-          config.dislikedUserIds = nextDislikedUserIds;
-
-          await chrome.storage.local.set({
-            likedUserIds: config.likedUserIds,
-            dislikedUserIds: config.dislikedUserIds,
-          });
-
-          searchSource.updateConfig(config);
-          sendResponse({
-            success: true,
-            preference,
-            likedUserIds: config.likedUserIds,
-            dislikedUserIds: config.dislikedUserIds,
-          });
-        } catch (e) {
-          console.error("Set creator preference error:", e);
-          sendResponse({ success: false, error: e.message });
-        }
-      // 处理屏蔽作品请求
-      } else if (message.action === "blockIllust") {
-        try {
-          const illustId = String(message.illustId || "").trim();
-          if (!illustId) {
-            sendResponse({ success: false, error: "Invalid illust id" });
-            return;
-          }
-
-          let config = await getStoredConfig();
-          const blockedIllustIds = Array.isArray(config.blockedIllustIds)
-            ? config.blockedIllustIds.map((id) => String(id || "").trim()).filter(Boolean)
-            : [];
-          if (!blockedIllustIds.includes(illustId)) {
-            blockedIllustIds.push(illustId);
-          }
-          config.blockedIllustIds = blockedIllustIds;
-
-          await chrome.storage.local.set({
-            blockedIllustIds: config.blockedIllustIds,
-          });
-
-          searchSource.updateConfig(config);
-          sendResponse({
-            success: true,
-            illustId,
-            blockedIllustIds: config.blockedIllustIds,
-          });
-        } catch (e) {
-          console.error("Block illust error:", e);
-          sendResponse({ success: false, error: e.message });
-        }
-      // 处理添加随机标签请求
-      } else if (message.action === "addRandomTag") {
-        try {
-          let config = await getStoredConfig();
-          let tag = String(message.tag || "").trim();
-          if (!tag) {
-            sendResponse({ success: false, error: "Invalid tag" });
-            return;
-          }
-          const pool = Array.isArray(config.randomTagPool)
-            ? config.randomTagPool.map((item) => String(item || "").trim()).filter(Boolean)
-            : [];
-          if (!pool.includes(tag)) {
-            pool.push(tag);
-            await chrome.storage.local.set({
-              randomTagPool: pool,
-              randomTagPoolEnabled: true,
-            });
-          } else {
-            await chrome.storage.local.set({
-              randomTagPoolEnabled: true,
-            });
-          }
-          config.randomTagPool = pool;
-          config.randomTagPoolEnabled = true;
-
-          searchSource.updateConfig(config);
-          sendResponse({ success: true, added: true });
-        } catch (e) {
-          console.error("Add random tag error:", e);
-          sendResponse({ success: false, error: e.message });
-        }
-      // 处理队列下次优先随机标签请求
-      } else if (message.action === "queueNextPriorityRandomTag") {
-        try {
-          let config = await getStoredConfig();
-          let tag = String(message.tag || "").trim();
-          if (!tag) {
-            sendResponse({ success: false, error: "Invalid tag" });
-            return;
-          }
-          const pool = Array.isArray(config.randomTagPool)
-            ? config.randomTagPool.map((item) => String(item || "").trim()).filter(Boolean)
-            : [];
-          if (!pool.includes(tag)) {
-            pool.push(tag);
-          }
-          config.randomTagPool = pool;
-          config.randomTagPoolNextPriorityTag = tag;
-          config.randomTagPoolEnabled = true;
-
-          await chrome.storage.local.set({
-            randomTagPool: config.randomTagPool,
-            randomTagPoolNextPriorityTag: config.randomTagPoolNextPriorityTag,
-            randomTagPoolEnabled: config.randomTagPoolEnabled,
-          });
-
-          searchSource.updateConfig(config);
-          sendResponse({ success: true, queued: true, tag });
-        } catch (e) {
-          console.error("Queue next priority random tag error:", e);
-          sendResponse({ success: false, error: e.message });
-        }
-      } else {
-        sendResponse({ success: false, error: "Unknown action" });
+      } catch (e) {
+        console.error("排除标签出错:", e);
+        sendResponse({ success: false, error: e.message });
       }
+      // 处理设置创作者偏好请求
+    } else if (message.action === "setCreatorPreference") {
+      try {
+        const userId = String(message.userId || "").trim();
+        const preference = String(message.preference || "").trim();
+        if (!userId) {
+          sendResponse({ success: false, error: "Invalid user id" });
+          return;
+        }
+        if (!["like", "dislike", "neutral"].includes(preference)) {
+          sendResponse({ success: false, error: "Invalid preference" });
+          return;
+        }
+        let config = await getStoredConfig();
+        const likedUserIds = Array.isArray(config.likedUserIds)
+          ? config.likedUserIds
+              .map((id) => String(id || "").trim())
+              .filter(Boolean)
+          : [];
+        const dislikedUserIds = Array.isArray(config.dislikedUserIds)
+          ? config.dislikedUserIds
+              .map((id) => String(id || "").trim())
+              .filter(Boolean)
+          : [];
+        const nextLikedUserIds = likedUserIds.filter((id) => id !== userId);
+        const nextDislikedUserIds = dislikedUserIds.filter(
+          (id) => id !== userId,
+        );
+
+        if (preference === "like") {
+          nextLikedUserIds.push(userId);
+        } else if (preference === "dislike") {
+          nextDislikedUserIds.push(userId);
+        }
+
+        config.likedUserIds = nextLikedUserIds;
+        config.dislikedUserIds = nextDislikedUserIds;
+
+        await chrome.storage.local.set({
+          likedUserIds: config.likedUserIds,
+          dislikedUserIds: config.dislikedUserIds,
+        });
+
+        searchSource.updateConfig(config);
+        sendResponse({
+          success: true,
+          preference,
+          likedUserIds: config.likedUserIds,
+          dislikedUserIds: config.dislikedUserIds,
+        });
+      } catch (e) {
+        console.error("设置作者偏好出错:", e);
+        sendResponse({ success: false, error: e.message });
+      }
+      // 处理屏蔽作品请求
+    } else if (message.action === "blockIllust") {
+      try {
+        const illustId = String(message.illustId || "").trim();
+        if (!illustId) {
+          sendResponse({ success: false, error: "Invalid illust id" });
+          return;
+        }
+
+        let config = await getStoredConfig();
+        const blockedIllustIds = Array.isArray(config.blockedIllustIds)
+          ? config.blockedIllustIds
+              .map((id) => String(id || "").trim())
+              .filter(Boolean)
+          : [];
+        if (!blockedIllustIds.includes(illustId)) {
+          blockedIllustIds.push(illustId);
+        }
+        config.blockedIllustIds = blockedIllustIds;
+
+        await chrome.storage.local.set({
+          blockedIllustIds: config.blockedIllustIds,
+        });
+
+        searchSource.updateConfig(config);
+        sendResponse({
+          success: true,
+          illustId,
+          blockedIllustIds: config.blockedIllustIds,
+        });
+      } catch (e) {
+        console.error("屏蔽作品出错:", e);
+        sendResponse({ success: false, error: e.message });
+      }
+      // 处理添加随机标签请求
+    } else if (message.action === "addRandomTag") {
+      try {
+        let config = await getStoredConfig();
+        let tag = String(message.tag || "").trim();
+        if (!tag) {
+          sendResponse({ success: false, error: "Invalid tag" });
+          return;
+        }
+        const pool = Array.isArray(config.randomTagPool)
+          ? config.randomTagPool
+              .map((item) => String(item || "").trim())
+              .filter(Boolean)
+          : [];
+        if (!pool.includes(tag)) {
+          pool.push(tag);
+          await chrome.storage.local.set({
+            randomTagPool: pool,
+            randomTagPoolEnabled: true,
+          });
+        } else {
+          await chrome.storage.local.set({
+            randomTagPoolEnabled: true,
+          });
+        }
+        config.randomTagPool = pool;
+        config.randomTagPoolEnabled = true;
+
+        searchSource.updateConfig(config);
+        sendResponse({ success: true, added: true });
+      } catch (e) {
+        console.error("添加随机标签出错:", e);
+        sendResponse({ success: false, error: e.message });
+      }
+      // 处理队列下次优先随机标签请求
+    } else if (message.action === "queueNextPriorityRandomTag") {
+      try {
+        let config = await getStoredConfig();
+        let tag = String(message.tag || "").trim();
+        if (!tag) {
+          sendResponse({ success: false, error: "Invalid tag" });
+          return;
+        }
+        const pool = Array.isArray(config.randomTagPool)
+          ? config.randomTagPool
+              .map((item) => String(item || "").trim())
+              .filter(Boolean)
+          : [];
+        if (!pool.includes(tag)) {
+          pool.push(tag);
+        }
+        config.randomTagPool = pool;
+        config.randomTagPoolNextPriorityTag = tag;
+        config.randomTagPoolEnabled = true;
+
+        await chrome.storage.local.set({
+          randomTagPool: config.randomTagPool,
+          randomTagPoolNextPriorityTag: config.randomTagPoolNextPriorityTag,
+          randomTagPoolEnabled: config.randomTagPoolEnabled,
+        });
+
+        searchSource.updateConfig(config);
+        sendResponse({ success: true, queued: true, tag });
+      } catch (e) {
+        console.error("设置下次优先随机标签出错:", e);
+        sendResponse({ success: false, error: e.message });
+      }
+    } else {
+      sendResponse({ success: false, error: "Unknown action" });
     }
-  )();
+  })();
   return true;
 });
