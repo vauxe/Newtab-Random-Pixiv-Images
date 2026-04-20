@@ -360,7 +360,7 @@ body.dock-collapsible:not(.right-dock-active) .dock-popup {
   position: fixed;
   width: var(--dock-width);
   min-height: 64px;
-  bottom: 76px;
+  bottom: 104px;
   right: var(--dock-edge);
   padding: 8px 12px;
   font-family: "Inter", "Noto Sans SC", "Noto Sans JP", HiraginoSans-W3,
@@ -546,7 +546,7 @@ body.dock-collapsible:not(.right-dock-active) .dock-popup {
 /* Unified Dock Popup */
 .dock-popup {
   position: fixed;
-  bottom: 148px;
+  bottom: 176px;
   right: var(--dock-edge);
   width: var(--dock-width);
   min-width: 0;
