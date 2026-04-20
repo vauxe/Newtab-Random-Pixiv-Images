@@ -14,6 +14,8 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
   let isBookmarkBusy = false;
   let isDownloadBusy = false;
   let isCreatorPreferenceBusy = false;
+  let isFollowBusy = false;
+  const followedUserIds = new Set();
   let isRandomToggleBusy = false;
   let isRandomTagPoolToggleBusy = false;
   let isR18ToggleBusy = false;
@@ -50,6 +52,10 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       refreshTitle: "Refresh image",
       bookmarkTitle: "Bookmark artwork",
       downloadOriginalTitle: "Download original image",
+      followCreatorTitle: "Follow creator on Pixiv",
+      followCreatorFailed: "Failed to follow creator",
+      followedCreator: "Following: {name}",
+      unfollowedCreator: "Unfollowed: {name}",
       creatorLikeTitle: "Like creator",
       creatorDislikeTitle: "Dislike creator",
       defaultBackgroundTitle: "Default background",
@@ -114,6 +120,10 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       refreshTitle: "刷新图片",
       bookmarkTitle: "收藏作品",
       downloadOriginalTitle: "下载原图",
+      followCreatorTitle: "在 Pixiv 关注该画师",
+      followCreatorFailed: "关注画师失败",
+      followedCreator: "已关注：{name}",
+      unfollowedCreator: "已取消关注：{name}",
       creatorLikeTitle: "喜欢作者",
       creatorDislikeTitle: "不喜欢作者",
       defaultBackgroundTitle: "默认背景",
@@ -174,6 +184,10 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       refreshTitle: "画像を更新",
       bookmarkTitle: "作品をブックマーク",
       downloadOriginalTitle: "オリジナル画像を保存",
+      followCreatorTitle: "Pixiv で作者をフォロー",
+      followCreatorFailed: "フォローに失敗しました",
+      followedCreator: "フォローしました: {name}",
+      unfollowedCreator: "フォロー解除しました: {name}",
       creatorLikeTitle: "作者をお気に入り",
       creatorDislikeTitle: "作者を非表示",
       defaultBackgroundTitle: "デフォルト背景",
@@ -342,6 +356,10 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
     }
     if (downloadOriginalButton) {
       downloadOriginalButton.title = translate("downloadOriginalTitle");
+    }
+    const followCreatorButton = document.getElementById("followCreatorButton");
+    if (followCreatorButton) {
+      followCreatorButton.title = translate("followCreatorTitle");
     }
     if (creatorLikeButton) {
       creatorLikeButton.title = translate("creatorLikeTitle");
@@ -594,6 +612,14 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       // Dislike button
       dislikeElement.addEventListener("click", handleDislike);
 
+      // Follow creator button
+      const followCreatorElement = document.body.querySelector(
+        "#followCreatorButton",
+      );
+      if (followCreatorElement) {
+        followCreatorElement.addEventListener("click", handleFollowCreator);
+      }
+
       // Creator preference buttons
       creatorLikeElement.addEventListener("click", handleCreatorLike);
       creatorDislikeElement.addEventListener("click", handleCreatorDislike);
@@ -669,6 +695,7 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       "downloadOriginalButton",
     );
     const dislikeBtn = document.getElementById("dislikeButton");
+    const followCreatorBtn = document.getElementById("followCreatorButton");
     const creatorLikeBtn = document.getElementById("creatorLikeButton");
     const creatorDislikeBtn = document.getElementById("creatorDislikeButton");
     likeBtn.classList.toggle(
@@ -700,6 +727,17 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
       !currentTags || currentTags.length === 0,
     );
     const hasCreator = !!currentUserId;
+    if (followCreatorBtn) {
+      followCreatorBtn.classList.toggle(
+        "disabled",
+        !hasCreator || isFollowBusy,
+      );
+      followCreatorBtn.classList.toggle("loading", hasCreator && isFollowBusy);
+      followCreatorBtn.classList.toggle(
+        "active",
+        hasCreator && followedUserIds.has(currentUserId),
+      );
+    }
     const likedUserIds = Array.isArray(runtimeConfig?.likedUserIds)
       ? runtimeConfig.likedUserIds
       : [];
@@ -1254,6 +1292,37 @@ import { resolveDefaultImageUrl } from "./default-image-store.js";
         }
         updateActionButtons();
         showToast(res?.error || translate("creatorPreferenceFailed"), "error");
+      },
+    );
+  }
+
+  function handleFollowCreator() {
+    if (!currentUserId || isFollowBusy) return;
+    const isFollowed = followedUserIds.has(currentUserId);
+    isFollowBusy = true;
+    updateActionButtons();
+    chrome.runtime.sendMessage(
+      {
+        action: "followUser",
+        userId: currentUserId,
+        unfollow: isFollowed,
+      },
+      (res) => {
+        isFollowBusy = false;
+        if (chrome.runtime.lastError || !res?.success) {
+          updateActionButtons();
+          showToast(res?.error || translate("followCreatorFailed"), "error");
+          return;
+        }
+        const name = currentUserName || currentUserId;
+        if (isFollowed) {
+          followedUserIds.delete(currentUserId);
+          showToast(translate("unfollowedCreator", { name }), "success");
+        } else {
+          followedUserIds.add(currentUserId);
+          showToast(translate("followedCreator", { name }), "success");
+        }
+        updateActionButtons();
       },
     );
   }

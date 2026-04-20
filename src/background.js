@@ -1133,12 +1133,114 @@ let initPromise = start().catch((e) => {
   return null;
 });
 
+// 在已加载的标签页 DOM 里提取 Pixiv CSRF token
+async function extractTokenFromTab(tabId) {
+  try {
+    const results = await chrome.scripting.executeScript({
+      target: { tabId },
+      world: "MAIN",
+      func: () => {
+        const findToken = (obj, depth = 0) => {
+          if (depth > 6 || !obj || typeof obj !== "object") return null;
+          if (typeof obj.token === "string" && obj.token.length >= 8)
+            return obj.token;
+          for (const v of Object.values(obj)) {
+            const t = findToken(v, depth + 1);
+            if (t) return t;
+          }
+          return null;
+        };
+        // __NEXT_DATA__ 递归搜索
+        const nd = document.querySelector("#__NEXT_DATA__");
+        if (nd) {
+          try {
+            const data = JSON.parse(nd.textContent);
+            const pp = data?.props?.pageProps || {};
+            if (pp.token) return pp.token;
+            let preload = pp.serverSerializedPreloadedState;
+            if (typeof preload === "string") {
+              try {
+                preload = JSON.parse(preload);
+              } catch (e) {}
+            }
+            if (preload && typeof preload === "object") {
+              const t = findToken(preload);
+              if (t) return t;
+            }
+            if (pp.dehydratedState) {
+              const t = findToken(pp.dehydratedState);
+              if (t) return t;
+            }
+            const t = findToken(data);
+            if (t) return t;
+          } catch (e) {}
+        }
+        // meta-global-data
+        const meta =
+          document.querySelector("#meta-global-data") ||
+          document.querySelector('meta[name="global-data"]');
+        if (meta) {
+          try {
+            const t = JSON.parse(meta.getAttribute("content"))?.token;
+            if (t) return t;
+          } catch (e) {}
+        }
+        // pixiv.context（旧版）
+        if (typeof pixiv !== "undefined" && pixiv?.context?.token)
+          return pixiv.context.token;
+        // inline script 扫描
+        for (const s of document.querySelectorAll("script")) {
+          const m = s.textContent.match(
+            /"token"\s*:\s*"([a-zA-Z0-9_-]{8,64})"/,
+          );
+          if (m) return m[1];
+        }
+        return null;
+      },
+    });
+    return results?.[0]?.result || null;
+  } catch (e) {
+    console.warn("[Pixiv] executeScript 失败", tabId, e);
+    return null;
+  }
+}
+
+// 获取 Pixiv CSRF token：优先已有标签页，无则打开临时后台标签页
+async function getCsrfToken() {
+  const existingTabs = await chrome.tabs.query({ url: "*://*.pixiv.net/*" });
+  for (const tab of existingTabs) {
+    const token = await extractTokenFromTab(tab.id);
+    if (token) return token;
+  }
+  let tempTab = null;
+  try {
+    tempTab = await chrome.tabs.create({
+      url: "https://www.pixiv.net/",
+      active: false,
+    });
+    await new Promise((resolve) => {
+      const listener = (tabId, info) => {
+        if (tabId === tempTab.id && info.status === "complete") {
+          chrome.tabs.onUpdated.removeListener(listener);
+          resolve();
+        }
+      };
+      chrome.tabs.onUpdated.addListener(listener);
+      setTimeout(resolve, 12000);
+    });
+    return await extractTokenFromTab(tempTab.id);
+  } finally {
+    if (tempTab) chrome.tabs.remove(tempTab.id).catch(() => {});
+  }
+}
+
 /**
  * 监听来自前端的消息
  * 支持的操作：
  * - fetchImage: 获取随机图片
  * - updateConfig: 更新配置
  * - bookmarkIllust: 收藏作品
+ * - followUser: 关注/取消关注画师
  * - excludeTag: 排除标签
  * - setCreatorPreference: 设置创作者偏好
  * - addRandomTag: 添加随机标签
@@ -1265,167 +1367,7 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
           return;
         }
 
-        // 在已加载的标签页 DOM 里提取 CSRF token（页面 JS 执行后才有数据）
-        const extractTokenFromTab = async (tabId) => {
-          try {
-            const results = await chrome.scripting.executeScript({
-              target: { tabId },
-              world: "MAIN",
-              func: () => {
-                // 递归在对象中寻找 key 为 "token" 且值为字符串的字段
-                const findToken = (obj, depth = 0) => {
-                  if (depth > 6 || !obj || typeof obj !== "object") return null;
-                  if (typeof obj.token === "string" && obj.token.length >= 8)
-                    return obj.token;
-                  for (const v of Object.values(obj)) {
-                    const t = findToken(v, depth + 1);
-                    if (t) return t;
-                  }
-                  return null;
-                };
-
-                const diag = { token: null, source: null };
-
-                // 1. __NEXT_DATA__ 递归搜索
-                const nd = document.querySelector("#__NEXT_DATA__");
-                if (nd) {
-                  try {
-                    const data = JSON.parse(nd.textContent);
-                    const pp = data?.props?.pageProps || {};
-
-                    // 直接字段
-                    if (pp.token) {
-                      diag.token = pp.token;
-                      diag.source = "pageProps.token";
-                      return diag;
-                    }
-
-                    // serverSerializedPreloadedState
-                    let preload = pp.serverSerializedPreloadedState;
-                    if (typeof preload === "string") {
-                      try {
-                        preload = JSON.parse(preload);
-                      } catch (e) {}
-                    }
-                    if (preload && typeof preload === "object") {
-                      const t = findToken(preload);
-                      if (t) {
-                        diag.token = t;
-                        diag.source = "serverSerializedPreloadedState";
-                        diag.preloadKeys = Object.keys(preload);
-                        return diag;
-                      }
-                      diag.preloadKeys = Object.keys(preload);
-                    }
-
-                    // dehydratedState 递归
-                    if (pp.dehydratedState) {
-                      const t = findToken(pp.dehydratedState);
-                      if (t) {
-                        diag.token = t;
-                        diag.source = "dehydratedState";
-                        return diag;
-                      }
-                    }
-
-                    // 全量递归兜底
-                    const t = findToken(data);
-                    if (t) {
-                      diag.token = t;
-                      diag.source = "nextData-recursive";
-                      return diag;
-                    }
-
-                    diag.pagePropsKeys = Object.keys(pp);
-                    diag.preloadType = typeof pp.serverSerializedPreloadedState;
-                  } catch (e) {
-                    diag.nextDataError = String(e);
-                  }
-                }
-
-                // 2. meta-global-data
-                const meta =
-                  document.querySelector("#meta-global-data") ||
-                  document.querySelector('meta[name="global-data"]');
-                if (meta) {
-                  try {
-                    const t = JSON.parse(meta.getAttribute("content"))?.token;
-                    if (t) {
-                      diag.token = t;
-                      diag.source = "meta";
-                      return diag;
-                    }
-                  } catch (e) {}
-                }
-
-                // 3. pixiv.context（旧版）
-                if (typeof pixiv !== "undefined" && pixiv?.context?.token) {
-                  diag.token = pixiv.context.token;
-                  diag.source = "pixiv.context";
-                  return diag;
-                }
-
-                // 4. inline script 全量扫描
-                for (const s of document.querySelectorAll("script")) {
-                  const m = s.textContent.match(
-                    /"token"\s*:\s*"([a-zA-Z0-9_-]{8,64})"/,
-                  );
-                  if (m) {
-                    diag.token = m[1];
-                    diag.source = "script-scan";
-                    return diag;
-                  }
-                }
-
-                return diag;
-              },
-            });
-            const diag = results?.[0]?.result;
-            console.log("[收藏] executeScript 诊断", JSON.stringify(diag));
-            return diag?.token || null;
-          } catch (e) {
-            console.warn("[收藏] executeScript 失败", tabId, e);
-            return null;
-          }
-        };
-
-        // 1) 优先从已打开的 Pixiv 标签页提取（JS 已执行，DOM 有数据）
-        let token = null;
-        const existingTabs = await chrome.tabs.query({
-          url: "*://*.pixiv.net/*",
-        });
-        console.log("[收藏] 已有 Pixiv 标签页数量", existingTabs.length);
-        for (const tab of existingTabs) {
-          token = await extractTokenFromTab(tab.id);
-          if (token) break;
-        }
-
-        // 2) 没有 Pixiv 标签页时，打开后台临时标签页等待加载完成后提取
-        if (!token) {
-          console.log("[收藏] 无 Pixiv 标签页，打开临时标签页");
-          let tempTab = null;
-          try {
-            tempTab = await chrome.tabs.create({
-              url: "https://www.pixiv.net/",
-              active: false,
-            });
-            await new Promise((resolve) => {
-              const listener = (tabId, info) => {
-                if (tabId === tempTab.id && info.status === "complete") {
-                  chrome.tabs.onUpdated.removeListener(listener);
-                  resolve();
-                }
-              };
-              chrome.tabs.onUpdated.addListener(listener);
-              setTimeout(resolve, 12000);
-            });
-            token = await extractTokenFromTab(tempTab.id);
-            console.log("[收藏] 临时标签页 token 提取", !!token);
-          } finally {
-            if (tempTab) chrome.tabs.remove(tempTab.id).catch(() => {});
-          }
-        }
-
+        const token = await getCsrfToken();
         if (!token) {
           sendResponse({
             success: false,
@@ -1436,10 +1378,9 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
           return;
         }
 
-        // 调用 Pixiv 收藏 API
-        let r;
-        try {
-          r = await fetch("https://www.pixiv.net/ajax/illusts/bookmarks/add", {
+        const r = await fetch(
+          "https://www.pixiv.net/ajax/illusts/bookmarks/add",
+          {
             method: "POST",
             headers: {
               "Content-Type": "application/json; charset=utf-8",
@@ -1453,27 +1394,18 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
               tags: [],
             }),
             credentials: "include",
-          });
-        } catch (e) {
-          sendResponse({
-            success: false,
-            code: "BOOKMARK_FAILED",
-            error: e.message || "Bookmark failed",
-          });
-          return;
-        }
-
+          },
+        );
         if (!r.ok) {
-          let msg = `HTTP ${r.status}`;
-          if (r.status === 401 || r.status === 403) {
-            msg = "Not logged in. Please log in to Pixiv.";
-          }
+          const msg =
+            r.status === 401 || r.status === 403
+              ? "Not logged in. Please log in to Pixiv."
+              : `HTTP ${r.status}`;
           sendResponse({ success: false, code: "BOOKMARK_FAILED", error: msg });
           return;
         }
-
-        let json = await r.json();
-        if (json && json.error) {
+        const json = await r.json();
+        if (json?.error) {
           sendResponse({
             success: false,
             code: "BOOKMARK_FAILED",
@@ -1481,10 +1413,63 @@ chrome.runtime.onMessage.addListener(function (message, sender, sendResponse) {
           });
           return;
         }
-
         sendResponse({ success: true });
       } catch (e) {
         console.error("收藏出错:", e);
+        sendResponse({ success: false, error: e.message });
+      }
+      // 处理关注/取消关注画师请求
+    } else if (message.action === "followUser") {
+      try {
+        const userIdStr = String(message.userId || "");
+        const unfollow = !!message.unfollow;
+        if (!userIdStr) {
+          sendResponse({ success: false, error: "Invalid user id" });
+          return;
+        }
+        const token = await getCsrfToken();
+        if (!token) {
+          sendResponse({
+            success: false,
+            code: "TOKEN_NOT_FOUND",
+            error:
+              "CSRF token not found. Please ensure you are logged in to Pixiv.",
+          });
+          return;
+        }
+        const url = unfollow
+          ? "https://www.pixiv.net/ajax/following/delete"
+          : "https://www.pixiv.net/ajax/following/add";
+        const r = await fetch(url, {
+          method: "POST",
+          headers: {
+            "Content-Type": "application/json; charset=utf-8",
+            Accept: "application/json",
+            "X-CSRF-Token": token,
+          },
+          body: JSON.stringify({ user_id: userIdStr, restrict: 0 }),
+          credentials: "include",
+        });
+        if (!r.ok) {
+          const msg =
+            r.status === 401 || r.status === 403
+              ? "Not logged in. Please log in to Pixiv."
+              : `HTTP ${r.status}`;
+          sendResponse({ success: false, code: "FOLLOW_FAILED", error: msg });
+          return;
+        }
+        const json = await r.json();
+        if (json?.error) {
+          sendResponse({
+            success: false,
+            code: "FOLLOW_FAILED",
+            error: json.message || "Follow failed",
+          });
+          return;
+        }
+        sendResponse({ success: true });
+      } catch (e) {
+        console.error("关注出错:", e);
         sendResponse({ success: false, error: e.message });
       }
       // 处理排除标签请求
