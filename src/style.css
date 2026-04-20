@@ -354,7 +354,7 @@ body.dock-collapsible:not(.right-dock-active) .dock-popup {
 
 #illustInfo {
   display: grid;
-  grid-template-columns: auto auto minmax(0, 1fr) auto;
+  grid-template-columns: auto minmax(0, 1fr) auto;
   align-items: center;
   gap: 10px;
   position: fixed;
@@ -417,19 +417,11 @@ body.dock-collapsible:not(.right-dock-active) .dock-popup {
   white-space: nowrap;
 }
 
-#creatorActions {
+#illustActions {
   display: flex;
   align-items: center;
-  gap: 12px;
+  gap: 10px;
   justify-self: end;
-  margin-top: 0;
-}
-
-#illustPrimaryActions {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  align-self: center;
 }
 
 .illust-action-strip {
@@ -441,6 +433,7 @@ body.dock-collapsible:not(.right-dock-active) .dock-popup {
 #bookmarkButton,
 #downloadOriginalButton,
 #dislikeButton,
+#followCreatorButton,
 #creatorLikeButton,
 #creatorDislikeButton {
   display: inline-flex;
@@ -474,6 +467,19 @@ body.dock-collapsible:not(.right-dock-active) .dock-popup {
   transform: translateY(-1px);
 }
 
+#followCreatorButton:hover {
+  color: rgba(202, 214, 255, 1);
+  transform: translateY(-1px);
+}
+
+#followCreatorButton.active svg {
+  stroke: #a8d8a8;
+}
+
+#followCreatorButton.loading {
+  animation: bookmarkPulse 0.9s ease-in-out infinite;
+}
+
 #creatorLikeButton:hover {
   color: rgba(231, 236, 255, 1);
   transform: translateY(-1px);
@@ -488,6 +494,7 @@ body.dock-collapsible:not(.right-dock-active) .dock-popup {
 #bookmarkButton.disabled,
 #downloadOriginalButton.disabled,
 #dislikeButton.disabled,
+#followCreatorButton.disabled,
 #creatorLikeButton.disabled,
 #creatorDislikeButton.disabled {
   opacity: 0.35;
