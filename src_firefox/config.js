@@ -45,28 +45,202 @@ export const defaultConfig = {
   min_sl: null,
   max_sl: null,
   aiType: null, // pixiv ai type, 1 not ai, 2 is ai
-  orKeywords: "7500users入り 10000users入り 30000users入り 50000users入り",
+  queryTree: null, // new tree-based query model (source of truth when present)
+  orGroups: [
+    { name: "Popular", tags: ["7500users入り", "10000users入り", "30000users入り", "50000users入り"] }
+  ],
   minusKeywords: "虚偽users入りタグ 描き方 講座 作画資料 創作 素材 漫画",
   andKeywords: "",
+  orKeywords: null, // legacy field, kept for migration detection
 }
 
-export function getKeywords(andKeywords, orKeywords, minusKeywords) {
+// ── Tree Data Model ──
+// Tag:   { type: "tag", value: string, negated: boolean }
+// Group: { type: "group", connector: "AND"|"OR", children: node[] }
+
+/**
+ * Convert old flat format (andKeywords, orGroups, minusKeywords) to tree
+ */
+export function legacyToTree(andKeywords, orGroups, minusKeywords) {
+  const children = [];
+
+  // AND keywords → individual tags
+  const andList = (andKeywords || "").trim().split(/\s+/).filter(Boolean);
+  for (const tag of andList) {
+    children.push({ type: "tag", value: tag, negated: false });
+  }
+
+  // OR groups → group nodes
+  if (Array.isArray(orGroups)) {
+    for (const group of orGroups) {
+      const tags = Array.isArray(group.tags) ? group.tags.filter(Boolean) : [];
+      if (tags.length > 0) {
+        children.push({
+          type: "group",
+          connector: "OR",
+          children: tags.map(t => ({ type: "tag", value: t, negated: false }))
+        });
+      }
+    }
+  }
+
+  // Minus keywords → negated tags
+  const minusList = (minusKeywords || "").trim().split(/\s+/).filter(Boolean);
+  for (const tag of minusList) {
+    children.push({ type: "tag", value: tag, negated: true });
+  }
+
+  return { type: "group", connector: "AND", children };
+}
+
+/**
+ * Derive legacy fields from tree for backward compatibility
+ */
+export function treeToLegacy(tree) {
+  const andKeywords = [];
+  const orGroups = [];
+  const minusKeywords = [];
+
+  if (!tree || tree.type !== "group") {
+    return { andKeywords: "", orGroups: [], minusKeywords: "" };
+  }
+
+  for (const child of tree.children) {
+    if (child.type === "tag") {
+      if (child.negated) {
+        minusKeywords.push(child.value);
+      } else {
+        andKeywords.push(child.value);
+      }
+    } else if (child.type === "group") {
+      // For legacy compat, flatten OR groups into orGroups format
+      // AND groups and nested structures get flattened into the query string
+      if (child.connector === "OR" && child.children.every(c => c.type === "tag" && !c.negated)) {
+        orGroups.push({
+          name: child.children.map(c => c.value).slice(0, 2).join("/") || "OR",
+          tags: child.children.map(c => c.value)
+        });
+      } else {
+        // Complex group — push as AND keyword with the built expression
+        andKeywords.push(buildQueryFromTree(child));
+      }
+    }
+  }
+
+  return {
+    andKeywords: andKeywords.join(" "),
+    orGroups,
+    minusKeywords: minusKeywords.join(" "),
+  };
+}
+
+/**
+ * Recursively build Pixiv search query string from tree
+ */
+export function buildQueryFromTree(tree) {
+  if (!tree) return "";
+
+  if (tree.type === "tag") {
+    if (tree.negated) {
+      return "-" + tree.value;
+    }
+    return tree.value;
+  }
+
+  if (tree.type === "group") {
+    const parts = tree.children
+      .map(child => buildQueryFromTree(child))
+      .filter(Boolean);
+
+    if (parts.length === 0) return "";
+    if (parts.length === 1) return parts[0];
+
+    const joiner = tree.connector === "OR" ? " OR " : " ";
+    const inner = parts.join(joiner);
+
+    return "(" + inner + ")";
+  }
+
+  return "";
+}
+
+/**
+ * Build the final query string from config, using tree if available
+ */
+export function buildQuery(config) {
+  if (config.queryTree) {
+    // Tree is the root group — don't wrap in extra parens
+    const tree = config.queryTree;
+    if (tree.type === "group") {
+      const parts = tree.children
+        .map(child => buildQueryFromTree(child))
+        .filter(Boolean);
+      return parts.join(tree.connector === "OR" ? " OR " : " ");
+    }
+    return buildQueryFromTree(tree);
+  }
+  // Fallback to legacy
+  return getKeywords(config.andKeywords || "", config.orGroups || [], config.minusKeywords || "");
+}
+
+// Migrate old formats to tree
+export function migrateConfig(config) {
+  // Step 1: migrate orKeywords string → orGroups array (oldest format)
+  if (config.orKeywords && (!config.orGroups || !Array.isArray(config.orGroups))) {
+    const tags = config.orKeywords.trim().split(/\s+/).filter(Boolean);
+    config.orGroups = tags.length > 0
+      ? [{ name: "OR", tags }]
+      : [];
+    config.orKeywords = null;
+  }
+  // Ensure orGroups is always a valid array
+  if (!config.orGroups || !Array.isArray(config.orGroups)) {
+    config.orGroups = [];
+  }
+
+  // Step 2: migrate flat fields → tree (if no tree exists yet)
+  if (!config.queryTree) {
+    config.queryTree = legacyToTree(
+      config.andKeywords || "",
+      config.orGroups,
+      config.minusKeywords || ""
+    );
+  }
+
+  return config;
+}
+
+// Legacy function — kept for backward compatibility
+export function getKeywords(andKeywords, orGroups, minusKeywords) {
   let andKeywordsList = andKeywords.trim().split(/\s+/).filter(Boolean);
-  let orKeywordsList = orKeywords.trim().split(/\s+/).filter(Boolean);
   let minusKeywordsList = minusKeywords.trim().split(/\s+/).filter(Boolean);
+
   let aWord = andKeywordsList.length ? andKeywordsList.join(' ') : '';
-  let pWord = orKeywordsList.length ? '(' + orKeywordsList.join(" OR ") + ')' : '';
   let nWord = minusKeywordsList.length ? "-" + minusKeywordsList.join(" -") : '';
-  let allWords = []
+
+  // Build multiple OR group expressions: (A OR B) (C OR D)
+  let orParts = [];
+  if (Array.isArray(orGroups)) {
+    for (let group of orGroups) {
+      let tags = Array.isArray(group.tags) ? group.tags : [];
+      tags = tags.filter(Boolean);
+      if (tags.length > 0) {
+        orParts.push('(' + tags.join(" OR ") + ')');
+      }
+    }
+  }
+
+  let allWords = [];
   if (aWord) {
     allWords.push(aWord);
   }
   if (nWord) {
     allWords.push(nWord);
   }
-  if (pWord) {
-    allWords.push(pWord);
+  for (let orPart of orParts) {
+    allWords.push(orPart);
   }
   let word = allWords.join(' ');
   return word;
 }
+

@@ -99,24 +99,144 @@
     "message": "うごくイラスト"
   },
   "leave_blank_for_unlimited": {
-    "message": "Leave blank for unlimited"
+    "message": "空欄で無制限"
   },
   "slLabel": {
-    "message": "sl filter(perhaps pixiv safe level, 2 is safe, 6 is not safe)"
+    "message": "sl フィルター (pixiv 安全レベル, 2=安全, 6=非安全)"
   },
   "min_sl": {
-    "message": "min sl"
+    "message": "最小 sl"
   },
   "max_sl": {
-    "message": "max sl"
+    "message": "最大 sl"
   },
   "aiTypeLabel": {
-    "message": "aiType (pixiv ai type, 1 not ai, 2 is ai, empty is unset)"
+    "message": "AI タイプ (1=非AI, 2=AI生成, 空欄=未設定)"
   },
   "save": {
-    "message": "Save"
+    "message": "保存"
   },
   "reset": {
-    "message": "Reset"
+    "message": "リセット"
+  },
+  "tagManagerLink": {
+    "message": "🏷️ タグ管理"
+  },
+  "pageTitle": {
+    "message": "タグ管理"
+  },
+  "pageSubtitle": {
+    "message": "Pixiv 検索キーワードを視覚的に管理"
+  },
+  "backToOptions": {
+    "message": "設定に戻る"
+  },
+  "andSectionTitle": {
+    "message": "AND キーワード"
+  },
+  "orSectionTitle": {
+    "message": "OR グループ"
+  },
+  "minusSectionTitle": {
+    "message": "除外キーワード"
+  },
+  "addTagPlaceholder": {
+    "message": "タグを追加..."
+  },
+  "toolbarTitle": {
+    "message": "📦 インポート / エクスポート"
+  },
+  "importTextLabel": {
+    "message": "テキストからインポート"
+  },
+  "importFileLabel": {
+    "message": "JSON インポート"
+  },
+  "exportLabel": {
+    "message": "JSON エクスポート"
+  },
+  "saveBtn": {
+    "message": "保存"
+  },
+  "modalTitle": {
+    "message": "テキストからタグをインポート"
+  },
+  "modalDesc": {
+    "message": "キーワードを貼り付けてください（スペース、カンマ、改行で区切り）"
+  },
+  "importCategoryAnd": {
+    "message": "AND キーワード"
+  },
+  "importCategoryOr": {
+    "message": "OR キーワード"
+  },
+  "importCategoryMinus": {
+    "message": "除外キーワード"
+  },
+  "importPlaceholder": {
+    "message": "タグ1, タグ2, タグ3..."
+  },
+  "modalCancelBtn": {
+    "message": "キャンセル"
+  },
+  "modalConfirmBtn": {
+    "message": "インポート"
+  },
+  "emptyTags": {
+    "message": "タグがありません"
+  },
+  "tagsSaved": {
+    "message": "タグを保存しました！"
+  },
+  "importedCount": {
+    "message": "{count} 個のタグをインポートしました"
+  },
+  "exportSuccess": {
+    "message": "エクスポートしました！"
+  },
+  "importError": {
+    "message": "無効なJSONファイルです"
+  },
+  "addOrGroupLabel": {
+    "message": "OR グループを追加"
+  },
+  "emptyOrGroups": {
+    "message": "OR グループがありません。\"+ OR グループを追加\" をクリックして作成してください。"
+  },
+  "importCategoryOrNew": {
+    "message": "+ 新しいORグループ"
+  },
+  "previewTitle": {
+    "message": "🔍 クエリプレビュー"
+  },
+  "orKeywordsManageHint": {
+    "message": "OR キーワードはタグマネージャーで管理（複数ORグループ対応）"
+  },
+  "importedGroup": {
+    "message": "インポート済み"
+  },
+  "addKeywordLabel": {
+    "message": "キーワード"
+  },
+  "addGroupLabel": {
+    "message": "グループ"
+  },
+  "groupLabel": {
+    "message": "グループ（括弧）"
+  },
+  "emptyFlowState": {
+    "message": "下のボタンをクリックしてキーワードやグループを追加"
+  },
+  "presetLabel": {
+    "message": "📋 プリセット:"
+  },
+  "presetNewPrompt": {
+    "message": "プリセット名を入力:"
+  },
+  "presetRenamePrompt": {
+    "message": "新しいプリセット名を入力:"
+  },
+  "presetDeleteLast": {
+    "message": "最後のプリセットは削除できません"
   }
 }

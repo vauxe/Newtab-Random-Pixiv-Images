@@ -1,122 +1,230 @@
 {
-  "keywordsLabel": {
+  "pageTitle": {
+    "message": "タグ管理"
+  },
+  "pageSubtitle": {
+    "message": "Pixiv 検索キーワードを視覚的に管理"
+  },
+  "addTagPlaceholder": {
+    "message": "タグを追加..."
+  },
+  "toolbarTitle": {
+    "message": "📦 インポート / エクスポート"
+  },
+  "importTextLabel": {
+    "message": "テキストからインポート"
+  },
+  "importFileLabel": {
+    "message": "JSON インポート"
+  },
+  "exportLabel": {
+    "message": "JSON エクスポート"
+  },
+  "saveBtn": {
+    "message": "保存"
+  },
+  "modalTitle": {
+    "message": "テキストからタグをインポート"
+  },
+  "modalDesc": {
+    "message": "キーワードを貼り付けてください（スペース、カンマ、改行で区切り）"
+  },
+  "importPlaceholder": {
+    "message": "タグ1, タグ2, タグ3..."
+  },
+  "modalCancelBtn": {
+    "message": "キャンセル"
+  },
+  "modalConfirmBtn": {
+    "message": "インポート"
+  },
+  "tagsSaved": {
+    "message": "タグを保存しました！"
+  },
+  "importedCount": {
+    "message": "{count} 個のタグをインポートしました"
+  },
+  "exportSuccess": {
+    "message": "エクスポートしました！"
+  },
+  "importError": {
+    "message": "無効なJSONファイルです"
+  },
+  "previewTitle": {
+    "message": "🔍 クエリプレビュー"
+  },
+  "addKeywordLabel": {
     "message": "キーワード"
   },
-  "andKeywordsLabel": {
-    "message": "キーワードをすべて含む"
+  "addGroupLabel": {
+    "message": "グループ"
   },
-  "orKeywordsLabel": {
-    "message": "キーワードのいずれかを含む"
+  "groupLabel": {
+    "message": "グループ（括弧）"
   },
-  "minusKeywordsLabel": {
-    "message": "キーワードを含まない"
+  "presetLabel": {
+    "message": "📋 プリセット:"
   },
-  "keywordsTip": {
-    "message": "スペース区切りで複数のキーワードを指定できます"
+  "presetNewPrompt": {
+    "message": "プリセット名を入力:"
   },
-  "orderLabel": {
-    "message": "並べ替え"
+  "presetRenamePrompt": {
+    "message": "新しいプリセット名を入力:"
   },
-  "date_dOrder": {
-    "message": "新しい順"
+  "presetDeleteLast": {
+    "message": "最後のプリセットは削除できません"
   },
-  "dateOrder": {
-    "message": "古い順"
+  "presetCreated": {
+    "message": "プリセットを作成しました"
   },
-  "popular_dOrder": {
-    "message": "全体の人気順 (Pixivプレミアム会員限定)"
+  "displaySettingsTitle": {
+    "message": "🖼 表示設定"
   },
-  "popular_male_dOrder": {
-    "message": "男性の人気順 (Pixivプレミアム会員限定)"
+  "randomImageEnabledLabel": {
+    "message": "Pixiv ランダム画像を有効化"
   },
-  "popular_female_dOrder": {
-    "message": "女性の人気順 (Pixivプレミアム会員限定)"
+  "onlyR18ContentLabel": {
+    "message": "R18 のみ表示"
   },
-  "modeLabel": {
-    "message": "検索モード"
+  "defaultImageUrlLabel": {
+    "message": "デフォルト画像 URL"
   },
-  "allMode": {
-    "message": "すべて"
+  "defaultImageUploadBtn": {
+    "message": "ローカル画像をアップロード"
   },
-  "r18Mode": {
-    "message": "R-18"
+  "defaultImageClearBtn": {
+    "message": "デフォルト画像をクリア"
   },
-  "safeMode": {
-    "message": "全年齢"
+  "defaultImageUrlPlaceholder": {
+    "message": "https://example.com/background.jpg"
   },
-  "timeOptionLabel": {
-    "message": "期間"
+  "defaultImageHelp": {
+    "message": "初回表示時、取得失敗時、またはランダム画像が無効なときに表示されます。"
   },
-  "unlimitedTimeOption": {
-    "message": "すべての期間"
+  "defaultImagePreviewEmpty": {
+    "message": "デフォルト画像は未設定です"
   },
-  "specificTimeOption": {
-    "message": "日付を指定"
+  "defaultImageSourceNone": {
+    "message": "現在のソース: 未設定"
   },
-  "scdLabel": {
-    "message": "開始日"
+  "defaultImageSourceUrl": {
+    "message": "現在のソース: URL"
   },
-  "ecdLabel": {
-    "message": "終了日"
+  "defaultImageSourceUpload": {
+    "message": "現在のソース: ローカルアップロード ({name})"
   },
-  "bookmarksLabel": {
-    "message": "ブックマーク数 (Pixivプレミアム会員限定)"
+  "defaultImageInvalidType": {
+    "message": "画像ファイルを選択してください"
   },
-  "bltLabel": {
-    "message": "最小ブックマーク数 (Pixivプレミアム会員限定)"
+  "defaultImageTooLarge": {
+    "message": "画像サイズが大きすぎます。{size} MB 未満にしてください。"
   },
-  "bgtLabel": {
-    "message": "最大ブックマーク数 (Pixivプレミアム会員限定)"
+  "defaultImageUploadSuccess": {
+    "message": "ローカル画像をデフォルト背景として読み込みました"
   },
-  "s_modeLabel": {
-    "message": "タグ検索モード"
+  "defaultImageUploadError": {
+    "message": "ローカル画像の読み込みに失敗しました"
   },
-  "s_tagOption": {
-    "message": "タグ（部分一致）"
+  "globalBlocklistInlineTitle": {
+    "message": "グローバルブロックリスト"
   },
-  "s_tag_fullOption": {
-    "message": "タグ（完全一致）"
+  "globalBlocklistAddLabel": {
+    "message": "除外タグ"
   },
-  "s_tcOption": {
-    "message": "タイトル・キャプション"
+  "globalBlocklistEmptyState": {
+    "message": "グローバル除外タグはまだありません"
   },
-  "typeLabel": {
-    "message": "画像タイプ検索モード"
+  "globalBlocklistInputPlaceholder": {
+    "message": "tag1 tag2"
   },
-  "allTypeLabel": {
-    "message": "イラスト・マンガ・うごくイラスト"
+  "globalBlocklistCapsuleTitle": {
+    "message": "グローバル除外タグ"
   },
-  "illust_and_ugoiraTypeLabel": {
-    "message": "イラスト・うごくイラスト"
+  "randomTagPoolTitle": {
+    "message": "🎲 ランダム Tag プール"
   },
-  "illustTypeLabel": {
-    "message": "イラスト"
+  "randomTagPoolEnabledLabel": {
+    "message": "ランダム Tag プールを有効化"
   },
-  "mangaTypeLabel": {
-    "message": "マンガ"
+  "randomTagPoolPickCountLabel": {
+    "message": "1回のリクエストで抽出する数"
   },
-  "ugoiraTypeLabel": {
-    "message": "うごくイラスト"
+  "randomTagPoolInputLabel": {
+    "message": "ランダム Tag プール"
   },
-  "leave_blank_for_unlimited": {
-    "message": "Leave blank for unlimited"
+  "randomTagPoolEmptyState": {
+    "message": "Tag を追加してランダムプールを作成"
   },
-  "slLabel": {
-    "message": "sl filter(perhaps pixiv safe level, 2 is safe, 6 is not safe)"
+  "randomTagPoolAddLabel": {
+    "message": "Tag"
   },
-  "min_sl": {
-    "message": "min sl"
+  "randomTagPoolImportLabel": {
+    "message": "テキスト取込"
   },
-  "max_sl": {
-    "message": "max sl"
+  "randomTagPoolMoveToGlobalBtn": {
+    "message": "グローバルに追加"
   },
-  "aiTypeLabel": {
-    "message": "aiType (pixiv ai type, 1 not ai, 2 is ai, empty is unset)"
+  "randomTagPoolDeleteBtn": {
+    "message": "削除"
   },
-  "save": {
-    "message": "Save"
+  "randomTagPoolCapsuleTitle": {
+    "message": "クリックで操作、ドラッグで並び替え"
   },
-  "reset": {
-    "message": "Reset"
+  "randomTagPoolInputPlaceholder": {
+    "message": "tag-a\ntag-b\ntag-c"
+  },
+  "randomTagPoolHelp": {
+    "message": "各リクエストで固定条件に加えて、このプールから一部の tag をランダムに追加します。"
+  },
+  "randomTagPoolModalTitle": {
+    "message": "ランダムプール Tag を取り込む"
+  },
+  "randomTagPoolModalDesc": {
+    "message": "ランダムプール用の Tag を貼り付けてください（空白、カンマ、改行区切り対応）"
+  },
+  "randomTagPoolLastResolvedLabel": {
+    "message": "このラウンドで実際にヒットしたランダム Tags"
+  },
+  "randomTagPoolLastResolvedEmptyState": {
+    "message": "まだ成功したランダム Tag ヒットはありません"
+  },
+  "randomTagPoolLastResolvedBaseOnly": {
+    "message": "このラウンドはベースクエリまで後退し、ランダム Tags は使われませんでした"
+  },
+  "randomTagPoolLastResolvedHelp": {
+    "message": "ランダム画像が正常にヒットした後のみ更新されます。このラウンドがベースクエリまで後退した場合、ここにはランダム Tags は表示されません。"
+  },
+  "creatorPreferenceTitle": {
+    "message": "👤 作者設定"
+  },
+  "likedCreatorsLabel": {
+    "message": "お気に入り作者"
+  },
+  "likedCreatorsEmptyState": {
+    "message": "お気に入り作者はまだありません"
+  },
+  "likedCreatorsAddLabel": {
+    "message": "作者 ID"
+  },
+  "likedCreatorsCapsuleTitle": {
+    "message": "お気に入り作者"
+  },
+  "dislikedCreatorsLabel": {
+    "message": "非表示作者"
+  },
+  "dislikedCreatorsEmptyState": {
+    "message": "非表示作者はまだありません"
+  },
+  "dislikedCreatorsAddLabel": {
+    "message": "作者 ID"
+  },
+  "dislikedCreatorsCapsuleTitle": {
+    "message": "非表示作者"
+  },
+  "creatorPreferenceHelp": {
+    "message": "ここで作者 ID を管理します。作者を非表示にすると、今後のランダム結果からその作品を除外します。"
+  },
+  "creatorIdInputPlaceholder": {
+    "message": "123456"
   }
 }

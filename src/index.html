@@ -7,28 +7,74 @@
 </head>
 
 <body>
+  <div id="rightDockHotspot" aria-hidden="true"></div>
   <div id="container" class="notReady">
     <div class="maskLayer"></div>
     <div id="wallpaper">
-      <div id="backgroundImage" class="bgImage"></div>
-      <div id="foregroundImage" class="fgImage"></div>
+      <img id="backgroundImage" class="bgImage" alt="" referrerpolicy="no-referrer" />
+      <img id="foregroundImage" class="fgImage" alt="" referrerpolicy="no-referrer" />
+    </div>
+    <div id="pageControls">
+      <div id="pageToggleGroup">
+        <label id="randomToggleControl" class="page-toggle-control" title="Start requesting random Pixiv images">
+          <input type="checkbox" id="randomToggleInput" checked />
+          <span class="random-toggle-slider" aria-hidden="true"></span>
+          <span id="randomToggleText">Random</span>
+        </label>
+        <label id="randomTagPoolToggleControl" class="page-toggle-control" title="Enable random tag pool">
+          <input type="checkbox" id="randomTagPoolToggleInput" />
+          <span class="random-toggle-slider" aria-hidden="true"></span>
+          <span id="randomTagPoolToggleText">Random Pool</span>
+        </label>
+        <label id="r18ToggleControl" class="page-toggle-control" title="Only show R18 content">
+          <input type="checkbox" id="r18ToggleInput" />
+          <span class="random-toggle-slider" aria-hidden="true"></span>
+          <span id="r18ToggleText">R18</span>
+        </label>
+      </div>
+      <div id="pageSearchGroup">
+        <input
+          type="text"
+          id="randomTagSearchInput"
+          class="page-search-input"
+          placeholder="Random pool tag"
+          spellcheck="false"
+        />
+      </div>
+      <div id="pageActionButtons">
+        <div id="refreshButton" title="Refresh image">
+          <svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" focusable="false" style="
+                pointer-events: none;
+                display: block;
+                width: 100%;
+                height: 100%;
+                fill: #eeeeee;
+              ">
+            <g>
+              <path
+                d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z">
+              </path>
+            </g>
+          </svg>
+        </div>
+        <div id="settingsButton" title="Tag Manager">
+          <svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" focusable="false" style="
+                  pointer-events: none;
+                  display: block;
+                  width: 100%;
+                  height: 100%;
+                  fill: #eeeeee;
+                ">
+            <g>
+              <path
+                d="M19.14,12.94c0.04-0.3,0.06-0.61,0.06-0.94c0-0.32-0.02-0.64-0.07-0.94l2.03-1.58c0.18-0.14,0.23-0.41,0.12-0.61 l-1.92-3.32c-0.12-0.22-0.37-0.29-0.59-0.22l-2.39,0.96c-0.5-0.38-1.03-0.7-1.62-0.94L14.4,2.81c-0.04-0.24-0.24-0.41-0.48-0.41 h-3.84c-0.24,0-0.43,0.17-0.47,0.41L9.25,5.35C8.66,5.59,8.12,5.92,7.63,6.29L5.24,5.33c-0.22-0.08-0.47,0-0.59,0.22L2.74,8.87 C2.62,9.08,2.66,9.34,2.86,9.48l2.03,1.58C4.84,11.36,4.8,11.69,4.8,12s0.02,0.64,0.07,0.94l-2.03,1.58 c-0.18,0.14-0.23,0.41-0.12,0.61l1.92,3.32c0.12,0.22,0.37,0.29,0.59,0.22l2.39-0.96c0.5,0.38,1.03,0.7,1.62,0.94l0.36,2.54 c0.05,0.24,0.24,0.41,0.48,0.41h3.84c0.24,0,0.44-0.17,0.47-0.41l0.36-2.54c0.59-0.24,1.13-0.56,1.62-0.94l2.39,0.96 c0.22,0.08,0.47,0,0.59-0.22l1.92-3.32c0.12-0.22,0.07-0.47-0.12-0.61L19.14,12.94z M12,15.6c-1.98,0-3.6-1.62-3.6-3.6 s1.62-3.6,3.6-3.6s3.6,1.62,3.6,3.6S13.98,15.6,12,15.6z">
+              </path>
+            </g>
+          </svg>
+        </div>
+      </div>
     </div>
     <div id="illustInfo">
-      <div id="refreshButton">
-        <svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" focusable="false" style="
-              pointer-events: none;
-              display: block;
-              width: 100%;
-              height: 100%;
-              fill: #eeeeee;
-            ">
-          <g>
-            <path
-              d="M17.65 6.35C16.2 4.9 14.21 4 12 4c-4.42 0-7.99 3.58-7.99 8s3.57 8 7.99 8c3.73 0 6.84-2.55 7.73-6h-2.08c-.82 2.33-3.04 4-5.65 4-3.31 0-6-2.69-6-6s2.69-6 6-6c1.66 0 3.14.69 4.22 1.78L13 11h7V4l-2.35 2.35z">
-            </path>
-          </g>
-        </svg>
-      </div>
       <a id="avatar" href="">
         <div id="avatarImage"></div>
       </a>
@@ -36,9 +82,77 @@
         <div id="illustTitle"><a href="">Untitled</a></div>
         <div id="illustName"><a href=""></a></div>
       </div>
+      <div id="illustActions" class="illust-action-strip">
+        <div id="likeButton" title="Add to random tag pool">
+          <svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" focusable="false"
+            style="pointer-events:none;display:block;width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;">
+            <path d="M1.5 12c1.9-4.6 5.7-7 10.5-7s8.6 2.4 10.5 7c-1.9 4.6-5.7 7-10.5 7S3.4 16.6 1.5 12Z" />
+            <circle cx="12" cy="12" r="3.2" />
+          </svg>
+        </div>
+        <div id="bookmarkButton" title="Bookmark artwork">
+          <svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" focusable="false"
+            style="pointer-events:none;display:block;width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;">
+            <path d="M6 3.5h12a1.5 1.5 0 0 1 1.5 1.5v15.5L12 16l-7.5 4.5V5A1.5 1.5 0 0 1 6 3.5Z" />
+          </svg>
+        </div>
+        <div id="downloadOriginalButton" title="Download original image">
+          <svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" focusable="false"
+            style="pointer-events:none;display:block;width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;">
+            <path d="M12 4v11" />
+            <path d="m7.5 10.5 4.5 4.5 4.5-4.5" />
+            <path d="M5 19.5h14" />
+          </svg>
+        </div>
+        <div id="dislikeButton" title="Dislike — exclude a tag">
+          <svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" focusable="false"
+            style="pointer-events:none;display:block;width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;">
+            <path d="M14.5 4.5H7.5a2 2 0 0 0-1.9 1.4L3.2 13a2 2 0 0 0 1.9 2.6H8v4.4a1.5 1.5 0 0 0 2.6 1l4.2-4.6a3 3 0 0 0 .8-2V6.5a2 2 0 0 0-2-2Z" />
+            <path d="M18.5 4.5v11.1" />
+          </svg>
+        </div>
+        <div id="followCreatorButton" title="Follow creator">
+          <svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" focusable="false"
+            style="pointer-events:none;display:block;width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;">
+            <path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2" />
+            <circle cx="9" cy="7" r="4" />
+            <line x1="19" y1="8" x2="19" y2="14" />
+            <line x1="22" y1="11" x2="16" y2="11" />
+          </svg>
+        </div>
+        <div id="creatorLikeButton" title="Like creator">
+          <svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" focusable="false"
+            style="pointer-events:none;display:block;width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;">
+            <path d="M9.5 10.5V5.5a2 2 0 0 1 2-2l1.2 1.1a3 3 0 0 1 .8 2.1v3.8h4.2a2 2 0 0 1 2 2v1l-1.8 5a2 2 0 0 1-1.9 1.4H9.5" />
+            <path d="M4.5 10.5h5v10h-5a1 1 0 0 1-1-1v-8a1 1 0 0 1 1-1Z" />
+          </svg>
+        </div>
+        <div id="creatorDislikeButton" title="Dislike creator">
+          <svg viewBox="0 0 24 24" preserveAspectRatio="xMidYMid meet" focusable="false"
+            style="pointer-events:none;display:block;width:100%;height:100%;fill:none;stroke:currentColor;stroke-width:2;stroke-linecap:round;stroke-linejoin:round;">
+            <path d="M14.5 13.5v5a2 2 0 0 1-2 2l-1.2-1.1a3 3 0 0 1-.8-2.1v-3.8H6.3a2 2 0 0 1-2-2v-1l1.8-5a2 2 0 0 1 1.9-1.4h6.5" />
+            <path d="M19.5 13.5h-5v-10h5a1 1 0 0 1 1 1v8a1 1 0 0 1-1 1Z" />
+          </svg>
+        </div>
+      </div>
     </div>
+
+    <div id="dockPopup" class="dock-popup hidden">
+      <div id="requestTagPopup" class="dock-popup-section hidden">
+        <div id="requestTagPopupTitle" class="request-tag-popup-title">This request random tags</div>
+        <div id="requestTagPopupList" class="request-tag-popup-list"></div>
+      </div>
+      <div id="tagPopup" class="dock-popup-section hidden">
+        <div class="tag-popup-header">Select a tag to exclude:</div>
+        <div id="tagPopupActions" class="tag-popup-actions"></div>
+        <div id="tagList" class="tag-list"></div>
+      </div>
+    </div>
+
+    <!-- Toast -->
+    <div id="toast" class="toast"></div>
   </div>
-  <script src="index.js"></script>
+  <script type="module" src="index.js"></script>
 </body>
 
 </html>

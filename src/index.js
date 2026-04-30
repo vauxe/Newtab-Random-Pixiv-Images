@@ -1,4 +1,445 @@
+import { resolveDefaultImageUrl } from "./default-image-store.js";
+
 (function () {
+  // ── State ──
+  let currentTags = [];
+  let currentIllustId = null;
+  let currentIllustUrl = null;
+  let currentOriginalImageUrl = null;
+  let currentUserId = null;
+  let currentUserName = "";
+  let currentBookmarkedIllustId = null;
+  let runtimeConfig = null;
+  let currentImageVisible = false;
+  let isBookmarkBusy = false;
+  let isDownloadBusy = false;
+  let isCreatorPreferenceBusy = false;
+  let isFollowBusy = false;
+  const followedUserIds = new Set();
+  let isRandomToggleBusy = false;
+  let isRandomTagPoolToggleBusy = false;
+  let isR18ToggleBusy = false;
+  let latestRefreshRequestId = 0;
+  let activeTagPopupHandler = null;
+  let activeTagPopupTrigger = null;
+  let activeTagPopupPendingTags = new Set();
+  let currentLikedTagsForImage = new Set();
+  let currentQueuedPriorityTagForImage = "";
+  let activeTagPopupMode = "exclude";
+  let shouldRefreshOnTagPopupClose = false;
+  let requestTagPopupTimer = null;
+  let rightDockRevealTimer = null;
+  const UI_STRINGS = {
+    en: {
+      randomLabel: "Random Pixiv",
+      randomOn: "On",
+      randomOff: "Off",
+      randomEnabledTitle: "Random Pixiv image requests are enabled",
+      randomDisabledTitle: "Random Pixiv image requests are disabled",
+      randomTagPoolLabel: "Random Pool",
+      randomTagPoolOn: "On",
+      randomTagPoolOff: "Off",
+      randomTagPoolEnabledTitle: "Random tag pool is enabled",
+      randomTagPoolDisabledTitle: "Random tag pool is disabled",
+      randomTagSearchPlaceholder: "Random pool tag",
+      randomTagSearchTitle: "Use this tag for the next random search",
+      r18Label: "R18 Only",
+      r18On: "On",
+      r18Off: "Off",
+      r18EnabledTitle: "Only show R18 content",
+      r18DisabledTitle: "Only show safe content",
+      settingsTitle: "Tag Manager",
+      refreshTitle: "Refresh image",
+      bookmarkTitle: "Bookmark artwork",
+      downloadOriginalTitle: "Download original image",
+      followCreatorTitle: "Follow creator on Pixiv",
+      followCreatorFailed: "Failed to follow creator",
+      followedCreator: "Following: {name}",
+      unfollowedCreator: "Unfollowed: {name}",
+      creatorLikeTitle: "Like creator",
+      creatorDislikeTitle: "Dislike creator",
+      defaultBackgroundTitle: "Default background",
+      configuredDefaultImage: "Configured default image",
+      randomDisabledNoDefault:
+        "Random images are off and no default image is configured.",
+      failedLoadImage: "Failed to load image",
+      bookmarkFailed: "Bookmark failed",
+      bookmarked: "Bookmarked!",
+      originalUnavailable: "Original image is unavailable",
+      downloadOriginalFailed: "Failed to download original image",
+      downloadOriginalStarted: "Downloading original image",
+      creatorUnavailable: "Creator information is unavailable",
+      creatorPreferenceFailed: "Failed to update creator preference",
+      likedCreator: "Liked creator: {name}",
+      dislikedCreator: "Disliked creator: {name}",
+      clearedCreatorPreference: "Cleared creator preference: {name}",
+      blockIllustAction: "Never show this artwork again",
+      blockIllustFailed: "Failed to hide this artwork",
+      blockedIllust: "This artwork will no longer appear",
+      addRandomTagTitle: "Select tags to add to random pool",
+      addRandomTagFailed: "Failed to add tag to random pool",
+      addedRandomTag: "Added to random pool: {tag}",
+      queuedNextRandomTag: "Next refresh will prioritize: {tag}",
+      requestRandomTagsTitle: "Random tags used this request",
+      requestRandomTagsEmpty: "Base query only",
+      randomTagExists: "Tag already exists in random pool: {tag}",
+      excludeTagTitle: "Select a tag to exclude",
+      noTagsAvailable: "No tags available",
+      excludeFailed: "Failed to exclude tag",
+      excludedTag: "Excluded: -{tag}",
+      randomSettingFailed: "Failed to update random image setting",
+      randomTagPoolSettingFailed: "Failed to update random tag pool setting",
+      manualRandomTagNoResult:
+        "Custom tag returned no result. Falling back to default random search",
+      r18SettingFailed: "Failed to update R18 setting",
+      fallbackDefaultImage:
+        "Failed to load a Pixiv image. Showing the default image instead.",
+      fetchFailedDefaultImage:
+        "Failed to fetch image. Showing the default image instead.",
+      noResult: "No image found. Please check your tags or Pixiv availability.",
+    },
+    zh: {
+      randomLabel: "随机 Pixiv",
+      randomOn: "开启",
+      randomOff: "关闭",
+      randomEnabledTitle: "当前会请求随机 Pixiv 图片",
+      randomDisabledTitle: "当前不会请求随机 Pixiv 图片",
+      randomTagPoolLabel: "随机池",
+      randomTagPoolOn: "开启",
+      randomTagPoolOff: "关闭",
+      randomTagPoolEnabledTitle: "当前会启用随机 Tag 池",
+      randomTagPoolDisabledTitle: "当前不会启用随机 Tag 池",
+      randomTagSearchPlaceholder: "随机池 Tag",
+      randomTagSearchTitle: "输入一个 tag，刷新时优先按它搜索",
+      r18Label: "仅看 R18",
+      r18On: "开启",
+      r18Off: "关闭",
+      r18EnabledTitle: "当前仅显示 R18 内容",
+      r18DisabledTitle: "当前仅显示安全内容",
+      settingsTitle: "标签管理",
+      refreshTitle: "刷新图片",
+      bookmarkTitle: "收藏作品",
+      downloadOriginalTitle: "下载原图",
+      followCreatorTitle: "在 Pixiv 关注该画师",
+      followCreatorFailed: "关注画师失败",
+      followedCreator: "已关注：{name}",
+      unfollowedCreator: "已取消关注：{name}",
+      creatorLikeTitle: "喜欢作者",
+      creatorDislikeTitle: "不喜欢作者",
+      defaultBackgroundTitle: "默认背景",
+      configuredDefaultImage: "已配置的默认图片",
+      randomDisabledNoDefault: "随机图片已关闭，且尚未配置默认图片。",
+      failedLoadImage: "图片加载失败",
+      bookmarkFailed: "收藏失败",
+      bookmarked: "已收藏",
+      originalUnavailable: "当前没有可下载的原图",
+      downloadOriginalFailed: "下载原图失败",
+      downloadOriginalStarted: "开始下载原图",
+      creatorUnavailable: "当前没有可操作的作者信息",
+      creatorPreferenceFailed: "更新作者偏好失败",
+      likedCreator: "已喜欢作者：{name}",
+      dislikedCreator: "已屏蔽作者：{name}",
+      clearedCreatorPreference: "已清除作者偏好：{name}",
+      blockIllustAction: "不再显示当前作品",
+      blockIllustFailed: "隐藏当前作品失败",
+      blockedIllust: "这张作品后续将不再出现",
+      addRandomTagTitle: "选择要加入随机池的标签",
+      addRandomTagFailed: "加入随机池失败",
+      addedRandomTag: "已加入随机池：{tag}",
+      queuedNextRandomTag: "下次刷新将优先使用：{tag}",
+      requestRandomTagsTitle: "本次请求使用的随机标签",
+      requestRandomTagsEmpty: "仅使用基础查询",
+      randomTagExists: "随机池中已存在：{tag}",
+      excludeTagTitle: "选择要排除的标签",
+      noTagsAvailable: "当前图片没有可排除的标签",
+      excludeFailed: "排除标签失败",
+      excludedTag: "已排除：-{tag}",
+      randomSettingFailed: "切换随机图片开关失败",
+      randomTagPoolSettingFailed: "切换随机 Tag 池开关失败",
+      manualRandomTagNoResult: "自定义 Tag 没有结果，已回退到默认随机搜索",
+      r18SettingFailed: "切换 R18 设置失败",
+      fallbackDefaultImage: "Pixiv 图片加载失败，已改为显示默认图片。",
+      fetchFailedDefaultImage: "图片请求失败，已改为显示默认图片。",
+      noResult: "没有找到图片，请检查标签配置或 Pixiv 可用性。",
+    },
+    ja: {
+      randomLabel: "Pixiv Random",
+      randomOn: "On",
+      randomOff: "Off",
+      randomEnabledTitle: "Pixiv のランダム画像取得が有効です",
+      randomDisabledTitle: "Pixiv のランダム画像取得が無効です",
+      randomTagPoolLabel: "ランダムプール",
+      randomTagPoolOn: "On",
+      randomTagPoolOff: "Off",
+      randomTagPoolEnabledTitle: "ランダム Tag プールが有効です",
+      randomTagPoolDisabledTitle: "ランダム Tag プールが無効です",
+      randomTagSearchPlaceholder: "ランダムプール Tag",
+      randomTagSearchTitle: "入力した tag を優先してランダム検索します",
+      r18Label: "R18 のみ",
+      r18On: "On",
+      r18Off: "Off",
+      r18EnabledTitle: "R18 のみ表示します",
+      r18DisabledTitle: "安全な内容のみ表示します",
+      settingsTitle: "タグ管理",
+      refreshTitle: "画像を更新",
+      bookmarkTitle: "作品をブックマーク",
+      downloadOriginalTitle: "オリジナル画像を保存",
+      followCreatorTitle: "Pixiv で作者をフォロー",
+      followCreatorFailed: "フォローに失敗しました",
+      followedCreator: "フォローしました: {name}",
+      unfollowedCreator: "フォロー解除しました: {name}",
+      creatorLikeTitle: "作者をお気に入り",
+      creatorDislikeTitle: "作者を非表示",
+      defaultBackgroundTitle: "デフォルト背景",
+      configuredDefaultImage: "設定済みのデフォルト画像",
+      randomDisabledNoDefault:
+        "ランダム画像は無効で、デフォルト画像も未設定です。",
+      failedLoadImage: "画像の読み込みに失敗しました",
+      bookmarkFailed: "ブックマークに失敗しました",
+      bookmarked: "ブックマークしました",
+      originalUnavailable: "ダウンロードできる原寸画像がありません",
+      downloadOriginalFailed: "オリジナル画像のダウンロードに失敗しました",
+      downloadOriginalStarted: "オリジナル画像をダウンロードしています",
+      creatorUnavailable: "作者情報がありません",
+      creatorPreferenceFailed: "作者設定の更新に失敗しました",
+      likedCreator: "作者をお気に入りに追加しました: {name}",
+      dislikedCreator: "作者を非表示にしました: {name}",
+      clearedCreatorPreference: "作者設定を解除しました: {name}",
+      blockIllustAction: "この作品を今後表示しない",
+      blockIllustFailed: "この作品の非表示に失敗しました",
+      blockedIllust: "この作品は今後表示されません",
+      addRandomTagTitle: "ランダムプールに追加する tag を選択",
+      addRandomTagFailed: "ランダムプールへの追加に失敗しました",
+      addedRandomTag: "ランダムプールに追加しました: {tag}",
+      queuedNextRandomTag: "次回更新では優先して使用します: {tag}",
+      requestRandomTagsTitle: "今回のリクエストで使ったランダム tag",
+      requestRandomTagsEmpty: "ベースクエリのみ",
+      randomTagExists: "ランダムプールに既に存在します: {tag}",
+      excludeTagTitle: "除外する tag を選択",
+      noTagsAvailable: "除外できるタグがありません",
+      excludeFailed: "タグの除外に失敗しました",
+      excludedTag: "除外済み: -{tag}",
+      randomSettingFailed: "ランダム画像設定の更新に失敗しました",
+      randomTagPoolSettingFailed: "ランダム Tag プール設定の更新に失敗しました",
+      manualRandomTagNoResult:
+        "指定した Tag では見つからなかったため、通常のランダム検索に戻しました",
+      r18SettingFailed: "R18 設定の更新に失敗しました",
+      fallbackDefaultImage:
+        "Pixiv 画像の読み込みに失敗したため、デフォルト画像を表示しています。",
+      fetchFailedDefaultImage:
+        "画像取得に失敗したため、デフォルト画像を表示しています。",
+      noResult:
+        "画像が見つかりません。タグ設定や Pixiv の状態を確認してください。",
+    },
+  };
+
+  function getUiLanguage() {
+    const raw = (
+      chrome.i18n && chrome.i18n.getUILanguage
+        ? chrome.i18n.getUILanguage()
+        : navigator.language || "en"
+    ).toLowerCase();
+    if (raw.startsWith("zh")) return "zh";
+    if (raw.startsWith("ja")) return "ja";
+    return "en";
+  }
+
+  function translate(key, variables = {}) {
+    const language = getUiLanguage();
+    const table = UI_STRINGS[language] || UI_STRINGS.en;
+    let value = table[key] || UI_STRINGS.en[key] || key;
+    for (const [name, replacement] of Object.entries(variables)) {
+      value = value.replace(`{${name}}`, replacement);
+    }
+    return value;
+  }
+
+  function localizeRuntimeMessage(message) {
+    if (!message) {
+      return message;
+    }
+    const mapping = {
+      "Random images are disabled and no default image is configured.":
+        "randomDisabledNoDefault",
+      "Failed to load a Pixiv image. Showing the default image instead.":
+        "fallbackDefaultImage",
+      "Failed to fetch image. Showing the default image instead.":
+        "fetchFailedDefaultImage",
+      "No image found. Please check your tags or Pixiv availability.":
+        "noResult",
+      "Failed to load image": "failedLoadImage",
+    };
+    return mapping[message] ? translate(mapping[message]) : message;
+  }
+
+  function debugLog(...args) {
+    console.log("[newtab]", ...args);
+  }
+
+  function sanitizeFilenamePart(value, fallback) {
+    const sanitized = String(value || "")
+      .replace(/[\\/:*?"<>|]+/g, "-")
+      .replace(/\s+/g, " ")
+      .trim();
+    return sanitized || fallback;
+  }
+
+  function getOriginalDownloadFilename(url) {
+    const pathname = (() => {
+      try {
+        return new URL(url).pathname;
+      } catch (error) {
+        return "";
+      }
+    })();
+    const rawName = pathname.split("/").pop() || "";
+    const extMatch = rawName.match(/\.[a-zA-Z0-9]+$/);
+    const ext = extMatch ? extMatch[0] : ".jpg";
+    const baseName = currentIllustId
+      ? `pixiv-${currentIllustId}`
+      : sanitizeFilenamePart(
+          currentUserName || "pixiv-original",
+          "pixiv-original",
+        );
+    return `${baseName}${ext}`;
+  }
+
+  function applyUiText() {
+    const randomToggleText = document.getElementById("randomToggleText");
+    const randomTagPoolToggleText = document.getElementById(
+      "randomTagPoolToggleText",
+    );
+    const r18ToggleText = document.getElementById("r18ToggleText");
+    const randomTagSearchInput = document.getElementById(
+      "randomTagSearchInput",
+    );
+    const refreshButton = document.getElementById("refreshButton");
+    const settingsButton = document.getElementById("settingsButton");
+    const bookmarkButton = document.getElementById("bookmarkButton");
+    const downloadOriginalButton = document.getElementById(
+      "downloadOriginalButton",
+    );
+    const creatorLikeButton = document.getElementById("creatorLikeButton");
+    const creatorDislikeButton = document.getElementById(
+      "creatorDislikeButton",
+    );
+    if (randomToggleText) {
+      const enabled = runtimeConfig
+        ? runtimeConfig.randomImageEnabled !== false
+        : true;
+      randomToggleText.innerHTML = `<strong>${translate("randomLabel")}</strong><small>${enabled ? translate("randomOn") : translate("randomOff")}</small>`;
+    }
+    if (randomTagPoolToggleText) {
+      const enabled = runtimeConfig
+        ? runtimeConfig.randomTagPoolEnabled === true
+        : false;
+      randomTagPoolToggleText.innerHTML = `<strong>${translate("randomTagPoolLabel")}</strong><small>${enabled ? translate("randomTagPoolOn") : translate("randomTagPoolOff")}</small>`;
+    }
+    if (r18ToggleText) {
+      const enabled = runtimeConfig ? runtimeConfig.mode === "r18" : false;
+      r18ToggleText.innerHTML = `<strong>${translate("r18Label")}</strong><small>${enabled ? translate("r18On") : translate("r18Off")}</small>`;
+    }
+    if (randomTagSearchInput) {
+      randomTagSearchInput.placeholder = translate(
+        "randomTagSearchPlaceholder",
+      );
+      randomTagSearchInput.title = translate("randomTagSearchTitle");
+    }
+    if (refreshButton) {
+      refreshButton.title = translate("refreshTitle");
+    }
+    if (settingsButton) {
+      settingsButton.title = translate("settingsTitle");
+    }
+    if (bookmarkButton) {
+      bookmarkButton.title = translate("bookmarkTitle");
+    }
+    if (downloadOriginalButton) {
+      downloadOriginalButton.title = translate("downloadOriginalTitle");
+    }
+    const followCreatorButton = document.getElementById("followCreatorButton");
+    if (followCreatorButton) {
+      followCreatorButton.title = translate("followCreatorTitle");
+    }
+    if (creatorLikeButton) {
+      creatorLikeButton.title = translate("creatorLikeTitle");
+    }
+    if (creatorDislikeButton) {
+      creatorDislikeButton.title = translate("creatorDislikeTitle");
+    }
+  }
+
+  function warnNoDefaultImageIfNeeded() {
+    if (!currentImageVisible) {
+      showToast(translate("randomDisabledNoDefault"), "error");
+    }
+  }
+
+  function isDockCollapsibleViewport() {
+    return (
+      typeof window.matchMedia === "function" &&
+      window.matchMedia("(hover: hover) and (pointer: fine)").matches
+    );
+  }
+
+  function setRightDockActive(isActive) {
+    if (!document?.body) {
+      return;
+    }
+    document.body.classList.toggle(
+      "right-dock-active",
+      !!isActive || !isDockCollapsibleViewport(),
+    );
+  }
+
+  function revealRightDockFor(durationMs = 0) {
+    setRightDockActive(true);
+    clearTimeout(rightDockRevealTimer);
+    if (!isDockCollapsibleViewport() || durationMs <= 0) {
+      return;
+    }
+    rightDockRevealTimer = setTimeout(() => {
+      if (binding?.isPointerInsideRightDock) {
+        return;
+      }
+      setRightDockActive(false);
+    }, durationMs);
+  }
+
+  function getDockPopupElements() {
+    return {
+      popup: document.getElementById("dockPopup"),
+      requestSection: document.getElementById("requestTagPopup"),
+      tagSection: document.getElementById("tagPopup"),
+    };
+  }
+
+  function syncDockPopupVisibility() {
+    const { popup, requestSection, tagSection } = getDockPopupElements();
+    if (!popup || !requestSection || !tagSection) {
+      return;
+    }
+    const requestVisible = !requestSection.classList.contains("hidden");
+    const tagVisible = !tagSection.classList.contains("hidden");
+    const hasVisibleSection =
+      !requestSection.classList.contains("hidden") ||
+      !tagSection.classList.contains("hidden");
+    popup.classList.toggle("hidden", !hasVisibleSection);
+    popup.classList.toggle("request-only", requestVisible && !tagVisible);
+    popup.classList.toggle("tag-only", tagVisible && !requestVisible);
+    popup.classList.toggle("combined", requestVisible && tagVisible);
+    if (!hasVisibleSection) {
+      popup.classList.remove(
+        "expanded",
+        "mode-random",
+        "mode-exclude",
+        "request-only",
+        "tag-only",
+        "combined",
+      );
+    }
+  }
+
   class Binding {
     constructor() {
       const bgElement = document.body.querySelector("#backgroundImage");
@@ -8,11 +449,82 @@
       const illustTitleElement = document.body.querySelector("#illustTitle");
       const illustNameElement = document.body.querySelector("#illustName");
       const refreshElement = document.body.querySelector("#refreshButton");
+      const settingsElement = document.body.querySelector("#settingsButton");
+      const randomToggleInput =
+        document.body.querySelector("#randomToggleInput");
+      const randomToggleControl = document.body.querySelector(
+        "#randomToggleControl",
+      );
+      const randomTagPoolToggleInput = document.body.querySelector(
+        "#randomTagPoolToggleInput",
+      );
+      const randomTagPoolToggleControl = document.body.querySelector(
+        "#randomTagPoolToggleControl",
+      );
+      const r18ToggleInput = document.body.querySelector("#r18ToggleInput");
+      const r18ToggleControl = document.body.querySelector("#r18ToggleControl");
+      const randomTagSearchInput = document.body.querySelector(
+        "#randomTagSearchInput",
+      );
+      const likeElement = document.body.querySelector("#likeButton");
+      const bookmarkElement = document.body.querySelector("#bookmarkButton");
+      const downloadOriginalElement = document.body.querySelector(
+        "#downloadOriginalButton",
+      );
+      const dislikeElement = document.body.querySelector("#dislikeButton");
+      const creatorLikeElement =
+        document.body.querySelector("#creatorLikeButton");
+      const creatorDislikeElement = document.body.querySelector(
+        "#creatorDislikeButton",
+      );
       const containerElement = document.body.querySelector("#container");
       const wallpaperElement = document.body.querySelector("#wallpaper");
       const illustInfoElement = document.body.querySelector("#illustInfo");
+      const pageControlsElement = document.body.querySelector("#pageControls");
+      const dockPopupElement = document.body.querySelector("#dockPopup");
+      const rightDockHotspotElement =
+        document.body.querySelector("#rightDockHotspot");
       this.containerElement = containerElement;
       this.illustInfoElement = illustInfoElement;
+      this.pageControlsElement = pageControlsElement;
+      this.dockPopupElement = dockPopupElement;
+      this.rightDockHotspotElement = rightDockHotspotElement;
+      this.randomToggleInput = randomToggleInput;
+      this.randomToggleControl = randomToggleControl;
+      this.randomTagPoolToggleInput = randomTagPoolToggleInput;
+      this.randomTagPoolToggleControl = randomTagPoolToggleControl;
+      this.r18ToggleInput = r18ToggleInput;
+      this.r18ToggleControl = r18ToggleControl;
+      this.randomTagSearchInput = randomTagSearchInput;
+      this.isPointerInsideRightDock = false;
+
+      bgElement.referrerPolicy = "no-referrer";
+      fgImageElement.referrerPolicy = "no-referrer";
+
+      const handleWallpaperLoadState = (layer, state) => (event) => {
+        const target = event.currentTarget;
+        debugLog(`壁纸:${state}`, {
+          layer,
+          src:
+            target && target.currentSrc ? target.currentSrc : target?.src || "",
+        });
+      };
+      bgElement.addEventListener(
+        "load",
+        handleWallpaperLoadState("background", "load"),
+      );
+      bgElement.addEventListener(
+        "error",
+        handleWallpaperLoadState("background", "error"),
+      );
+      fgImageElement.addEventListener(
+        "load",
+        handleWallpaperLoadState("foreground", "load"),
+      );
+      fgImageElement.addEventListener(
+        "error",
+        handleWallpaperLoadState("foreground", "error"),
+      );
 
       const userNameBinding = (v) => {
         avatarImageElement.title = v;
@@ -44,13 +556,13 @@
         avatarElement.href = v;
       };
       const avatarImageBinding = (v) => {
-        avatarImageElement.style["background-image"] = `url(${v})`;
+        avatarImageElement.style["background-image"] = v ? `url(${v})` : "none";
       };
       const bgImageBinding = (v) => {
-        bgElement.style["background-image"] = `url(${v})`;
+        bgElement.src = v || "";
       };
       const fgElementBinding = (v) => {
-        fgImageElement.style["background-image"] = `url(${v})`;
+        fgImageElement.src = v || "";
       };
       this.ref = {
         userName: [userNameBinding],
@@ -67,69 +579,1419 @@
       refreshElement.addEventListener("mouseup", () => {
         refreshElement.className = "unpressed";
       });
-      refreshElement.addEventListener("click", sendRefreshMessage);
-      this.illustInfoFadeOutTimeoutId = null;
-      illustInfoElement.addEventListener("mouseleave", () => {
-        this.illustInfoFadeOutTimeoutId = setTimeout(() => {
-          this.illustInfoElement.className = "unfocused";
-        }, 10000);
+      refreshElement.addEventListener("click", refreshCurrentPageImage);
+      settingsElement.addEventListener("click", () => {
+        if (chrome && chrome.tabs && chrome.tabs.create) {
+          chrome.tabs.create({ url: chrome.runtime.getURL("tags.html") });
+        } else {
+          window.open(chrome.runtime.getURL("tags.html"), "_blank");
+        }
       });
-      illustInfoElement.addEventListener("mouseenter", () => {
-        illustInfoElement.className = "focused";
-        clearTimeout(this.illustInfoFadeOutTimeoutId);
+      randomToggleInput.addEventListener("change", handleRandomToggleChange);
+      randomTagPoolToggleInput.addEventListener(
+        "change",
+        handleRandomTagPoolToggleChange,
+      );
+      r18ToggleInput.addEventListener("change", handleR18ToggleChange);
+      randomTagSearchInput.addEventListener("keydown", (event) => {
+        if (event.key === "Enter") {
+          event.preventDefault();
+          refreshCurrentPageImage();
+        }
       });
-      illustInfoElement.addEventListener("mouseover", () => {
-        illustInfoElement.className = "focused";
-        clearTimeout(this.illustInfoFadeOutTimeoutId);
+
+      // Like button
+      likeElement.addEventListener("click", handleLike);
+
+      // Bookmark button
+      bookmarkElement.addEventListener("click", handleBookmark);
+
+      // Download original button
+      downloadOriginalElement.addEventListener("click", handleDownloadOriginal);
+
+      // Dislike button
+      dislikeElement.addEventListener("click", handleDislike);
+
+      // Follow creator button
+      const followCreatorElement = document.body.querySelector(
+        "#followCreatorButton",
+      );
+      if (followCreatorElement) {
+        followCreatorElement.addEventListener("click", handleFollowCreator);
+      }
+
+      // Creator preference buttons
+      creatorLikeElement.addEventListener("click", handleCreatorLike);
+      creatorDislikeElement.addEventListener("click", handleCreatorDislike);
+
+      const dockElements = [
+        pageControlsElement,
+        illustInfoElement,
+        dockPopupElement,
+      ].filter(Boolean);
+      const updateRightDockVisibility = (event) => {
+        if (!isDockCollapsibleViewport()) {
+          document.body.classList.remove("dock-collapsible");
+          setRightDockActive(true);
+          return;
+        }
+        document.body.classList.add("dock-collapsible");
+        const hotspotHeight = Math.min(
+          220,
+          Math.round(window.innerHeight * 0.38),
+        );
+        const pointerInHotspot =
+          !!event &&
+          event.clientX >= window.innerWidth - 72 &&
+          event.clientY >= window.innerHeight - hotspotHeight;
+        setRightDockActive(this.isPointerInsideRightDock || pointerInHotspot);
+      };
+      dockElements.forEach((element) => {
+        element.addEventListener("mouseenter", () => {
+          this.isPointerInsideRightDock = true;
+          setRightDockActive(true);
+        });
+        element.addEventListener("mouseleave", () => {
+          this.isPointerInsideRightDock = false;
+        });
       });
+      if (rightDockHotspotElement) {
+        rightDockHotspotElement.addEventListener("mouseenter", () => {
+          setRightDockActive(true);
+        });
+      }
+      document.addEventListener("mousemove", updateRightDockVisibility);
+      document.addEventListener("mouseleave", () => {
+        this.isPointerInsideRightDock = false;
+        if (isDockCollapsibleViewport()) {
+          setRightDockActive(false);
+        }
+      });
+      window.addEventListener("resize", updateRightDockVisibility);
+      updateRightDockVisibility();
     }
   }
   var binding = null;
   function initApplication() {
     binding = new Binding();
+    // Close popup on clicking outside
+    document.addEventListener("click", (e) => {
+      const popup = document.getElementById("dockPopup");
+      const triggerElement = activeTagPopupTrigger;
+      if (
+        !popup.classList.contains("hidden") &&
+        !popup.contains(e.target) &&
+        !(triggerElement && triggerElement.contains(e.target))
+      ) {
+        closeTagPopup();
+      }
+    });
+  }
+
+  function updateActionButtons() {
+    const likeBtn = document.getElementById("likeButton");
+    const bookmarkBtn = document.getElementById("bookmarkButton");
+    const downloadOriginalBtn = document.getElementById(
+      "downloadOriginalButton",
+    );
+    const dislikeBtn = document.getElementById("dislikeButton");
+    const followCreatorBtn = document.getElementById("followCreatorButton");
+    const creatorLikeBtn = document.getElementById("creatorLikeButton");
+    const creatorDislikeBtn = document.getElementById("creatorDislikeButton");
+    likeBtn.classList.toggle(
+      "disabled",
+      !currentTags || currentTags.length === 0,
+    );
+    bookmarkBtn.classList.toggle(
+      "disabled",
+      !currentIllustId || isBookmarkBusy,
+    );
+    bookmarkBtn.classList.toggle(
+      "loading",
+      !!currentIllustId && isBookmarkBusy,
+    );
+    bookmarkBtn.classList.toggle(
+      "bookmarked",
+      !!currentIllustId && currentBookmarkedIllustId === currentIllustId,
+    );
+    downloadOriginalBtn.classList.toggle(
+      "disabled",
+      !currentOriginalImageUrl || isDownloadBusy,
+    );
+    downloadOriginalBtn.classList.toggle(
+      "loading",
+      !!currentOriginalImageUrl && isDownloadBusy,
+    );
+    dislikeBtn.classList.toggle(
+      "disabled",
+      !currentTags || currentTags.length === 0,
+    );
+    const hasCreator = !!currentUserId;
+    if (followCreatorBtn) {
+      followCreatorBtn.classList.toggle(
+        "disabled",
+        !hasCreator || isFollowBusy,
+      );
+      followCreatorBtn.classList.toggle("loading", hasCreator && isFollowBusy);
+      followCreatorBtn.classList.toggle(
+        "active",
+        hasCreator && followedUserIds.has(currentUserId),
+      );
+    }
+    const likedUserIds = Array.isArray(runtimeConfig?.likedUserIds)
+      ? runtimeConfig.likedUserIds
+      : [];
+    const dislikedUserIds = Array.isArray(runtimeConfig?.dislikedUserIds)
+      ? runtimeConfig.dislikedUserIds
+      : [];
+    creatorLikeBtn.classList.toggle(
+      "disabled",
+      !hasCreator || isCreatorPreferenceBusy,
+    );
+    creatorLikeBtn.classList.toggle(
+      "active",
+      hasCreator && likedUserIds.includes(currentUserId),
+    );
+    creatorDislikeBtn.classList.toggle(
+      "disabled",
+      !hasCreator || isCreatorPreferenceBusy,
+    );
+    creatorDislikeBtn.classList.toggle(
+      "active",
+      hasCreator && dislikedUserIds.includes(currentUserId),
+    );
+  }
+
+  function setBookmarkBusy(isBusy) {
+    isBookmarkBusy = isBusy;
+    updateActionButtons();
+  }
+
+  function setDownloadBusy(isBusy) {
+    isDownloadBusy = isBusy;
+    updateActionButtons();
+  }
+
+  function setRandomToggleState(enabled) {
+    if (!binding || !binding.randomToggleInput) return;
+    binding.randomToggleInput.checked = !!enabled;
+    binding.randomToggleControl.title = enabled
+      ? translate("randomEnabledTitle")
+      : translate("randomDisabledTitle");
+    applyUiText();
+  }
+
+  function setRandomToggleBusy(isBusy) {
+    isRandomToggleBusy = isBusy;
+    if (!binding || !binding.randomToggleInput) return;
+    binding.randomToggleInput.disabled = isBusy;
+    binding.randomToggleControl.classList.toggle("disabled", isBusy);
+  }
+
+  function setRandomTagPoolToggleState(enabled) {
+    if (!binding || !binding.randomTagPoolToggleInput) return;
+    binding.randomTagPoolToggleInput.checked = !!enabled;
+    binding.randomTagPoolToggleControl.title = enabled
+      ? translate("randomTagPoolEnabledTitle")
+      : translate("randomTagPoolDisabledTitle");
+    applyUiText();
+  }
+
+  function setRandomTagPoolToggleBusy(isBusy) {
+    isRandomTagPoolToggleBusy = isBusy;
+    if (!binding || !binding.randomTagPoolToggleInput) return;
+    binding.randomTagPoolToggleInput.disabled = isBusy;
+    binding.randomTagPoolToggleControl.classList.toggle("disabled", isBusy);
+  }
+
+  function setR18ToggleState(enabled) {
+    if (!binding || !binding.r18ToggleInput) return;
+    binding.r18ToggleInput.checked = !!enabled;
+    binding.r18ToggleControl.title = enabled
+      ? translate("r18EnabledTitle")
+      : translate("r18DisabledTitle");
+    applyUiText();
+  }
+
+  function setR18ToggleBusy(isBusy) {
+    isR18ToggleBusy = isBusy;
+    if (!binding || !binding.r18ToggleInput) return;
+    binding.r18ToggleInput.disabled = isBusy;
+    binding.r18ToggleControl.classList.toggle("disabled", isBusy);
+  }
+
+  function createDefaultDisplayObject(config, options = {}) {
+    const defaultImageUrl = (
+      config && config.resolvedDefaultImageUrl
+        ? config.resolvedDefaultImageUrl
+        : ""
+    ).trim();
+    if (!defaultImageUrl) {
+      return null;
+    }
+    return {
+      mode: "default",
+      title: options.title || "Default background",
+      userName: options.userName || translate("configuredDefaultImage"),
+      userId: null,
+      illustId: null,
+      userIdUrl: "",
+      illustIdUrl: "",
+      originalImageUrl: "",
+      profileImageUrl: "",
+      imageObjectUrl: defaultImageUrl,
+      tags: [],
+      fallback: !!options.fallback,
+      message: options.message || null,
+    };
+  }
+
+  function loadStartupConfig() {
+    return new Promise((resolve) => {
+      chrome.storage.local.get(
+        {
+          randomImageEnabled: true,
+          randomTagPoolEnabled: false,
+          mode: "safe",
+          defaultImageUrl: "",
+          defaultImageSourceType: "url",
+          defaultImageUploadName: "",
+          likedUserIds: [],
+          dislikedUserIds: [],
+        },
+        async (items) => {
+          const config = items || {
+            randomImageEnabled: true,
+            randomTagPoolEnabled: false,
+            mode: "safe",
+            defaultImageUrl: "",
+            defaultImageSourceType: "url",
+            defaultImageUploadName: "",
+            likedUserIds: [],
+            dislikedUserIds: [],
+          };
+          config.resolvedDefaultImageUrl = await resolveDefaultImageUrl(
+            config,
+            {
+              onLegacyMigrated: (patch) =>
+                new Promise((patchResolve) => {
+                  chrome.storage.local.set(patch, patchResolve);
+                }),
+            },
+          );
+          if (config.defaultImageSourceType === "upload") {
+            config.defaultImageUrl = "";
+          }
+          config.likedUserIds = Array.isArray(config.likedUserIds)
+            ? config.likedUserIds
+                .map((id) => String(id || "").trim())
+                .filter(Boolean)
+            : [];
+          config.dislikedUserIds = Array.isArray(config.dislikedUserIds)
+            ? config.dislikedUserIds
+                .map((id) => String(id || "").trim())
+                .filter(Boolean)
+            : [];
+          resolve(config);
+        },
+      );
+    });
+  }
+
+  function handleStoredRandomImageEnabledChange(enabled) {
+    if (!runtimeConfig) {
+      return;
+    }
+    const previousEnabled = runtimeConfig.randomImageEnabled !== false;
+    runtimeConfig.randomImageEnabled = enabled;
+    setRandomToggleState(enabled);
+    if (isRandomToggleBusy || previousEnabled === enabled) {
+      return;
+    }
+    if (enabled) {
+      sendRefreshMessage();
+      return;
+    }
+    latestRefreshRequestId += 1;
+    showConfiguredDefaultImage().then((hasDefaultImage) => {
+      if (!hasDefaultImage) {
+        showToast(
+          "Random images are disabled and no default image is configured.",
+          "error",
+        );
+      }
+    });
+  }
+
+  function handleStoredRandomTagPoolEnabledChange(enabled) {
+    if (!runtimeConfig) {
+      return;
+    }
+    const previousEnabled = runtimeConfig.randomTagPoolEnabled === true;
+    runtimeConfig.randomTagPoolEnabled = enabled;
+    setRandomTagPoolToggleState(enabled);
+    if (isRandomTagPoolToggleBusy || previousEnabled === enabled) {
+      return;
+    }
+    if (runtimeConfig.randomImageEnabled !== false) {
+      sendRefreshMessage({ force: true });
+    }
+  }
+
+  function handleStoredModeChange(mode) {
+    if (!runtimeConfig) {
+      return;
+    }
+    const normalizedMode = mode === "r18" ? "r18" : "safe";
+    const previousMode = runtimeConfig.mode === "r18" ? "r18" : "safe";
+    runtimeConfig.mode = normalizedMode;
+    setR18ToggleState(normalizedMode === "r18");
+    if (isR18ToggleBusy || previousMode === normalizedMode) {
+      return;
+    }
+    if (runtimeConfig.randomImageEnabled !== false) {
+      sendRefreshMessage({ force: true });
+    }
+  }
+
+  async function refreshRuntimeDefaultImageConfig(changes) {
+    if (!runtimeConfig) {
+      return;
+    }
+
+    if (changes.defaultImageUrl) {
+      runtimeConfig.defaultImageUrl =
+        typeof changes.defaultImageUrl.newValue === "string"
+          ? changes.defaultImageUrl.newValue
+          : "";
+    }
+    if (changes.defaultImageSourceType) {
+      runtimeConfig.defaultImageSourceType =
+        changes.defaultImageSourceType.newValue || "url";
+    }
+    if (changes.defaultImageUploadName) {
+      runtimeConfig.defaultImageUploadName =
+        typeof changes.defaultImageUploadName.newValue === "string"
+          ? changes.defaultImageUploadName.newValue
+          : "";
+    }
+
+    runtimeConfig.resolvedDefaultImageUrl = await resolveDefaultImageUrl(
+      runtimeConfig,
+      {
+        onLegacyMigrated: (patch) =>
+          new Promise((patchResolve) => {
+            chrome.storage.local.set(patch, patchResolve);
+          }),
+      },
+    );
+
+    if (runtimeConfig.defaultImageSourceType === "upload") {
+      runtimeConfig.defaultImageUrl = "";
+    }
+
+    if (runtimeConfig.randomImageEnabled === false) {
+      const hasDefaultImage = await showConfiguredDefaultImage();
+      if (!hasDefaultImage) {
+        warnNoDefaultImageIfNeeded();
+      }
+    }
+  }
+
+  function refreshRuntimeCreatorPreferences(changes) {
+    if (!runtimeConfig) {
+      return;
+    }
+    if (changes.likedUserIds) {
+      runtimeConfig.likedUserIds = Array.isArray(changes.likedUserIds.newValue)
+        ? changes.likedUserIds.newValue
+            .map((id) => String(id || "").trim())
+            .filter(Boolean)
+        : [];
+    }
+    if (changes.dislikedUserIds) {
+      runtimeConfig.dislikedUserIds = Array.isArray(
+        changes.dislikedUserIds.newValue,
+      )
+        ? changes.dislikedUserIds.newValue
+            .map((id) => String(id || "").trim())
+            .filter(Boolean)
+        : [];
+    }
+    updateActionButtons();
+  }
+
+  async function showConfiguredDefaultImage(options = {}) {
+    const defaultDisplay = createDefaultDisplayObject(runtimeConfig, options);
+    if (!defaultDisplay) {
+      return false;
+    }
+    await changeElement(defaultDisplay);
+    return true;
+  }
+
+  function notifyRuntimeConfigUpdated() {
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const timeoutId = setTimeout(() => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        debugLog("通知配置更新:超时");
+        resolve();
+      }, 1500);
+
+      chrome.runtime.sendMessage({ action: "updateConfig" }, () => {
+        if (settled) {
+          return;
+        }
+        clearTimeout(timeoutId);
+        settled = true;
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        resolve();
+      });
+    });
+  }
+
+  function persistRandomImageEnabled(enabled) {
+    return new Promise((resolve, reject) => {
+      chrome.storage.local.set({ randomImageEnabled: enabled }, () => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        notifyRuntimeConfigUpdated().then(resolve).catch(reject);
+      });
+    });
+  }
+
+  function persistR18Mode(enabled) {
+    const nextMode = enabled ? "r18" : "safe";
+    return new Promise((resolve, reject) => {
+      chrome.storage.local.set({ mode: nextMode }, () => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        notifyRuntimeConfigUpdated().then(resolve).catch(reject);
+      });
+    });
+  }
+
+  function persistRandomTagPoolEnabled(enabled) {
+    return new Promise((resolve, reject) => {
+      chrome.storage.local.set({ randomTagPoolEnabled: enabled }, () => {
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        notifyRuntimeConfigUpdated().then(resolve).catch(reject);
+      });
+    });
   }
 
   async function changeElement(illustObject) {
-    if (!illustObject) { return; }
+    if (!illustObject) {
+      return;
+    }
+    debugLog("更新页面元素:收到数据", illustObject);
+    if (illustObject.error) {
+      showToast(
+        localizeRuntimeMessage(illustObject.message) ||
+          translate("failedLoadImage"),
+        "error",
+      );
+      return;
+    }
+
+    // Store tags and illustId for like/dislike
+    currentTags = illustObject.tags || [];
+    currentIllustId = illustObject.illustId || null;
+    currentIllustUrl = illustObject.illustIdUrl || null;
+    currentOriginalImageUrl = illustObject.originalImageUrl || null;
+    currentUserId = illustObject.userId ? String(illustObject.userId) : null;
+    currentUserName = illustObject.userName || "";
+    currentImageVisible = !!illustObject.imageObjectUrl;
+    if (currentIllustId !== currentBookmarkedIllustId) {
+      currentBookmarkedIllustId = null;
+    }
+    isBookmarkBusy = false;
+    isDownloadBusy = false;
+    currentLikedTagsForImage = new Set();
+    currentQueuedPriorityTagForImage = "";
+    debugLog("更新页面元素:状态", {
+      illustId: currentIllustId,
+      userId: currentUserId,
+      imageVisible: currentImageVisible,
+      imageObjectUrl: illustObject.imageObjectUrl,
+      mode: illustObject.mode,
+      tags: currentTags.map((t) => t.tag),
+    });
+
+    // Reset like state
+    const likeBtn = document.getElementById("likeButton");
+    likeBtn.classList.remove("liked");
+
+    // Close tag popup if open
+    closeTagPopup({ triggerRefresh: false });
+
     for (let k in binding.ref) {
       if (illustObject.hasOwnProperty(k)) {
         let value = illustObject[k];
         if (value === null || value === undefined) {
-          if (k === 'userName' || k === 'title') value = '';
+          if (k === "userName" || k === "title") value = "";
         }
         for (let o of binding.ref[k]) {
           o(value);
         }
       }
     }
+    updateActionButtons();
     binding.containerElement.classList.toggle("notReady", false);
-    clearTimeout(binding.illustInfoFadeOutTimeoutId);
-    binding.illustInfoFadeOutTimeoutId = setTimeout(() => {
-      binding.illustInfoElement.className = "unfocused";
-    }, 10000);
+    if (illustObject.fallback && illustObject.message) {
+      showToast(localizeRuntimeMessage(illustObject.message), "error");
+    }
+    if (illustObject.mode === "random") {
+      showRequestRandomTagsPopup(illustObject.resolvedRandomTags || []);
+    } else {
+      hideRequestRandomTagsPopup();
+    }
+  }
+
+  // ── Like (add to random tag pool) ──
+  function handleLike() {
+    if (!currentTags || currentTags.length === 0) {
+      showToast(translate("noTagsAvailable"), "error");
+      return;
+    }
+    openTagPopup(currentTags, {
+      title: translate("addRandomTagTitle"),
+      mode: "random",
+      expanded: true,
+      triggerElement: document.getElementById("likeButton"),
+      onSelect: addTagToRandomPool,
+    });
+  }
+
+  function handleBookmark() {
+    if (!currentIllustId || isBookmarkBusy) {
+      return;
+    }
+    if (currentBookmarkedIllustId === currentIllustId) {
+      showToast(translate("bookmarked"), "success");
+      return;
+    }
+    setBookmarkBusy(true);
+    chrome.runtime.sendMessage(
+      { action: "bookmarkIllust", illustId: currentIllustId },
+      (res) => {
+        setBookmarkBusy(false);
+        if (chrome.runtime.lastError) {
+          showToast(translate("bookmarkFailed"), "error");
+          return;
+        }
+        if (res && res.success) {
+          currentBookmarkedIllustId = currentIllustId;
+          updateActionButtons();
+          showToast(translate("bookmarked"), "success");
+          return;
+        }
+        showToast(
+          localizeRuntimeMessage(res?.error) || translate("bookmarkFailed"),
+          "error",
+        );
+      },
+    );
+  }
+
+  async function handleDownloadOriginal() {
+    if (!currentOriginalImageUrl || isDownloadBusy) {
+      if (!currentOriginalImageUrl) {
+        showToast(translate("originalUnavailable"), "error");
+      }
+      return;
+    }
+
+    setDownloadBusy(true);
+    try {
+      const response = await fetch(currentOriginalImageUrl, {
+        credentials: "omit",
+        cache: "no-store",
+      });
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}`);
+      }
+      const blob = await response.blob();
+      const objectUrl = URL.createObjectURL(blob);
+      const link = document.createElement("a");
+      link.href = objectUrl;
+      link.download = getOriginalDownloadFilename(currentOriginalImageUrl);
+      document.body.appendChild(link);
+      link.click();
+      link.remove();
+      window.setTimeout(() => URL.revokeObjectURL(objectUrl), 1000);
+      showToast(translate("downloadOriginalStarted"), "success");
+    } catch (error) {
+      console.error("下载原图失败:", error);
+      showToast(translate("downloadOriginalFailed"), "error");
+    } finally {
+      setDownloadBusy(false);
+    }
+  }
+
+  function updateCreatorPreference(preference) {
+    if (!currentUserId) {
+      showToast(translate("creatorUnavailable"), "error");
+      return;
+    }
+    if (isCreatorPreferenceBusy) {
+      return;
+    }
+    isCreatorPreferenceBusy = true;
+    updateActionButtons();
+    chrome.runtime.sendMessage(
+      { action: "setCreatorPreference", userId: currentUserId, preference },
+      (res) => {
+        isCreatorPreferenceBusy = false;
+        if (chrome.runtime.lastError) {
+          updateActionButtons();
+          showToast(translate("creatorPreferenceFailed"), "error");
+          return;
+        }
+        if (res && res.success) {
+          runtimeConfig.likedUserIds = Array.isArray(res.likedUserIds)
+            ? res.likedUserIds
+            : [];
+          runtimeConfig.dislikedUserIds = Array.isArray(res.dislikedUserIds)
+            ? res.dislikedUserIds
+            : [];
+          updateActionButtons();
+          const creatorName = currentUserName || currentUserId;
+          if (preference === "dislike") {
+            showToast(
+              translate("dislikedCreator", { name: creatorName }),
+              "success",
+            );
+            sendRefreshMessage();
+          } else if (preference === "like") {
+            showToast(
+              translate("likedCreator", { name: creatorName }),
+              "success",
+            );
+          } else {
+            showToast(
+              translate("clearedCreatorPreference", { name: creatorName }),
+              "success",
+            );
+          }
+          return;
+        }
+        updateActionButtons();
+        showToast(res?.error || translate("creatorPreferenceFailed"), "error");
+      },
+    );
+  }
+
+  function handleFollowCreator() {
+    if (!currentUserId || isFollowBusy) return;
+    const isFollowed = followedUserIds.has(currentUserId);
+    isFollowBusy = true;
+    updateActionButtons();
+    chrome.runtime.sendMessage(
+      {
+        action: "followUser",
+        userId: currentUserId,
+        unfollow: isFollowed,
+      },
+      (res) => {
+        isFollowBusy = false;
+        if (chrome.runtime.lastError || !res?.success) {
+          updateActionButtons();
+          showToast(res?.error || translate("followCreatorFailed"), "error");
+          return;
+        }
+        const name = currentUserName || currentUserId;
+        if (isFollowed) {
+          followedUserIds.delete(currentUserId);
+          showToast(translate("unfollowedCreator", { name }), "success");
+        } else {
+          followedUserIds.add(currentUserId);
+          showToast(translate("followedCreator", { name }), "success");
+        }
+        updateActionButtons();
+      },
+    );
+  }
+
+  function handleCreatorLike() {
+    const likedUserIds = Array.isArray(runtimeConfig?.likedUserIds)
+      ? runtimeConfig.likedUserIds
+      : [];
+    updateCreatorPreference(
+      likedUserIds.includes(currentUserId) ? "neutral" : "like",
+    );
+  }
+
+  function handleCreatorDislike() {
+    const dislikedUserIds = Array.isArray(runtimeConfig?.dislikedUserIds)
+      ? runtimeConfig.dislikedUserIds
+      : [];
+    updateCreatorPreference(
+      dislikedUserIds.includes(currentUserId) ? "neutral" : "dislike",
+    );
+  }
+
+  function addTagToRandomPool(tag) {
+    if (activeTagPopupPendingTags.has(tag)) {
+      return;
+    }
+    if (currentLikedTagsForImage.has(tag)) {
+      queueNextPriorityRandomTag(tag);
+      return;
+    }
+    activeTagPopupPendingTags.add(tag);
+    setTagChipPending(tag, true);
+    chrome.runtime.sendMessage({ action: "addRandomTag", tag }, (res) => {
+      activeTagPopupPendingTags.delete(tag);
+      setTagChipPending(tag, false);
+      if (chrome.runtime.lastError) {
+        showToast(translate("addRandomTagFailed"), "error");
+        return;
+      }
+      if (res && res.success && res.added !== false) {
+        document.getElementById("likeButton").classList.add("liked");
+        markTagChipState(tag, "selected-like");
+        currentLikedTagsForImage.add(tag);
+        showToast(translate("addedRandomTag", { tag }), "success");
+      } else if (res && res.success && res.exists) {
+        markTagChipState(tag, "selected-like");
+        currentLikedTagsForImage.add(tag);
+        showToast(translate("randomTagExists", { tag }), "success");
+      } else {
+        showToast(res?.error || translate("addRandomTagFailed"), "error");
+      }
+    });
+  }
+
+  function queueNextPriorityRandomTag(tag) {
+    if (activeTagPopupPendingTags.has(tag)) {
+      return;
+    }
+    activeTagPopupPendingTags.add(tag);
+    setTagChipPending(tag, true);
+    chrome.runtime.sendMessage(
+      { action: "queueNextPriorityRandomTag", tag },
+      (res) => {
+        activeTagPopupPendingTags.delete(tag);
+        setTagChipPending(tag, false);
+        if (chrome.runtime.lastError) {
+          showToast(translate("addRandomTagFailed"), "error");
+          return;
+        }
+        if (res && res.success) {
+          if (
+            currentQueuedPriorityTagForImage &&
+            currentQueuedPriorityTagForImage !== tag
+          ) {
+            markTagChipState(
+              currentQueuedPriorityTagForImage,
+              currentLikedTagsForImage.has(currentQueuedPriorityTagForImage)
+                ? "selected-like"
+                : "",
+            );
+          }
+          currentQueuedPriorityTagForImage = tag;
+          currentLikedTagsForImage.add(tag);
+          markTagChipState(tag, "queued-next");
+          showToast(translate("queuedNextRandomTag", { tag }), "success");
+        } else {
+          showToast(res?.error || translate("addRandomTagFailed"), "error");
+        }
+      },
+    );
+  }
+
+  // ── Dislike (show tag popup) ──
+  function handleDislike() {
+    const hasTagOptions = !!currentTags && currentTags.length > 0;
+    const hasIllustOption = !!currentIllustId;
+    if (!hasTagOptions && !hasIllustOption) {
+      showToast(translate("noTagsAvailable"), "error");
+      return;
+    }
+    openTagPopup(currentTags, {
+      title: translate("excludeTagTitle"),
+      mode: "exclude",
+      triggerElement: document.getElementById("dislikeButton"),
+      onSelect: excludeTag,
+      extraActions: hasIllustOption
+        ? [
+            {
+              label: translate("blockIllustAction"),
+              onClick: blockCurrentIllust,
+            },
+          ]
+        : [],
+    });
+  }
+
+  function openTagPopup(tags, options = {}) {
+    const popup = document.getElementById("dockPopup");
+    const popupSection = document.getElementById("tagPopup");
+    const popupHeader = popupSection.querySelector(".tag-popup-header");
+    const popupActions = document.getElementById("tagPopupActions");
+    const tagList = document.getElementById("tagList");
+    activeTagPopupPendingTags = new Set();
+    activeTagPopupMode = options.mode === "random" ? "random" : "exclude";
+    shouldRefreshOnTagPopupClose = false;
+    popupHeader.textContent = options.title || translate("excludeTagTitle");
+    popupActions.innerHTML = "";
+    tagList.innerHTML = "";
+    activeTagPopupHandler =
+      typeof options.onSelect === "function" ? options.onSelect : null;
+    activeTagPopupTrigger = options.triggerElement || null;
+    popup.classList.toggle("expanded", !!options.expanded);
+    popup.classList.toggle("mode-random", options.mode === "random");
+    popup.classList.toggle("mode-exclude", options.mode !== "random");
+    revealRightDockFor(3000);
+
+    const extraActions = Array.isArray(options.extraActions)
+      ? options.extraActions
+      : [];
+    extraActions.forEach((action, index) => {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.className = "tag-popup-action-btn";
+      btn.dataset.actionIndex = String(index);
+      btn.textContent = action.label;
+      btn.addEventListener("click", () => {
+        action.onClick?.(btn);
+      });
+      popupActions.appendChild(btn);
+    });
+
+    tags.forEach((t) => {
+      const chip = document.createElement("div");
+      chip.className = "tag-chip";
+      chip.dataset.tag = t.tag;
+      let html = `<span class="tag-name">${escapeHtml(t.tag)}</span>`;
+      if (t.translation) {
+        html += ` <span class="tag-translation">(${escapeHtml(t.translation)})</span>`;
+      }
+      chip.innerHTML = html;
+      chip.addEventListener("click", () => {
+        if (activeTagPopupHandler) {
+          activeTagPopupHandler(t.tag);
+        }
+      });
+      tagList.appendChild(chip);
+      if (
+        activeTagPopupMode === "random" &&
+        currentQueuedPriorityTagForImage &&
+        currentQueuedPriorityTagForImage === t.tag
+      ) {
+        markTagChipState(t.tag, "queued-next");
+      } else if (
+        activeTagPopupMode === "random" &&
+        currentLikedTagsForImage.has(t.tag)
+      ) {
+        markTagChipState(t.tag, "selected-like");
+      }
+    });
+
+    popupSection.classList.remove("hidden");
+    syncDockPopupVisibility();
+  }
+
+  function closeTagPopup(options = {}) {
+    const popup = document.getElementById("dockPopup");
+    const popupSection = document.getElementById("tagPopup");
+    const shouldTriggerRefresh =
+      options.triggerRefresh !== false &&
+      activeTagPopupMode === "exclude" &&
+      shouldRefreshOnTagPopupClose;
+    popupSection.classList.add("hidden");
+    syncDockPopupVisibility();
+    activeTagPopupHandler = null;
+    activeTagPopupTrigger = null;
+    activeTagPopupPendingTags = new Set();
+    activeTagPopupMode = "exclude";
+    shouldRefreshOnTagPopupClose = false;
+    if (shouldTriggerRefresh) {
+      sendRefreshMessage();
+    }
+  }
+
+  function excludeTag(tag) {
+    if (
+      activeTagPopupPendingTags.has(tag) ||
+      getTagChipState(tag) === "selected-dislike"
+    ) {
+      return;
+    }
+    activeTagPopupPendingTags.add(tag);
+    setTagChipPending(tag, true);
+    chrome.runtime.sendMessage(
+      { action: "excludeTag", tag: tag, scope: "global" },
+      (res) => {
+        activeTagPopupPendingTags.delete(tag);
+        setTagChipPending(tag, false);
+        if (chrome.runtime.lastError) {
+          showToast(translate("excludeFailed"), "error");
+          return;
+        }
+        if (res && res.success) {
+          markTagChipState(tag, "selected-dislike");
+          shouldRefreshOnTagPopupClose = true;
+          showToast(translate("excludedTag", { tag }), "success");
+        } else {
+          showToast(res?.error || translate("excludeFailed"), "error");
+        }
+      },
+    );
+  }
+
+  function setPopupActionPending(actionIndex, pending) {
+    const actionBtn = document.querySelector(
+      `.tag-popup-action-btn[data-action-index="${actionIndex}"]`,
+    );
+    if (!actionBtn) {
+      return;
+    }
+    actionBtn.classList.toggle("pending", pending);
+  }
+
+  function blockCurrentIllust(actionBtn) {
+    if (!currentIllustId) {
+      showToast(translate("blockIllustFailed"), "error");
+      return;
+    }
+    if (actionBtn && actionBtn.classList.contains("pending")) {
+      return;
+    }
+    const actionIndex = actionBtn?.dataset.actionIndex || "0";
+    setPopupActionPending(actionIndex, true);
+    chrome.runtime.sendMessage(
+      { action: "blockIllust", illustId: currentIllustId },
+      (res) => {
+        setPopupActionPending(actionIndex, false);
+        if (chrome.runtime.lastError) {
+          showToast(translate("blockIllustFailed"), "error");
+          return;
+        }
+        if (res && res.success) {
+          showToast(translate("blockedIllust"), "success");
+          closeTagPopup({ triggerRefresh: false });
+          sendRefreshMessage({ force: true });
+          return;
+        }
+        showToast(res?.error || translate("blockIllustFailed"), "error");
+      },
+    );
+  }
+
+  function getTagChipByTag(tag) {
+    return document.querySelector(`.tag-chip[data-tag="${CSS.escape(tag)}"]`);
+  }
+
+  function getTagChipState(tag) {
+    const chip = getTagChipByTag(tag);
+    if (!chip) {
+      return "";
+    }
+    if (chip.classList.contains("selected-like")) {
+      return "selected-like";
+    }
+    if (chip.classList.contains("queued-next")) {
+      return "queued-next";
+    }
+    if (chip.classList.contains("selected-dislike")) {
+      return "selected-dislike";
+    }
+    return "";
+  }
+
+  function markTagChipState(tag, state) {
+    const chip = getTagChipByTag(tag);
+    if (!chip) {
+      return;
+    }
+    chip.classList.remove("selected-like", "queued-next", "selected-dislike");
+    if (state) {
+      chip.classList.add(state);
+    }
+  }
+
+  function setTagChipPending(tag, pending) {
+    const chip = getTagChipByTag(tag);
+    if (!chip) {
+      return;
+    }
+    chip.classList.toggle("pending", !!pending);
+  }
+
+  // ── Toast ──
+  let toastTimer = null;
+  function showToast(message, type = "success") {
+    const toast = document.getElementById("toast");
+    toast.textContent = message;
+    toast.className = `toast toast-${type} show`;
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => {
+      toast.className = "toast";
+    }, 2500);
+  }
+
+  function showRequestRandomTagsPopup(tags) {
+    const popup = document.getElementById("dockPopup");
+    const requestSection = document.getElementById("requestTagPopup");
+    const title = document.getElementById("requestTagPopupTitle");
+    const list = document.getElementById("requestTagPopupList");
+    if (!popup || !requestSection || !title || !list) {
+      return;
+    }
+    title.textContent = translate("requestRandomTagsTitle");
+    list.innerHTML = "";
+
+    const normalizedTags = Array.isArray(tags)
+      ? tags.map((tag) => String(tag || "").trim()).filter(Boolean)
+      : [];
+
+    if (normalizedTags.length === 0) {
+      const empty = document.createElement("span");
+      empty.className = "request-tag-pill empty";
+      empty.textContent = translate("requestRandomTagsEmpty");
+      list.appendChild(empty);
+    } else {
+      normalizedTags.forEach((tag) => {
+        const pill = document.createElement("span");
+        pill.className = "request-tag-pill";
+        pill.textContent = tag;
+        list.appendChild(pill);
+      });
+    }
+
+    requestSection.classList.remove("hidden");
+    syncDockPopupVisibility();
+    revealRightDockFor(2500);
+    clearTimeout(requestTagPopupTimer);
+    requestTagPopupTimer = setTimeout(() => {
+      requestSection.classList.add("hidden");
+      syncDockPopupVisibility();
+    }, 3200);
+  }
+
+  function hideRequestRandomTagsPopup() {
+    const requestSection = document.getElementById("requestTagPopup");
+    if (!requestSection) {
+      return;
+    }
+    clearTimeout(requestTagPopupTimer);
+    requestSection.classList.add("hidden");
+    syncDockPopupVisibility();
+  }
+
+  // ── Util ──
+  function escapeHtml(str) {
+    const div = document.createElement("div");
+    div.textContent = str;
+    return div.innerHTML;
+  }
+
+  function sendRuntimeMessageWithTimeout(message, timeoutMs = 15000) {
+    return new Promise((resolve, reject) => {
+      let settled = false;
+      const timeoutId = setTimeout(() => {
+        if (settled) {
+          return;
+        }
+        settled = true;
+        reject(new Error(`Message timeout after ${timeoutMs}ms`));
+      }, timeoutMs);
+
+      chrome.runtime.sendMessage(message, (response) => {
+        if (settled) {
+          return;
+        }
+        clearTimeout(timeoutId);
+        settled = true;
+        if (chrome.runtime.lastError) {
+          reject(new Error(chrome.runtime.lastError.message));
+          return;
+        }
+        resolve(response);
+      });
+    });
   }
 
   const sendRefreshMessage = (() => {
     let isRequestInProgress = false;
-    return () => {
+    let pendingRefreshRequested = false;
+
+    const flushPendingRefresh = () => {
+      if (
+        !pendingRefreshRequested ||
+        (runtimeConfig && runtimeConfig.randomImageEnabled === false)
+      ) {
+        return;
+      }
+      pendingRefreshRequested = false;
+      sendRefreshMessage({ force: false });
+    };
+
+    return (options = {}) => {
+      const force = !!options.force;
+      const manualRandomTag = String(options.manualRandomTag || "").trim();
+      if (runtimeConfig && runtimeConfig.randomImageEnabled === false) {
+        showConfiguredDefaultImage().then((hasDefaultImage) => {
+          debugLog("发送刷新消息:随机已禁用", { hasDefaultImage });
+          if (!hasDefaultImage) {
+            warnNoDefaultImageIfNeeded();
+          }
+        });
+        return;
+      }
       if (isRequestInProgress) {
+        pendingRefreshRequested = true;
+        if (force) {
+          latestRefreshRequestId += 1;
+        }
         return;
       }
       isRequestInProgress = true;
-      chrome.runtime.sendMessage({ action: "fetchImage" }, (res) => {
-        if (chrome.runtime.lastError) {
-          console.warn("Context invalidated, message could not be processed:", chrome.runtime.lastError.message);
-          isRequestInProgress = false;
-          return;
-        }
-        changeElement(res).finally(() => {
-          isRequestInProgress = false;
-        });
+      pendingRefreshRequested = false;
+      const requestId = ++latestRefreshRequestId;
+      debugLog("发送刷新消息:开始", {
+        requestId,
+        force,
+        mode: runtimeConfig?.mode,
+        randomImageEnabled: runtimeConfig?.randomImageEnabled,
+        manualRandomTag,
       });
+      sendRuntimeMessageWithTimeout(
+        { action: "fetchImage", manualRandomTag },
+        15000,
+      )
+        .then((res) => {
+          debugLog("发送刷新消息:收到响应", { requestId, response: res });
+          if (
+            requestId !== latestRefreshRequestId ||
+            (runtimeConfig && runtimeConfig.randomImageEnabled === false)
+          ) {
+            debugLog("发送刷新消息:过期响应", {
+              requestId,
+              latestRefreshRequestId,
+            });
+            isRequestInProgress = false;
+            flushPendingRefresh();
+            return;
+          }
+          if (manualRandomTag && res && res.usedManualRandomTag === false) {
+            showToast(translate("manualRandomTagNoResult"), "success");
+          }
+          Promise.resolve(changeElement(res))
+            .catch((e) => {
+              console.error("更新页面元素出错:", e);
+            })
+            .finally(() => {
+              isRequestInProgress = false;
+              flushPendingRefresh();
+            });
+        })
+        .catch((error) => {
+          console.warn("发送刷新消息失败:", error.message);
+          debugLog("发送刷新消息:出错", {
+            requestId,
+            error: error.message,
+          });
+          isRequestInProgress = false;
+          flushPendingRefresh();
+        });
     };
   })();
 
-  initApplication();
-  sendRefreshMessage();
-  console.log("content script loaded");
+  function refreshCurrentPageImage() {
+    const manualRandomTag =
+      binding && binding.randomTagSearchInput
+        ? String(binding.randomTagSearchInput.value || "").trim()
+        : "";
+    sendRefreshMessage({ manualRandomTag });
+  }
+
+  async function handleRandomToggleChange(event) {
+    if (!runtimeConfig || isRandomToggleBusy) {
+      if (binding && binding.randomToggleInput) {
+        binding.randomToggleInput.checked = runtimeConfig
+          ? runtimeConfig.randomImageEnabled !== false
+          : true;
+      }
+      return;
+    }
+
+    const nextEnabled = !!event.target.checked;
+    const previousEnabled = runtimeConfig.randomImageEnabled !== false;
+
+    if (nextEnabled === previousEnabled) {
+      return;
+    }
+
+    setRandomToggleBusy(true);
+    try {
+      await persistRandomImageEnabled(nextEnabled);
+      runtimeConfig.randomImageEnabled = nextEnabled;
+      setRandomToggleState(nextEnabled);
+
+      if (nextEnabled) {
+        debugLog("切换随机开关:已开启");
+        sendRefreshMessage();
+      } else {
+        latestRefreshRequestId += 1;
+        const hasDefaultImage = await showConfiguredDefaultImage();
+        debugLog("切换随机开关:已关闭", { hasDefaultImage });
+        if (!hasDefaultImage) {
+          warnNoDefaultImageIfNeeded();
+        }
+      }
+    } catch (error) {
+      console.error("更新随机图片设置失败:", error);
+      runtimeConfig.randomImageEnabled = previousEnabled;
+      setRandomToggleState(previousEnabled);
+      showToast(translate("randomSettingFailed"), "error");
+    } finally {
+      setRandomToggleBusy(false);
+    }
+  }
+
+  async function handleR18ToggleChange(event) {
+    if (!runtimeConfig || isR18ToggleBusy) {
+      if (binding && binding.r18ToggleInput) {
+        binding.r18ToggleInput.checked = runtimeConfig
+          ? runtimeConfig.mode === "r18"
+          : false;
+      }
+      return;
+    }
+
+    const nextEnabled = !!event.target.checked;
+    const previousEnabled = runtimeConfig.mode === "r18";
+
+    if (nextEnabled === previousEnabled) {
+      return;
+    }
+
+    setR18ToggleBusy(true);
+    try {
+      await persistR18Mode(nextEnabled);
+      runtimeConfig.mode = nextEnabled ? "r18" : "safe";
+      setR18ToggleState(nextEnabled);
+      debugLog("切换R18开关:已应用", { mode: runtimeConfig.mode });
+      if (runtimeConfig.randomImageEnabled !== false) {
+        sendRefreshMessage({ force: true });
+      }
+    } catch (error) {
+      console.error("更新 R18 设置失败:", error);
+      runtimeConfig.mode = previousEnabled ? "r18" : "safe";
+      setR18ToggleState(previousEnabled);
+      showToast(translate("r18SettingFailed"), "error");
+    } finally {
+      setR18ToggleBusy(false);
+    }
+  }
+
+  async function handleRandomTagPoolToggleChange(event) {
+    if (!runtimeConfig || isRandomTagPoolToggleBusy) {
+      if (binding && binding.randomTagPoolToggleInput) {
+        binding.randomTagPoolToggleInput.checked = runtimeConfig
+          ? runtimeConfig.randomTagPoolEnabled === true
+          : false;
+      }
+      return;
+    }
+
+    const nextEnabled = !!event.target.checked;
+    const previousEnabled = runtimeConfig.randomTagPoolEnabled === true;
+
+    if (nextEnabled === previousEnabled) {
+      return;
+    }
+
+    setRandomTagPoolToggleBusy(true);
+    try {
+      await persistRandomTagPoolEnabled(nextEnabled);
+      runtimeConfig.randomTagPoolEnabled = nextEnabled;
+      setRandomTagPoolToggleState(nextEnabled);
+      if (runtimeConfig.randomImageEnabled !== false) {
+        sendRefreshMessage({ force: true });
+      }
+    } catch (error) {
+      console.error("更新随机标签池设置失败:", error);
+      runtimeConfig.randomTagPoolEnabled = previousEnabled;
+      setRandomTagPoolToggleState(previousEnabled);
+      showToast(translate("randomTagPoolSettingFailed"), "error");
+    } finally {
+      setRandomTagPoolToggleBusy(false);
+    }
+  }
+
+  async function bootstrap() {
+    initApplication();
+    updateActionButtons();
+    runtimeConfig = await loadStartupConfig();
+    applyUiText();
+    setRandomToggleState(runtimeConfig.randomImageEnabled !== false);
+    setRandomTagPoolToggleState(runtimeConfig.randomTagPoolEnabled === true);
+    setR18ToggleState(runtimeConfig.mode === "r18");
+
+    const hasDefaultImage = await showConfiguredDefaultImage({
+      title: translate("defaultBackgroundTitle"),
+      userName: translate("configuredDefaultImage"),
+    });
+
+    if (!hasDefaultImage && runtimeConfig.randomImageEnabled === false) {
+      binding.containerElement.classList.toggle("notReady", false);
+      warnNoDefaultImageIfNeeded();
+    }
+
+    if (runtimeConfig.randomImageEnabled !== false) {
+      sendRefreshMessage();
+    }
+    console.log("前端脚本已加载");
+  }
+
+  chrome.storage.onChanged.addListener((changes, areaName) => {
+    if (areaName !== "local") {
+      return;
+    }
+    if (changes.randomImageEnabled) {
+      handleStoredRandomImageEnabledChange(
+        changes.randomImageEnabled.newValue !== false,
+      );
+    }
+    if (changes.randomTagPoolEnabled) {
+      handleStoredRandomTagPoolEnabledChange(
+        changes.randomTagPoolEnabled.newValue === true,
+      );
+    }
+    if (changes.mode) {
+      handleStoredModeChange(changes.mode.newValue);
+    }
+    if (
+      changes.defaultImageUrl ||
+      changes.defaultImageSourceType ||
+      changes.defaultImageUploadName
+    ) {
+      refreshRuntimeDefaultImageConfig(changes).catch((error) => {
+        console.error("刷新默认图片配置失败:", error);
+      });
+    }
+    if (changes.likedUserIds || changes.dislikedUserIds) {
+      refreshRuntimeCreatorPreferences(changes);
+    }
+  });
+
+  bootstrap();
 })();

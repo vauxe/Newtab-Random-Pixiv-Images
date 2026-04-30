@@ -12,11 +12,14 @@
   },
   "permissions": [
     "storage",
-    "declarativeNetRequest"
+    "cookies",
+    "tabs",
+    "scripting",
+    "declarativeNetRequest",
+    "declarativeNetRequestWithHostAccess"
   ],
   "host_permissions": [
     "*://*.pixiv.net/*",
     "*://*.pximg.net/*"
-  ],
-  "options_page": "options.html"
+  ]
 }

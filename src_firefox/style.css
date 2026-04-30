@@ -76,6 +76,22 @@ body {
   background-color: rgba(23, 24, 25, 1);
 }
 
+#settingsButton {
+  display: inline-block;
+  border-radius: 100%;
+  width: 18px;
+  height: 18px;
+  margin-top: 16px;
+  margin-left: 5px;
+  vertical-align: top;
+  cursor: pointer;
+  transition: background-color 0.5s;
+}
+
+#settingsButton:hover {
+  background-color: rgba(23, 24, 25, 1);
+}
+
 #refreshButton.pressed {
   animation-name: beginRotation;
   animation-fill-mode: forwards;
@@ -162,4 +178,167 @@ body {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
+}
+
+/* Like / Dislike buttons */
+#likeButton,
+#dislikeButton {
+  display: inline-block;
+  border-radius: 100%;
+  width: 18px;
+  height: 18px;
+  margin-top: 16px;
+  margin-left: 5px;
+  vertical-align: top;
+  cursor: pointer;
+  transition: background-color 0.3s, transform 0.15s;
+}
+
+#likeButton:hover {
+  background-color: rgba(255, 80, 100, 0.7);
+  transform: scale(1.15);
+}
+
+#likeButton.liked svg {
+  fill: #ff4081;
+}
+
+#dislikeButton:hover {
+  background-color: rgba(255, 152, 0, 0.5);
+  transform: scale(1.15);
+}
+
+/* Tag Popup */
+.tag-popup {
+  position: fixed;
+  bottom: 96px;
+  right: 8px;
+  width: 320px;
+  max-height: 300px;
+  background: rgba(20, 20, 30, 0.95);
+  backdrop-filter: blur(12px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.5);
+  z-index: 1000;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  animation: popupIn 0.2s ease;
+}
+
+.tag-popup.hidden {
+  display: none;
+}
+
+@keyframes popupIn {
+  from {
+    opacity: 0;
+    transform: translateY(10px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.tag-popup-header {
+  padding: 10px 14px;
+  font-size: 12px;
+  color: #aaa;
+  border-bottom: 1px solid rgba(255, 255, 255, 0.06);
+  font-family: 'Segoe UI', Arial, sans-serif;
+}
+
+.tag-list {
+  flex: 1;
+  overflow-y: auto;
+  padding: 8px 10px;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  align-content: flex-start;
+}
+
+.tag-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  padding: 4px 10px;
+  border-radius: 16px;
+  font-size: 12px;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: rgba(108, 99, 255, 0.12);
+  border: 1px solid rgba(108, 99, 255, 0.3);
+  color: #b8b0ff;
+  cursor: pointer;
+  transition: all 0.2s;
+  white-space: nowrap;
+}
+
+.tag-chip:hover {
+  background: rgba(244, 67, 54, 0.2);
+  border-color: rgba(244, 67, 54, 0.5);
+  color: #ef9a9a;
+}
+
+.tag-chip .tag-translation {
+  color: #888;
+  font-size: 10px;
+}
+
+.tag-popup-footer {
+  padding: 8px 10px;
+  border-top: 1px solid rgba(255, 255, 255, 0.06);
+  text-align: right;
+}
+
+.tag-popup-btn {
+  padding: 4px 14px;
+  border-radius: 6px;
+  font-size: 12px;
+  background: rgba(255, 255, 255, 0.06);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  color: #ccc;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+
+.tag-popup-btn:hover {
+  background: rgba(255, 255, 255, 0.12);
+  color: #fff;
+}
+
+/* Toast */
+.toast {
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%) translateY(20px);
+  padding: 8px 20px;
+  border-radius: 8px;
+  font-size: 13px;
+  font-family: 'Segoe UI', Arial, sans-serif;
+  background: rgba(20, 20, 30, 0.9);
+  color: #fff;
+  backdrop-filter: blur(8px);
+  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.3s, transform 0.3s;
+  z-index: 2000;
+}
+
+.toast.show {
+  opacity: 1;
+  transform: translateX(-50%) translateY(0);
+}
+
+.toast.toast-success {
+  border-left: 3px solid #4caf50;
+}
+
+.toast.toast-error {
+  border-left: 3px solid #f44336;
 }
